@@ -148,28 +148,12 @@ struct AZDropdownPicker<Option: Hashable & Identifiable, Label: View>: View {
 
     var body: some View {
         collapsedButton
-            .popover(
+            .azDropdownPopover(
                 isPresented: $isExpanded,
-                attachmentAnchor: .rect(.bounds),
-                arrowEdge: popupOpensUpward ? .bottom : .top
+                anchorFrame: $buttonFrame,
+                backgroundColor: style.optionBackground
             ) {
                 popoverContent
-                    .presentationCompactAdaptation(.popover)
-                    .presentationBackground(style.optionBackground)
-                    // popoverの不透明背景を使い、内側パネルの角欠けを避ける
-                    .padding(6)
-            }
-            .background {
-                GeometryReader { proxy in
-                    Color.clear
-                        .onAppear {
-                            // 表示位置を測って、上下の広い側へ吹き出す
-                            buttonFrame = proxy.frame(in: .global)
-                        }
-                        .onChange(of: proxy.frame(in: .global)) { _, newValue in
-                            buttonFrame = newValue
-                        }
-                }
             }
             .zIndex(isExpanded ? 100 : 0)
     }
@@ -203,20 +187,13 @@ struct AZDropdownPicker<Option: Hashable & Identifiable, Label: View>: View {
     }
 
     private var popupOpensUpward: Bool {
-        if buttonFrame == .zero {
-            return true
-        }
-        let upperSpace = buttonFrame.minY
-        let lowerSpace = UIScreen.main.bounds.height - buttonFrame.maxY
-        return lowerSpace < upperSpace
+        AZDropdownPopoverMetrics.opensUpward(anchorFrame: buttonFrame)
     }
 
     private var popupMaxHeight: CGFloat {
         let margin: CGFloat = 20
         let minimumHeight: CGFloat = 120
-        let upperSpace = max(minimumHeight, buttonFrame.minY - margin)
-        let lowerSpace = max(minimumHeight, UIScreen.main.bounds.height - buttonFrame.maxY - margin)
-        return popupOpensUpward ? upperSpace : lowerSpace
+        return AZDropdownPopoverMetrics.maxHeight(anchorFrame: buttonFrame, margin: margin, minimumHeight: minimumHeight)
     }
 
     private var optionPanelWidth: CGFloat {
@@ -317,19 +294,107 @@ struct AZDropdownPicker<Option: Hashable & Identifiable, Label: View>: View {
                 isExpanded = false
             }
         } label: {
-            optionLabel(option, isSelected: isSelected)
+            AZDropdownOptionButton(
+                isSelected: isSelected,
+                minWidth: optionPanelWidth,
+                style: style
+            ) {
+                label(option)
+            }
         }
         .buttonStyle(.plain)
     }
+}
 
-    private func optionLabel(_ option: Option, isSelected: Bool) -> some View {
-        label(option)
+enum AZDropdownPopoverMetrics {
+    static func opensUpward(anchorFrame: CGRect) -> Bool {
+        if anchorFrame == .zero {
+            return true
+        }
+        let upperSpace = anchorFrame.minY
+        let lowerSpace = UIScreen.main.bounds.height - anchorFrame.maxY
+        return lowerSpace < upperSpace
+    }
+
+    static func maxHeight(
+        anchorFrame: CGRect,
+        margin: CGFloat = 20,
+        minimumHeight: CGFloat = 120
+    ) -> CGFloat {
+        let upperSpace = max(minimumHeight, anchorFrame.minY - margin)
+        let lowerSpace = max(minimumHeight, UIScreen.main.bounds.height - anchorFrame.maxY - margin)
+        return opensUpward(anchorFrame: anchorFrame) ? upperSpace : lowerSpace
+    }
+}
+
+struct AZDropdownPopoverModifier<PopoverContent: View>: ViewModifier {
+    @Binding var isPresented: Bool
+    @Binding var anchorFrame: CGRect
+    var backgroundColor: Color
+    @ViewBuilder let popoverContent: () -> PopoverContent
+
+    func body(content: Content) -> some View {
+        content
+            .popover(
+                isPresented: $isPresented,
+                attachmentAnchor: .rect(.bounds),
+                arrowEdge: AZDropdownPopoverMetrics.opensUpward(anchorFrame: anchorFrame) ? .bottom : .top
+            ) {
+                popoverContent()
+                    .presentationCompactAdaptation(.popover)
+                    .presentationBackground(backgroundColor)
+                    // popoverの不透明背景を使い、内側パネルの角欠けを避ける
+                    .padding(6)
+            }
+            .background {
+                GeometryReader { proxy in
+                    Color.clear
+                        .onAppear {
+                            // 表示位置を測って、上下の広い側へ吹き出す
+                            anchorFrame = proxy.frame(in: .global)
+                        }
+                        .onChange(of: proxy.frame(in: .global)) { _, newValue in
+                            anchorFrame = newValue
+                        }
+                }
+            }
+    }
+}
+
+extension View {
+    func azDropdownPopover<PopoverContent: View>(
+        isPresented: Binding<Bool>,
+        anchorFrame: Binding<CGRect>,
+        backgroundColor: Color = Color(.systemBackground),
+        @ViewBuilder content: @escaping () -> PopoverContent
+    ) -> some View {
+        modifier(
+            AZDropdownPopoverModifier(
+                isPresented: isPresented,
+                anchorFrame: anchorFrame,
+                backgroundColor: backgroundColor,
+                popoverContent: content
+            )
+        )
+    }
+}
+
+struct AZDropdownOptionButton<Label: View>: View {
+    let isSelected: Bool
+    var minWidth: CGFloat
+    var lineLimit: Int? = nil
+    var style: AZPickerStyle = .form
+    @ViewBuilder let label: () -> Label
+
+    var body: some View {
+        label()
             .font(.subheadline.weight(isSelected ? .semibold : .regular))
             .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
             .azPickerTextFit(style.dropdownTextFitMode, alignment: style.dropdownOptionTextAlignment)
+            .lineLimit(lineLimit)
             .padding(.horizontal, style.dropdownOptionHorizontalPadding)
             .padding(.vertical, style.dropdownOptionVerticalPadding)
-            .frame(minWidth: optionPanelWidth, maxWidth: .infinity, alignment: style.dropdownOptionAlignment)
+            .frame(minWidth: minWidth, maxWidth: .infinity, alignment: style.dropdownOptionAlignment)
             .background(
                 RoundedRectangle(cornerRadius: style.cornerRadius, style: .continuous)
                     .fill(isSelected ? Color.accentColor.opacity(style.selectedBackgroundOpacity) : style.optionBackground)

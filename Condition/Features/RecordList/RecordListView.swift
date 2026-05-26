@@ -561,6 +561,10 @@ struct RecordRowView: View {
         let notes = [record.sNote1, record.sNote2]
             .compactMap { $0.components(separatedBy: .newlines).first(where: { !$0.isEmpty }) }
             .joined(separator: "  ")
+        let equipment = record.sEquipment
+            .components(separatedBy: .newlines)
+            .first(where: { !$0.isEmpty }) ?? ""
+        let hasMemoLine = !notes.isEmpty || !equipment.isEmpty
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 0) {
                 // 日付＋区分
@@ -620,7 +624,7 @@ struct RecordRowView: View {
                 GeometryReader { proxy in
                     let h = proxy.size.height
                     ScrollView(.horizontal, showsIndicators: false) {
-                        if notes.isEmpty {
+                        if !hasMemoLine {
                             // メモなし：値を全高でセンター配置
                             HStack(spacing: 4) {
                                 ForEach(Array(visibleKinds.enumerated()), id: \.element.id) { idx, kind in
@@ -637,10 +641,21 @@ struct RecordRowView: View {
                                         kindValueItems(kind, isFirst: idx == 0, cellH: nil)
                                     }
                                 }
-                                Text(notes)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
+                                HStack(spacing: 8) {
+                                    if !equipment.isEmpty {
+                                        // 測定場所・機器は横スクロールで全文を見せる
+                                        Text(equipment)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .fixedSize(horizontal: true, vertical: false)
+                                    }
+                                    if !notes.isEmpty {
+                                        Text(notes)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .fixedSize(horizontal: true, vertical: false)
+                                    }
+                                }
                             }
                             .padding(.leading, 4)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)

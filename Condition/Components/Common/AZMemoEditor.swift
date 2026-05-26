@@ -34,6 +34,8 @@ struct AZMemoEditor: View {
     @Binding var text: String
     @FocusState.Binding var isFocused: Bool
     var minHeight: CGFloat = 36
+    var dismissOnReturn: Bool = false
+    var onBeginEditing: (() -> Void)?
     @State private var editorHeight: CGFloat = 36
 
     var body: some View {
@@ -51,6 +53,8 @@ struct AZMemoEditor: View {
                 text: $text,
                 isFocused: $isFocused,
                 minHeight: minHeight,
+                dismissOnReturn: dismissOnReturn,
+                onBeginEditing: onBeginEditing,
                 measuredHeight: $editorHeight
             )
             .frame(height: editorHeight)
@@ -63,6 +67,8 @@ private struct AZAutoSizingTextView: UIViewRepresentable {
     @Binding var text: String
     var isFocused: FocusState<Bool>.Binding
     let minHeight: CGFloat
+    let dismissOnReturn: Bool
+    let onBeginEditing: (() -> Void)?
     @Binding var measuredHeight: CGFloat
 
     func makeCoordinator() -> Coordinator {
@@ -116,8 +122,22 @@ private struct AZAutoSizingTextView: UIViewRepresentable {
             updateHeight(textView)
         }
 
+        func textView(
+            _ textView: UITextView,
+            shouldChangeTextIn range: NSRange,
+            replacementText text: String
+        ) -> Bool {
+            if parent.dismissOnReturn && text == "\n" {
+                textView.resignFirstResponder()
+                parent.isFocused.wrappedValue = false
+                return false
+            }
+            return true
+        }
+
         func textViewDidBeginEditing(_ textView: UITextView) {
             parent.isFocused.wrappedValue = true
+            parent.onBeginEditing?()
         }
 
         func textViewDidEndEditing(_ textView: UITextView) {

@@ -16,16 +16,28 @@ private enum MeasurementAverageField: Hashable {
     case skMuscle
 }
 
+private struct EquipmentHistoryOption: Hashable, Identifiable {
+    let id: String
+}
+
 struct RecordEditView: View {
 
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Query(
+        filter: #Predicate<BodyRecord> { $0.dateTime < bodyRecordGoalDate },
+        sort: \BodyRecord.dateTime,
+        order: .reverse
+    )
+    private var recordsForEquipmentHistory: [BodyRecord]
 
     @State private var vm: RecordEditViewModel
     @State private var showDatePicker = false
     @State private var showDeleteAlert = false
     @State private var conflictData: RecentConflict? = nil
     @State private var isDateOptExpanded = false
+    @State private var showEquipmentHistory = false
+    @State private var equipmentFrame: CGRect = .zero
     @State private var measurementSamples: [MeasurementAverageField: [Int]] = [:]
     @FocusState private var focusNote1: Bool
     @FocusState private var focusNote2: Bool
@@ -59,6 +71,24 @@ struct RecordEditView: View {
         case .edit:      return "record.edit.title"
         case .goalEdit:  return "goal.values"
         }
+    }
+
+    private var equipmentHistoryOptions: [EquipmentHistoryOption] {
+        let presets = ["自宅", "病院", "ジム"]
+        var values: [String] = []
+        var seen: Set<String> = []
+        for value in recordsForEquipmentHistory.map(\.sEquipment) + presets {
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty || seen.contains(trimmed) {
+                continue
+            }
+            seen.insert(trimmed)
+            values.append(trimmed)
+            if 10 <= values.count {
+                break
+            }
+        }
+        return values.map { EquipmentHistoryOption(id: $0) }
     }
 
     private let onHKImported: ((Int) -> Void)?
@@ -102,8 +132,21 @@ struct RecordEditView: View {
                             .id(note1AnchorID)
                         AZMemoEditor(placeholder: "record.memo2", text: $vm.sNote2, isFocused: $focusNote2)
                             .id(note2AnchorID)
-                        AZMemoEditor(placeholder: "record.device", text: $vm.sEquipment, isFocused: $focusEquipment)
+                        AZMemoEditor(
+                            placeholder: "record.device",
+                            text: $vm.sEquipment,
+                            isFocused: $focusEquipment,
+                            dismissOnReturn: true,
+                            onBeginEditing: { showEquipmentHistory = !equipmentHistoryOptions.isEmpty }
+                        )
                             .id(equipmentAnchorID)
+                            .azDropdownPopover(
+                                isPresented: $showEquipmentHistory,
+                                anchorFrame: $equipmentFrame,
+                                backgroundColor: Color(.systemBackground)
+                            ) {
+                                equipmentHistoryMenu
+                            }
                         Toggle(isOn: $vm.bCaution) {
                             HStack(spacing: 6) {
                                 if vm.bCaution {
@@ -146,7 +189,10 @@ struct RecordEditView: View {
                 .onChange(of: vm.sEquipment) { _, _ in scrollFocusedMemoIntoView(proxy) }
                 .onChange(of: focusNote1) { _, isFocused in if isFocused { scrollMemoIntoView(note1AnchorID, proxy: proxy) } }
                 .onChange(of: focusNote2) { _, isFocused in if isFocused { scrollMemoIntoView(note2AnchorID, proxy: proxy) } }
-                .onChange(of: focusEquipment) { _, isFocused in if isFocused { scrollMemoIntoView(equipmentAnchorID, proxy: proxy) } }
+                .onChange(of: focusEquipment) { _, isFocused in
+                    showEquipmentHistory = isFocused && !equipmentHistoryOptions.isEmpty
+                    if isFocused { scrollMemoIntoView(equipmentAnchorID, proxy: proxy) }
+                }
                 .safeAreaInset(edge: .bottom) {
                     if isMemoFocused {
                         // キーボード上へ入力行を逃がすため、フォーカス中だけ下端余白を追加する
@@ -356,6 +402,58 @@ struct RecordEditView: View {
                 Text(LocalizedStringKey(opt.label))
             }
         }
+    }
+
+    private var equipmentHistoryMenu: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 3) {
+                ForEach(equipmentHistoryOptions) { option in
+                    Button {
+                        vm.sEquipment = option.id
+                        focusEquipment = false
+                        showEquipmentHistory = false
+                        dismissKeyboard()
+                    } label: {
+                        AZDropdownOptionButton(
+                            isSelected: option.id == vm.sEquipment,
+                            minWidth: max(220, equipmentFrame.width),
+                            lineLimit: 1,
+                            style: equipmentHistoryStyle
+                        ) {
+                            Text(option.id)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .frame(minWidth: max(220, equipmentFrame.width), alignment: .leading)
+        }
+        .scrollIndicators(.hidden)
+        .frame(height: equipmentHistoryPopoverHeight)
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+        .padding(8)
+        .shadow(color: Color.black.opacity(0.10), radius: 5, x: 0, y: 2)
+    }
+
+    private var equipmentHistoryPopoverHeight: CGFloat {
+        let rowHeight: CGFloat = 42
+        let rowSpacing: CGFloat = 3
+        let verticalPadding: CGFloat = 16
+        let count = min(equipmentHistoryOptions.count, 10)
+        return CGFloat(count) * rowHeight + CGFloat(max(count - 1, 0)) * rowSpacing + verticalPadding
+    }
+
+    private var equipmentHistoryStyle: AZPickerStyle {
+        AZPickerStyle.form.dropdownTextFitMode(.scale(minimumScaleFactor: 1))
+    }
+
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder),
+            to: nil,
+            from: nil,
+            for: nil
+        )
     }
 
     // MARK: - ダイアル行
