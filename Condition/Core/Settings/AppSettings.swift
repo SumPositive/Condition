@@ -281,7 +281,7 @@ final class AppSettings {
 
     // MARK: - 記録をまとめる（衝突検出設定）
     /// 直前記録との衝突を検出する時間しきい値（分）。0=しない
-    var mergeWindowMinutes: Int = 10 {
+    var mergeWindowMinutes: Int = 0 {
         didSet { ud.set(mergeWindowMinutes, forKey: UDefKeys.mergeWindowMinutes) }
     }
     /// 衝突解決の初期選択 (ConflictAction.rawValue)
