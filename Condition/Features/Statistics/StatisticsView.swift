@@ -50,7 +50,7 @@ struct StatisticsView: View {
             cutoffDate: cutoffDate,
             expandCutoffIfNeeded: expandCutoffIfNeeded(days:)
         )
-        // 保存済みの統計期間が長い場合だけ、初回表示後に取得範囲を広げる。
+        // 保存済みの統計期間が長い場合だけ、初回表示後に取得範囲を広げる
         .onAppear {
             expandCutoffIfNeeded(days: currentPeriod.rawValue)
         }
@@ -177,12 +177,21 @@ private struct StatisticsContentView: View {
             VStack(spacing: 0) {
                 BeginnerHelpBanner("help.statistics", storageKey: "helpDismissed.statistics")
                 LazyVStack(spacing: 16) {
-                    Picker("filter.period", selection: periodBinding) {
-                        ForEach(GraphPeriod.allCases, id: \.self) { p in
-                            Text(LocalizedStringKey(p.label)).tag(p)
-                        }
+                    // 対象期間はグラフ画面と同じラジオPickerで揃える
+                    AZRadioPicker(
+                        options: GraphPeriod.allCases,
+                        selection: periodBinding,
+                        minOptionWidth: 0,
+                        maxOptionWidth: 120,
+                        horizontalPadding: 4,
+                        optionSpacing: 4,
+                        groupPadding: 5,
+                        wrapsOptions: false,
+                        fillsWidth: true
+                    ) { p in
+                        Text(LocalizedStringKey(p.label))
                     }
-                    .pickerStyle(.segmented)
+                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                     .padding(.horizontal)
 
                     ForEach(stagedStatSections) { section in
@@ -209,7 +218,7 @@ private struct StatisticsContentView: View {
 
     @MainActor
     private func revealCharts(total: Int) async {
-        // 初回は上部に見える分だけ作り、その後に残りを小分けで作る。
+        // 初回は上部に見える分だけ作り、その後に残りを小分けで作る
         stagedChartCount = min(Self.initialChartCount, total)
         while stagedChartCount < total {
             try? await Task.sleep(for: .milliseconds(Self.chartBatchDelayMS))

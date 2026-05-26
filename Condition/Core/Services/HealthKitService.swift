@@ -9,13 +9,23 @@ private let logger = Logger(subsystem: "com.azukid.AzBodyNote", category: "Healt
 
 // MARK: - 連携方向
 
-enum HKSyncDirection: Int, CaseIterable {
+enum HKSyncDirection: Int, CaseIterable, Identifiable {
     case writeOnly = 0  // アプリ → HealthKit
     case readOnly  = 1  // HealthKit → アプリ
     case both      = 2  // 双方向
 
+    var id: Int { rawValue }
+
     var canWrite: Bool { self == .writeOnly || self == .both }
     var canRead:  Bool { self == .readOnly  || self == .both }
+
+    var titleKey: String {
+        switch self {
+        case .writeOnly: return "health.direction.writeOnly"
+        case .readOnly:  return "health.direction.readOnly"
+        case .both:      return "health.direction.both"
+        }
+    }
 }
 
 // MARK: - データ転送用構造体
@@ -51,7 +61,7 @@ final class HealthKitService {
     var needsAutoImport: Bool = false
     /// タイムアウトが発生したときに true になるフラグ（アラート表示用）
     var importTimedOut: Bool = false
-    /// 自動インポート済み時刻。画面表示にも使うため、変更時に UserDefaults へ保存する。
+    /// 自動インポート済み時刻画面表示にも使うため、変更時に UserDefaults へ保存する
     var lastAutoImportAt: Date? = UserDefaults.standard.object(forKey: UDefKeys.hkLastAutoImportAt) as? Date {
         didSet {
             if let lastAutoImportAt {
@@ -199,7 +209,7 @@ final class HealthKitService {
     // MARK: - 読み込み
 
     /// 指定日時より前の最新サンプルを取得
-    /// - Parameter hiddenFields: 非表示フィールドの GraphKind.rawValue 集合。含まれる種別は取得をスキップする。
+    /// - Parameter hiddenFields: 非表示フィールドの GraphKind.rawValue 集合含まれる種別は取得をスキップする
     func readLatest(before date: Date, hiddenFields: Set<Int> = []) async -> HealthKitValues {
         guard isAvailable else { return HealthKitValues(date: date) }
 
@@ -318,8 +328,8 @@ final class HealthKitService {
     // MARK: - 期間一括読み込み
 
     /// 指定期間の全サンプルを返す（分単位でグループ化）
-    /// 10秒以内に完了しない場合は空配列を返し importTimedOut を true にする。
-    /// - Parameter hiddenFields: 非表示フィールドの GraphKind.rawValue 集合。含まれる種別は取得をスキップする。
+    /// 10秒以内に完了しない場合は空配列を返し importTimedOut を true にする
+    /// - Parameter hiddenFields: 非表示フィールドの GraphKind.rawValue 集合含まれる種別は取得をスキップする
     func readSamples(from startDate: Date, to endDate: Date, hiddenFields: Set<Int> = []) async -> [HealthKitValues] {
         guard isAvailable else {
             logger.error("readSamples: HealthKit 利用不可")

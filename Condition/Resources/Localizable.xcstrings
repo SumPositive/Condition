@@ -4586,6 +4586,7 @@
       }
     },
     "settings.merge.5min" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4602,6 +4603,7 @@
       }
     },
     "settings.merge.10min" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4618,6 +4620,7 @@
       }
     },
     "settings.merge.15min" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4634,6 +4637,7 @@
       }
     },
     "settings.merge.30min" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4650,7 +4654,6 @@
       }
     },
     "settings.merge.defaultAction" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4667,6 +4670,7 @@
       }
     },
     "settings.merge.off" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {

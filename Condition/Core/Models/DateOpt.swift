@@ -4,13 +4,15 @@
 import Foundation
 import SwiftUI
 
-enum DateOpt: Int, CaseIterable, Codable {
+enum DateOpt: Int, CaseIterable, Codable, Identifiable {
     case wake        = 0  // 起床時
     case rest        = 1  // 安静時
     case down        = 2  // 就寝前
     case sleep       = 3  // 就寝時
     case preExercise = 4  // 運動前
     case postExercise = 5 // 運動後
+
+    var id: Int { rawValue }
 
     var label: String {
         switch self {

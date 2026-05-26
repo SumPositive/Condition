@@ -218,7 +218,7 @@ struct RecordListView: View {
         let now = Date()
         let recentStart = cal.date(byAdding: .day, value: -15, to: now) ?? now.addingTimeInterval(-15 * 24 * 3600)
         let oneYearAgo = cal.date(byAdding: .year, value: -1, to: now) ?? now.addingTimeInterval(-365 * 24 * 3600)
-        // 初回または同期時刻クリア後は過去1年、通常復帰では直近15日だけ確認する。
+        // 初回または同期時刻クリア後は過去1年、通常復帰では直近15日だけ確認する
         let isMinimalImport = hkService.lastAutoImportAt != nil
         let importStart = isMinimalImport ? recentStart : oneYearAgo
 
@@ -306,7 +306,7 @@ struct HKProgressView: View {
             ProgressView()
                 .tint(.white)
                 .scaleEffect(1.2)
-            // HealthKitService は進捗メッセージをローカライズキーで保持する。
+            // HealthKitService は進捗メッセージをローカライズキーで保持する
             Text(LocalizedStringKey(message))
                 .font(.callout.weight(.medium))
                 .foregroundStyle(.white)
@@ -724,12 +724,21 @@ private enum ExportFormat: String, CaseIterable, Identifiable {
     }
 }
 
+private struct ExportSortOption: Hashable, Identifiable {
+    let id: Bool
+    let titleKey: String
+}
+
 private struct ExportSheetView: View {
     let records: [BodyRecord]
     let visibleKinds: [GraphKind]
     @Environment(\.dismiss) private var dismiss
     private let cal = Calendar.current
     private var settings: AppSettings { AppSettings.shared }
+    private static let sortOptions = [
+        ExportSortOption(id: false, titleKey: "sort.descendingNewest"),
+        ExportSortOption(id: true, titleKey: "sort.ascendingOldest"),
+    ]
 
     @State private var fromDate: Date
     @State private var toDate: Date = Date()
@@ -750,6 +759,16 @@ private struct ExportSheetView: View {
                       .sorted { ascending ? $0.dateTime < $1.dateTime : $0.dateTime > $1.dateTime }
     }
 
+    private var sortSelectionBinding: Binding<ExportSortOption> {
+        Binding(
+            get: {
+                // 保存対象のBool値をAZPicker用の選択肢へ変換する
+                Self.sortOptions.first { $0.id == ascending } ?? Self.sortOptions[0]
+            },
+            set: { ascending = $0.id }
+        )
+    }
+
     var body: some View {
         let content = NavigationStack {
             Form {
@@ -762,16 +781,34 @@ private struct ExportSheetView: View {
                                displayedComponents: .date)
                 }
                 Section("export.format") {
-                    Picker("", selection: $format) {
-                        ForEach(ExportFormat.allCases) { f in
-                            Text(LocalizedStringKey(f.rawValue)).tag(f)
-                        }
+                    // 出力形式は同じ幅のラジオPickerで選ぶ
+                    AZRadioPicker(
+                        options: ExportFormat.allCases,
+                        selection: $format,
+                        minOptionWidth: 0,
+                        maxOptionWidth: 120,
+                        horizontalPadding: 4,
+                        optionSpacing: 4,
+                        groupPadding: 5,
+                        wrapsOptions: false,
+                        fillsWidth: true
+                    ) { f in
+                        Text(LocalizedStringKey(f.rawValue))
                     }
-                    .pickerStyle(.segmented)
                     .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                    Picker("sort.title", selection: $ascending) {
-                        Text("sort.descendingNewest").tag(false)
-                        Text("sort.ascendingOldest").tag(true)
+                    AZAdaptiveRadioRow(
+                        options: Self.sortOptions,
+                        selection: sortSelectionBinding,
+                        minOptionWidth: 0,
+                        maxOptionWidth: 180,
+                        horizontalPadding: 4,
+                        optionSpacing: 4,
+                        groupPadding: 5
+                    ) {
+                        Text("sort.title")
+                            .font(.subheadline)
+                    } label: { option in
+                        Text(LocalizedStringKey(option.titleKey))
                     }
                 }
                 Section {

@@ -15,6 +15,14 @@ struct RecordEditView: View {
     @State private var showDatePicker = false
     @State private var showDeleteAlert = false
     @State private var conflictData: RecentConflict? = nil
+    @State private var isDateOptExpanded = false
+    @FocusState private var focusNote1: Bool
+    @FocusState private var focusNote2: Bool
+    @FocusState private var focusEquipment: Bool
+
+    private let note1AnchorID = "record-note1-anchor"
+    private let note2AnchorID = "record-note2-anchor"
+    private let equipmentAnchorID = "record-equipment-anchor"
 
     private static let dateTimeFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -56,58 +64,75 @@ struct RecordEditView: View {
 
     var body: some View {
         let navContent = NavigationStack {
-            Form {
-                hkImportSection
-                dateSection
-                Section("record.measurements") {
-                    ForEach(orderedRecordFields, id: \.rawValue) { kind in
-                        fieldRow(for: kind)
+            ScrollViewReader { proxy in
+                Form {
+                    hkImportSection
+                    dateSection
+                    Section("record.measurements") {
+                        ForEach(orderedRecordFields, id: \.rawValue) { kind in
+                            fieldRow(for: kind)
+                        }
                     }
-                }
-                healthKitSection
+                    healthKitSection
 
-                // メモセクション
-                Section("record.memo.section") {
-                    noteRow(placeholder: "record.memo1",   text: $vm.sNote1)
-                    noteRow(placeholder: "record.memo2",   text: $vm.sNote2)
-                    noteRow(placeholder: "record.device",  text: $vm.sEquipment)
-                    Toggle(isOn: $vm.bCaution) {
-                        HStack(spacing: 6) {
-                            if vm.bCaution {
-                                Image(systemName: "flag.fill")
-                                    .foregroundStyle(.orange)
+                    // メモセクション
+                    Section("record.memo.section") {
+                        AZMemoEditor(placeholder: "record.memo1", text: $vm.sNote1, isFocused: $focusNote1)
+                            .id(note1AnchorID)
+                        AZMemoEditor(placeholder: "record.memo2", text: $vm.sNote2, isFocused: $focusNote2)
+                            .id(note2AnchorID)
+                        AZMemoEditor(placeholder: "record.device", text: $vm.sEquipment, isFocused: $focusEquipment)
+                            .id(equipmentAnchorID)
+                        Toggle(isOn: $vm.bCaution) {
+                            HStack(spacing: 6) {
+                                if vm.bCaution {
+                                    Image(systemName: "flag.fill")
+                                        .foregroundStyle(.orange)
+                                }
+                                Text("record.cautionFlag")
                             }
-                            Text("record.cautionFlag")
+                        }
+                    }
+
+                    // 削除ボタン（編集時のみ）
+                    if case .edit(let record) = vm.mode {
+                        Section {
+                            Button(role: .destructive) {
+                                showDeleteAlert = true
+                            } label: {
+                                Label(
+                                    "record.delete.button",
+                                    systemImage: "trash"
+                                )
+                                .frame(maxWidth: .infinity)
+                            }
+                        }
+                        .alert(
+                            "record.delete.confirm",
+                            isPresented: $showDeleteAlert
+                        ) {
+                            Button("action.delete", role: .destructive) {
+                                try? vm.delete(record: record, context: context)
+                                dismiss()
+                            }
+                            Button("action.cancel", role: .cancel) {}
                         }
                     }
                 }
-
-                // 削除ボタン（編集時のみ）
-                if case .edit(let record) = vm.mode {
-                    Section {
-                        Button(role: .destructive) {
-                            showDeleteAlert = true
-                        } label: {
-                            Label(
-                                "record.delete.button",
-                                systemImage: "trash"
-                            )
-                            .frame(maxWidth: .infinity)
-                        }
-                    }
-                    .alert(
-                        "record.delete.confirm",
-                        isPresented: $showDeleteAlert
-                    ) {
-                        Button("action.delete", role: .destructive) {
-                            try? vm.delete(record: record, context: context)
-                            dismiss()
-                        }
-                        Button("action.cancel", role: .cancel) {}
+                .scrollDismissesKeyboard(.interactively)
+                .onChange(of: vm.sNote1) { _, _ in scrollFocusedMemoIntoView(proxy) }
+                .onChange(of: vm.sNote2) { _, _ in scrollFocusedMemoIntoView(proxy) }
+                .onChange(of: vm.sEquipment) { _, _ in scrollFocusedMemoIntoView(proxy) }
+                .onChange(of: focusNote1) { _, isFocused in if isFocused { scrollMemoIntoView(note1AnchorID, proxy: proxy) } }
+                .onChange(of: focusNote2) { _, isFocused in if isFocused { scrollMemoIntoView(note2AnchorID, proxy: proxy) } }
+                .onChange(of: focusEquipment) { _, isFocused in if isFocused { scrollMemoIntoView(equipmentAnchorID, proxy: proxy) } }
+                .safeAreaInset(edge: .bottom) {
+                    if isMemoFocused {
+                        // キーボード上へ入力行を逃がすため、フォーカス中だけ下端余白を追加する
+                        Color.clear.frame(height: 180)
                     }
                 }
             }
-            .scrollDismissesKeyboard(.interactively)
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -144,8 +169,8 @@ struct RecordEditView: View {
             // isModified は ViewModel の didSet で管理（View 側 onChange 不要）
             .onChange(of: vm.isModified) { _, newValue in onModifiedChanged?(newValue) }
         }
-        // .sheet で提示されるため、AppのdynamicTypeSize環境値が引き継がれないことがある。
-        // AppSettings から直接フォントスケールを適用して確実に連動させる。
+        // .sheet で提示されるため、AppのdynamicTypeSize環境値が引き継がれないことがある
+        // AppSettings から直接フォントスケールを適用して確実に連動させる
         if settings.fontScale.followsSystem {
             navContent
         } else {
@@ -298,24 +323,17 @@ struct RecordEditView: View {
     }
 
     private var dateOptPicker: some View {
-        Menu {
-            ForEach(DateOpt.allCases, id: \.self) { opt in
-                Button {
-                    vm.dateOpt = opt
-                } label: {
-                    Label(LocalizedStringKey(opt.label), systemImage: opt.icon)
-                }
+        // 区分はメニューではなく共通のドロップダウンPickerで選ぶ
+        AZDropdownPicker(
+            options: DateOpt.allCases,
+            selection: $vm.dateOpt,
+            isExpanded: $isDateOptExpanded,
+            minWidth: 150
+        ) { opt in
+            HStack(spacing: 6) {
+                Image(systemName: opt.icon)
+                Text(LocalizedStringKey(opt.label))
             }
-        } label: {
-            HStack(spacing: 4) {
-                Image(systemName: vm.dateOpt.icon)
-                Text(LocalizedStringKey(vm.dateOpt.label))
-                    .lineLimit(1)
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .foregroundStyle(.tint)
         }
     }
 
@@ -393,20 +411,31 @@ struct RecordEditView: View {
         }
     }
 
-    // MARK: - メモ行
+    // MARK: - メモ行スクロール
 
-    private func noteRow(placeholder: LocalizedStringKey, text: Binding<String>) -> some View {
-        ZStack(alignment: .topLeading) {
-            if text.wrappedValue.isEmpty {
-                Text(placeholder)
-                    .foregroundStyle(Color(.placeholderText))
-                    .padding(.top, 8)
-                    .padding(.leading, 5)
-                    .allowsHitTesting(false)
+    private var isMemoFocused: Bool {
+        focusNote1 || focusNote2 || focusEquipment
+    }
+
+    private func scrollFocusedMemoIntoView(_ proxy: ScrollViewProxy) {
+        if focusNote1 {
+            scrollMemoIntoView(note1AnchorID, proxy: proxy)
+        } else if focusNote2 {
+            scrollMemoIntoView(note2AnchorID, proxy: proxy)
+        } else if focusEquipment {
+            scrollMemoIntoView(equipmentAnchorID, proxy: proxy)
+        }
+    }
+
+    private func scrollMemoIntoView(_ anchorID: String, proxy: ScrollViewProxy) {
+        // キーボード表示中もメモ欄の入力行が隠れないよう、少し遅らせて下端へ寄せる
+        for delay in [0.05, 0.22] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                guard isMemoFocused else { return }
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    proxy.scrollTo(anchorID, anchor: .bottom)
+                }
             }
-            TextEditor(text: text)
-                .scrollDisabled(true)
-                .frame(minHeight: 36)
         }
     }
 
@@ -429,9 +458,9 @@ struct RecordEditView: View {
     private func handleConflictAction(_ action: ConflictAction, previous: BodyRecord) {
         do {
             try vm.resolveConflict(action, previous: previous, context: context)
-            // RecordEditView を閉じれば上の衝突シートも SwiftUI が自動で閉じる。
+            // RecordEditView を閉じれば上の衝突シートも SwiftUI が自動で閉じる
             // 手動で conflictData = nil と dismiss() を併用すると二重 dismiss となり、
-            // 親シートの isPresented バインディングが false に戻らず再表示できなくなる。
+            // 親シートの isPresented バインディングが false に戻らず再表示できなくなる
             dismiss()
         } catch {
             vm.errorMessage = error.localizedDescription

@@ -70,7 +70,7 @@ struct ConflictItem: Identifiable {
     let field: ConflictField
     let prevValue: Int   // 0 = 直前に値なし
     let newValue: Int    // 0 = 新規に値なし（どちらか必ず > 0）
-    /// 平均は両方に値があるときのみ計算可能。片方のみなら 0（「—」表示）
+    /// 平均は両方に値があるときのみ計算可能片方のみなら 0（「—」表示）
     var avgValue: Int {
         (prevValue > 0 && newValue > 0) ? (prevValue + newValue) / 2 : 0
     }
@@ -85,11 +85,13 @@ struct RecentConflict: Identifiable {
     let items: [ConflictItem]
 }
 
-enum ConflictAction: Int, Hashable, CaseIterable {
+enum ConflictAction: Int, Hashable, CaseIterable, Identifiable {
     case keepBoth     = 0   // 両方残す：通常通り新規挿入
     case keepPrevious = 1   // 直前値：新しい記録を保存しない
     case useNew       = 2   // 新しい値：直前を新しい値で上書き
     case useAverage   = 3   // 平均値：直前を平均値で上書き
+
+    var id: Int { rawValue }
 
     var labelKey: LocalizedStringKey {
         switch self {
@@ -129,7 +131,7 @@ struct RecentConflictSheet: View {
     private var highlightNew:     Bool { selection == .useNew        || selection == .keepBoth }
     private var highlightAverage: Bool { selection == .useAverage }
 
-    /// 各セルのハイライト（実際に保存される値を示す。fallback も反映）
+    /// 各セルのハイライト（実際に保存される値を示すfallback も反映）
     private func cellHighlightPrev(_ item: ConflictItem) -> Bool {
         switch selection {
         case .keepPrevious: return item.hasPrev                    // 直前あり（なければ new へフォールバック）
@@ -311,7 +313,7 @@ struct RecentConflictSheet: View {
     }
 
     /// 値セル（タップで選択切替、文字サイズ通り）
-    /// value == 0 のときは「—」を表示する（タップ可、ハイライト可）。
+    /// value == 0 のときは「—」を表示する（タップ可、ハイライト可）
     private func gridValue(_ value: Int, field: ConflictField, lifted: Bool, action: @escaping () -> Void) -> some View {
         let hasValue = value > 0
         return Button(action: action) {
@@ -370,4 +372,3 @@ private struct SelectorButton: View {
         .buttonStyle(.plain)
     }
 }
-

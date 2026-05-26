@@ -31,6 +31,11 @@ private enum RecordJSONExportStyle: Int, CaseIterable, Identifiable {
     }
 }
 
+private struct SettingsPickerOption: Hashable, Identifiable {
+    let id: Int
+    let titleKey: String
+}
+
 struct SettingsView: View {
 
     @Environment(\.modelContext) private var context
@@ -46,6 +51,16 @@ struct SettingsView: View {
     @State private var isWorking = false
     @State private var progressMessage = ""
     @State private var progressHint = ""
+    @State private var isMergeWindowExpanded = false
+    @State private var isMergeDefaultActionExpanded = false
+
+    private static let mergeWindowOptions = [
+        SettingsPickerOption(id: 0, titleKey: "settings.merge.off"),
+        SettingsPickerOption(id: 5, titleKey: "settings.merge.5min"),
+        SettingsPickerOption(id: 10, titleKey: "settings.merge.10min"),
+        SettingsPickerOption(id: 15, titleKey: "settings.merge.15min"),
+        SettingsPickerOption(id: 30, titleKey: "settings.merge.30min"),
+    ]
 
     private var aboutURL: URL {
         let isJapanese = Locale.preferredLanguages.first?.hasPrefix("ja") ?? false
@@ -60,7 +75,7 @@ struct SettingsView: View {
     }
 
     private var webFontScaleValue: String {
-        // Web側のCSSで扱いやすい3段階へ変換する。
+        // Web側のCSSで扱いやすい3段階へ変換する
         switch settings.fontScale {
         case .standard:
             return "standard"
@@ -74,7 +89,7 @@ struct SettingsView: View {
     }
 
     private var currentSystemWebFontScaleValue: String {
-        // 自動設定では現在のiOS文字サイズをWeb用の3段階へ丸める。
+        // 自動設定では現在のiOS文字サイズをWeb用の3段階へ丸める
         switch UIApplication.shared.preferredContentSizeCategory {
         case .extraSmall, .small, .medium, .large:
             return "standard"
@@ -89,6 +104,36 @@ struct SettingsView: View {
         RecordJSONExportStyle(rawValue: exportFormatRaw) ?? .compact
     }
 
+    private var mergeWindowBinding: Binding<SettingsPickerOption> {
+        Binding(
+            get: {
+                // 保存値をAZPicker用の選択肢へ変換する
+                Self.mergeWindowOptions.first { $0.id == settings.mergeWindowMinutes } ?? Self.mergeWindowOptions[2]
+            },
+            set: { settings.mergeWindowMinutes = $0.id }
+        )
+    }
+
+    private var mergeDefaultActionBinding: Binding<ConflictAction> {
+        Binding(
+            get: {
+                // 保存値をConflictActionへ戻して選択状態を作る
+                ConflictAction(rawValue: settings.mergeDefaultAction) ?? .useAverage
+            },
+            set: { settings.mergeDefaultAction = $0.rawValue }
+        )
+    }
+
+    private var exportFormatBinding: Binding<RecordJSONExportStyle> {
+        Binding(
+            get: {
+                // AppStorageの整数値を出力形式へ戻す
+                RecordJSONExportStyle(rawValue: exportFormatRaw) ?? .compact
+            },
+            set: { exportFormatRaw = $0.rawValue }
+        )
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -98,12 +143,20 @@ struct SettingsView: View {
                         HStack(spacing: 8) {
                             Text("settings.userLevel")
                                 .font(.subheadline)
-                            Picker("settings.userLevel", selection: $settings.userLevel) {
-                                ForEach(AppUserLevel.allCases) { level in
-                                    Text(LocalizedStringKey(level.titleKey)).tag(level)
-                                }
+                            // ユーザレベルはDynamic Typeに強いラジオPickerで選ぶ
+                            AZRadioPicker(
+                                options: AppUserLevel.allCases,
+                                selection: $settings.userLevel,
+                                minOptionWidth: 0,
+                                maxOptionWidth: 120,
+                                horizontalPadding: 4,
+                                optionSpacing: 4,
+                                groupPadding: 5,
+                                wrapsOptions: false,
+                                fillsWidth: true
+                            ) { level in
+                                Text(LocalizedStringKey(level.titleKey))
                             }
-                            .pickerStyle(.segmented)
                         }
                         if settings.userLevel == .beginner {
                             Text("settings.help.userLevel")
@@ -116,24 +169,40 @@ struct SettingsView: View {
                     HStack(spacing: 8) {
                         Text("appearance.mode")
                             .font(.subheadline)
-                        Picker("appearance.mode", selection: $settings.appearanceMode) {
-                            ForEach(AppAppearanceMode.allCases) { mode in
-                                Text(LocalizedStringKey(mode.titleKey)).tag(mode)
-                            }
+                        // 外観モードも同じラジオPickerで揃える
+                        AZRadioPicker(
+                            options: AppAppearanceMode.allCases,
+                            selection: $settings.appearanceMode,
+                            minOptionWidth: 0,
+                            maxOptionWidth: 120,
+                            horizontalPadding: 4,
+                            optionSpacing: 4,
+                            groupPadding: 5,
+                            wrapsOptions: false,
+                            fillsWidth: true
+                        ) { mode in
+                            Text(LocalizedStringKey(mode.titleKey))
                         }
-                        .pickerStyle(.segmented)
                     }
 
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(spacing: 8) {
                             Text("settings.fontScale")
                                 .font(.subheadline)
-                            Picker("settings.fontScale", selection: $settings.fontScale) {
-                                ForEach(AppFontScale.allCases) { scale in
-                                    Text(LocalizedStringKey(scale.titleKey)).tag(scale)
-                                }
+                            // 文字サイズは選択肢が欠けないようラジオPickerで表示する
+                            AZRadioPicker(
+                                options: AppFontScale.allCases,
+                                selection: $settings.fontScale,
+                                minOptionWidth: 0,
+                                maxOptionWidth: 120,
+                                horizontalPadding: 4,
+                                optionSpacing: 4,
+                                groupPadding: 5,
+                                wrapsOptions: false,
+                                fillsWidth: true
+                            ) { scale in
+                                Text(LocalizedStringKey(scale.titleKey))
                             }
-                            .pickerStyle(.segmented)
                         }
                         if settings.userLevel == .beginner {
                             Text("settings.help.fontScale")
@@ -194,7 +263,7 @@ struct SettingsView: View {
                                 }
 
                                 if settings.userLevel == .beginner {
-                                    // 初心者向けに、削除が連携されない点を明示する。
+                                    // 初心者向けに、削除が連携されない点を明示する
                                     Text("health.integrationHelp")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
@@ -206,18 +275,36 @@ struct SettingsView: View {
 
                     // 記録をまとめる（衝突検出）
                     VStack(alignment: .leading, spacing: 8) {
-                        Picker("settings.merge.window", selection: $settings.mergeWindowMinutes) {
-                            Text("settings.merge.off").tag(0)
-                            Text("settings.merge.5min").tag(5)
-                            Text("settings.merge.10min").tag(10)
-                            Text("settings.merge.15min").tag(15)
-                            Text("settings.merge.30min").tag(30)
-                        }
-                        Picker("settings.merge.defaultAction", selection: $settings.mergeDefaultAction) {
-                            ForEach(ConflictAction.allCases, id: \.rawValue) { act in
-                                Text(act.labelKey).tag(act.rawValue)
+                        AZAdaptiveControlRow {
+                            Text("settings.merge.window")
+                                .font(.subheadline)
+                        } control: {
+                            // 記録をまとめる時間は共通のドロップダウンPickerで選ぶ
+                            AZDropdownPicker(
+                                options: Self.mergeWindowOptions,
+                                selection: mergeWindowBinding,
+                                isExpanded: $isMergeWindowExpanded,
+                                minWidth: 150
+                            ) { option in
+                                Text(LocalizedStringKey(option.titleKey))
                             }
                         }
+                        .zIndex(isMergeWindowExpanded ? 61 : 0)
+                        AZAdaptiveControlRow {
+                            Text("settings.merge.defaultAction")
+                                .font(.subheadline)
+                        } control: {
+                            // 衝突時の初期選択も同じドロップダウンPickerで選ぶ
+                            AZDropdownPicker(
+                                options: ConflictAction.allCases,
+                                selection: mergeDefaultActionBinding,
+                                isExpanded: $isMergeDefaultActionExpanded,
+                                minWidth: 170
+                            ) { action in
+                                Text(action.labelKey)
+                            }
+                        }
+                        .zIndex(isMergeDefaultActionExpanded ? 60 : 0)
                         if settings.userLevel == .beginner {
                             Text("settings.help.merge")
                                 .font(.caption)
@@ -255,12 +342,20 @@ struct SettingsView: View {
                                 Spacer(minLength: 40)
                                 Text("settings.exportFormat.title")
                                     .font(.subheadline)
-                                Picker("settings.exportFormat.title", selection: $exportFormatRaw) {
-                                    ForEach(RecordJSONExportStyle.allCases) { style in
-                                        Text(LocalizedStringKey(style.titleKey)).tag(style.rawValue)
-                                    }
+                                // JSON形式はラジオPickerで現在値を明示する
+                                AZRadioPicker(
+                                    options: RecordJSONExportStyle.allCases,
+                                    selection: exportFormatBinding,
+                                    minOptionWidth: 0,
+                                    maxOptionWidth: 120,
+                                    horizontalPadding: 4,
+                                    optionSpacing: 4,
+                                    groupPadding: 5,
+                                    wrapsOptions: false,
+                                    fillsWidth: true
+                                ) { style in
+                                    Text(LocalizedStringKey(style.titleKey))
                                 }
-                                .pickerStyle(.segmented)
                             }
                         }
 
@@ -332,7 +427,7 @@ struct SettingsView: View {
             SafariView(url: aboutURL)
         }
         .sheet(isPresented: $showDialSettings) {
-            NavigationStack {
+            let content = NavigationStack {
                 AZDialSettingsView(
                     tuning: $settings.dialTuning,
                     style: dialStyleBinding,
@@ -345,6 +440,12 @@ struct SettingsView: View {
                         }
                     }
                 }
+            }
+            // sheetは親の文字サイズ環境を引き継がないことがあるため、アプリ設定を優先する
+            if settings.fontScale.followsSystem {
+                content
+            } else {
+                content.dynamicTypeSize(settings.fontScale.dynamicTypeSize)
             }
         }
         .sheet(isPresented: $showPruneOldRecordsConfirmSheet) {
@@ -1655,7 +1756,7 @@ struct HealthKitSettingsView: View {
                 }
 
                 if settings.userLevel == .beginner {
-                    // 読み込み対象は HealthKit のプライバシー制限で個別取得できない。
+                    // 読み込み対象は HealthKit のプライバシー制限で個別取得できない
                     Text("health.readableFieldsPrivacyHelp")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -1664,20 +1765,23 @@ struct HealthKitSettingsView: View {
             }
 
             Section("health.syncDirection") {
-                Picker("health.syncDirection",
-                       selection: directionBinding) {
-                    Text("health.direction.writeOnly")
-                        .tag(HKSyncDirection.writeOnly)
-                    Text("health.direction.readOnly")
-                        .tag(HKSyncDirection.readOnly)
-                    Text("health.direction.both")
-                        .tag(HKSyncDirection.both)
+                // HealthKit連携方向はインラインの代わりにラジオPickerで選ぶ
+                AZRadioPicker(
+                    options: HKSyncDirection.allCases,
+                    selection: directionBinding,
+                    minOptionWidth: 0,
+                    maxOptionWidth: 180,
+                    horizontalPadding: 4,
+                    optionSpacing: 4,
+                    groupPadding: 5,
+                    wrapsOptions: true,
+                    fillsWidth: true
+                ) { direction in
+                    Text(LocalizedStringKey(direction.titleKey))
                 }
-                .pickerStyle(.inline)
-                .labelsHidden()
 
                 if settings.userLevel == .beginner {
-                    // 選択した連携方向ごとの動作を初心者向けに補足する。
+                    // 選択した連携方向ごとの動作を初心者向けに補足する
                     Text(LocalizedStringKey(directionHelpKey))
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -1709,7 +1813,7 @@ struct HealthKitSettingsView: View {
                 }
 
                 if settings.userLevel == .beginner {
-                    // 読み込み範囲の自動短縮と、必要時の再読み込み方法を説明する。
+                    // 読み込み範囲の自動短縮と、必要時の再読み込み方法を説明する
                     Text("health.importStartDateHelp")
                         .font(.caption)
                         .foregroundStyle(.secondary)

@@ -32,12 +32,14 @@ extension EnvironmentValues {
 
 // MARK: - 表示期間
 
-enum GraphPeriod: Int, CaseIterable {
+enum GraphPeriod: Int, CaseIterable, Identifiable {
     case week        = 7
     case month       = 30
     case threeMonths = 90
     case sixMonths   = 180
     case year        = 365
+
+    var id: Int { rawValue }
 
     var label: String {
         switch self {
@@ -65,7 +67,7 @@ enum GraphPeriod: Int, CaseIterable {
 // MARK: - GraphView
 
 struct GraphView: View {
-    /// バックグラウンドでプリフェッチする日数。将来 730・1095 等に変更可能。
+    /// バックグラウンドでプリフェッチする日数将来 730・1095 等に変更可能
     private static let preloadDays = 365
 
     @State private var period: GraphPeriod = .month
@@ -112,7 +114,7 @@ struct GraphView: View {
 
     /// 初期レンダリング完了を待ってから cutoffDate を拡張する
     private func prefetchFullRange() async {
-        // 初回表示と最初の操作を優先し、広い期間の取得は少し遅らせる。
+        // 初回表示と最初の操作を優先し、広い期間の取得は少し遅らせる
         try? await Task.sleep(for: .milliseconds(900))
         expandCutoffIfNeeded(days: Self.preloadDays)
         didPrefetchFullRange = true
@@ -129,8 +131,8 @@ struct GraphView: View {
 
 // MARK: - GraphContentView
 
-/// period に応じた日付範囲で @Query を組み立てる内部ビュー。
-/// cutoffDate が変わると SwiftUI が再初期化し @Query が再実行される。
+/// period に応じた日付範囲で @Query を組み立てる内部ビュー
+/// cutoffDate が変わると SwiftUI が再初期化し @Query が再実行される
 private struct GraphContentView: View {
     private static let initialChartCount = 2
     private static let chartBatchCount = 2
@@ -158,7 +160,7 @@ private struct GraphContentView: View {
     var body: some View {
         Group {
             if records.isEmpty && isWaitingForPrefetch {
-                // 初期範囲に記録がない場合は、広い範囲の取得完了まで No Data を出さない。
+                // 初期範囲に記録がない場合は、広い範囲の取得完了まで No Data を出さない
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if records.isEmpty {
@@ -210,12 +212,21 @@ private struct GraphContentView: View {
             VStack(spacing: 0) {
                 BeginnerHelpBanner("help.graph", storageKey: "helpDismissed.graph")
                 LazyVStack(spacing: 16) {
-                    Picker("filter.period", selection: $period) {
-                        ForEach(GraphPeriod.allCases, id: \.self) { p in
-                            Text(LocalizedStringKey(p.label)).tag(p)
-                        }
+                    // 対象期間はDynamic Typeで欠けにくいラジオPickerで選ぶ
+                    AZRadioPicker(
+                        options: GraphPeriod.allCases,
+                        selection: $period,
+                        minOptionWidth: 0,
+                        maxOptionWidth: 120,
+                        horizontalPadding: 4,
+                        optionSpacing: 4,
+                        groupPadding: 5,
+                        wrapsOptions: false,
+                        fillsWidth: true
+                    ) { p in
+                        Text(LocalizedStringKey(p.label))
                     }
-                    .pickerStyle(.segmented)
+                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
 
                     ForEach(stagedGraphKinds, id: \.self) { kind in
                         graphPanel(kind: kind)
@@ -250,7 +261,7 @@ private struct GraphContentView: View {
 
     @MainActor
     private func revealCharts(total: Int) async {
-        // 初回は上部に見える分だけ作り、その後に残りを小分けで作る。
+        // 初回は上部に見える分だけ作り、その後に残りを小分けで作る
         stagedChartCount = min(Self.initialChartCount, total)
         while stagedChartCount < total {
             try? await Task.sleep(for: .milliseconds(Self.chartBatchDelayMS))
@@ -571,7 +582,7 @@ private extension View {
         }
     }
 
-    /// 横スクロール可能なX軸。スクロール位置をキャプチャし、エクスポート時に再現する。
+    /// 横スクロール可能なX軸スクロール位置をキャプチャし、エクスポート時に再現する
     func standardXAxis(period: GraphPeriod, scrollPosition: Binding<Date>, kind: GraphKind? = nil, oldestDate: Date? = nil, newestDate: Date? = nil) -> some View {
         modifier(StandardXAxisModifier(period: period, scrollPosition: scrollPosition, kind: kind, oldestDate: oldestDate, newestDate: newestDate))
     }
