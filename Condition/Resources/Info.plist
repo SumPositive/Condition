@@ -24,14 +24,10 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-7576639777972199~8822933495</string>
-	<key>NSCalendarsUsageDescription</key>
-	<string>健康データをカレンダーに記録するために使用します。</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>ヘルスケアの記録を読み取り、記録画面に自動入力するために使用します。</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>記録した健康データをヘルスケアアプリに書き込むために使用します。</string>
-	<key>NSRemindersUsageDescription</key>
-	<string>健康データのリマインダーに使用します。</string>
 	<key>SKAdNetworkItems</key>
 	<array>
 		<dict><key>SKAdNetworkIdentifier</key><string>cstr6suwn9.skadnetwork</string></dict>

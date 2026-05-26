@@ -8,8 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		04F485DCB1ADFC0859E7298C /* AppConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 332C7D7242BE0FB4EF8FAFFA /* AppConstants.swift */; };
-		0A1A2B3C4D5E6F708192A3C2 /* AZMemoEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A1A2B3C4D5E6F708192A3C1 /* AZMemoEditor.swift */; };
 		0A1A2B3C4D5E6F708192A3B4 /* AZPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A1A2B3C4D5E6F708192A3B3 /* AZPicker.swift */; };
+		0A1A2B3C4D5E6F708192A3C2 /* AZMemoEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A1A2B3C4D5E6F708192A3C1 /* AZMemoEditor.swift */; };
 		1051435A3366B5694C9B71EC /* RecordListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 031D6782445FA50A16B167EC /* RecordListView.swift */; };
 		20F1765DAAFD7152D5629C7C /* NumpadValueText.swift in Sources */ = {isa = PBXBuildFile; fileRef = E674CD6C1A3BCD2A7D5D8EC3 /* NumpadValueText.swift */; };
 		22D5E84A1E28C0A1784D9244 /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C7CBA484995B66668A9235C /* HealthKitService.swift */; };
@@ -54,8 +54,8 @@
 /* Begin PBXFileReference section */
 		031D6782445FA50A16B167EC /* RecordListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordListView.swift; sourceTree = "<group>"; };
 		037CD7BBB175D96B6BA9D41C /* RecordEditViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordEditViewModel.swift; sourceTree = "<group>"; };
-		0A1A2B3C4D5E6F708192A3C1 /* AZMemoEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AZMemoEditor.swift; sourceTree = "<group>"; };
 		0A1A2B3C4D5E6F708192A3B3 /* AZPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AZPicker.swift; sourceTree = "<group>"; };
+		0A1A2B3C4D5E6F708192A3C1 /* AZMemoEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AZMemoEditor.swift; sourceTree = "<group>"; };
 		132A076B61B2C635E9A5FADA /* TipStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TipStore.swift; sourceTree = "<group>"; };
 		1B00938D5C29ADB460EE55EA /* Condition.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Condition.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2C5B54F260937D2BF7A3B8E0 /* RecordEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordEditView.swift; sourceTree = "<group>"; };
@@ -512,7 +512,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.3.0;
+				MARKETING_VERSION = 2.4.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.azukid.AzBodyNote;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -538,7 +538,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.3.0;
+				MARKETING_VERSION = 2.4.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.azukid.AzBodyNote;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
