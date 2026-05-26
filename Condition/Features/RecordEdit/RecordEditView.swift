@@ -16,10 +16,6 @@ private enum MeasurementAverageField: Hashable {
     case skMuscle
 }
 
-private struct EquipmentHistoryOption: Hashable, Identifiable {
-    let id: String
-}
-
 struct RecordEditView: View {
 
     @Environment(\.modelContext) private var context
@@ -36,12 +32,14 @@ struct RecordEditView: View {
     @State private var showDeleteAlert = false
     @State private var conflictData: RecentConflict? = nil
     @State private var isDateOptExpanded = false
-    @State private var showEquipmentHistory = false
-    @State private var equipmentFrame: CGRect = .zero
     @State private var measurementSamples: [MeasurementAverageField: [Int]] = [:]
     @FocusState private var focusNote1: Bool
     @FocusState private var focusNote2: Bool
     @FocusState private var focusEquipment: Bool
+
+    /// 候補行の余白（文字サイズに連動・最小）
+    @ScaledMetric(relativeTo: .body) private var candidateHPadding: CGFloat = 10
+    @ScaledMetric(relativeTo: .body) private var candidateVPadding: CGFloat = 3
 
     private let note1AnchorID = "record-note1-anchor"
     private let note2AnchorID = "record-note2-anchor"
@@ -73,22 +71,32 @@ struct RecordEditView: View {
         }
     }
 
-    private var equipmentHistoryOptions: [EquipmentHistoryOption] {
-        let presets = ["自宅", "病院", "ジム"]
+    /// 測定場所・機器の候補プール（履歴 + プリセット、重複・空文字除去）
+    private var equipmentCandidates: [String] {
+        let presets = [
+            String(localized: "record.device.preset.home"),
+            String(localized: "record.device.preset.hospital"),
+            String(localized: "record.device.preset.gym")
+        ]
         var values: [String] = []
         var seen: Set<String> = []
         for value in recordsForEquipmentHistory.map(\.sEquipment) + presets {
             let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-            if trimmed.isEmpty || seen.contains(trimmed) {
-                continue
-            }
+            if trimmed.isEmpty || seen.contains(trimmed) { continue }
             seen.insert(trimmed)
             values.append(trimmed)
-            if 10 <= values.count {
-                break
-            }
         }
-        return values.map { EquipmentHistoryOption(id: $0) }
+        return values
+    }
+
+    /// 入力中の文字列で絞り込んだ候補（CreditMemo と同じ部分一致）
+    private var shownEquipmentCandidates: [String] {
+        let keyword = vm.sEquipment.trimmingCharacters(in: .whitespacesAndNewlines)
+        if keyword.isEmpty {
+            return Array(equipmentCandidates.prefix(10))
+        }
+        let filtered = equipmentCandidates.filter { $0.localizedCaseInsensitiveContains(keyword) }
+        return Array((filtered.isEmpty ? equipmentCandidates : filtered).prefix(10))
     }
 
     private let onHKImported: ((Int) -> Void)?
@@ -129,21 +137,54 @@ struct RecordEditView: View {
                     // メモセクション
                     Section("record.memo.section") {
                         // 測定場所・機器をメモ入力より先に配置する
-                        AZMemoEditor(
-                            placeholder: "record.device",
-                            text: $vm.sEquipment,
-                            isFocused: $focusEquipment,
-                            dismissOnReturn: true,
-                            onBeginEditing: { showEquipmentHistory = !equipmentHistoryOptions.isEmpty }
-                        )
-                            .id(equipmentAnchorID)
-                            .azDropdownPopover(
-                                isPresented: $showEquipmentHistory,
-                                anchorFrame: $equipmentFrame,
-                                backgroundColor: Color(.systemBackground)
-                            ) {
-                                equipmentHistoryMenu
+                        // 測定場所・機器：TextField + インライン候補リスト
+                        VStack(alignment: .leading, spacing: 8) {
+                            TextField("record.device", text: $vm.sEquipment)
+                                .id(equipmentAnchorID)
+                                .focused($focusEquipment)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                                .submitLabel(.done)
+                                .onSubmit { focusEquipment = false }
+                                .onChange(of: vm.sEquipment) { _, newValue in
+                                    // 末尾改行を除去
+                                    let trimmed = newValue.replacingOccurrences(
+                                        of: "\n+$", with: "", options: .regularExpression
+                                    )
+                                    if trimmed != newValue { vm.sEquipment = trimmed }
+                                }
+
+                            if focusEquipment && !shownEquipmentCandidates.isEmpty {
+                                VStack(spacing: 0) {
+                                    ForEach(shownEquipmentCandidates, id: \.self) { candidate in
+                                        Button {
+                                            vm.sEquipment = candidate
+                                            focusEquipment = false
+                                        } label: {
+                                            HStack(spacing: 0) {
+                                                Text(candidate)
+                                                    .lineLimit(1)
+                                                    .truncationMode(.tail)
+                                                    .foregroundStyle(.primary)
+                                                Spacer()
+                                            }
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .contentShape(Rectangle())
+                                            .padding(.horizontal, candidateHPadding)
+                                            .padding(.vertical, candidateVPadding)
+                                        }
+                                        .buttonStyle(.plain)
+                                        if candidate != shownEquipmentCandidates.last {
+                                            Divider()
+                                        }
+                                    }
+                                }
+                                .background(Color(.secondarySystemBackground))
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                                // 候補リストは「大」(.xxxLarge) までに制約（縦方向の肥大化を抑制）
+                                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                             }
+                        }
                         AZMemoEditor(placeholder: "record.memo1", text: $vm.sNote1, isFocused: $focusNote1)
                             .id(note1AnchorID)
                         AZMemoEditor(placeholder: "record.memo2", text: $vm.sNote2, isFocused: $focusNote2)
@@ -191,8 +232,7 @@ struct RecordEditView: View {
                 .onChange(of: focusNote1) { _, isFocused in if isFocused { scrollMemoIntoView(note1AnchorID, proxy: proxy) } }
                 .onChange(of: focusNote2) { _, isFocused in if isFocused { scrollMemoIntoView(note2AnchorID, proxy: proxy) } }
                 .onChange(of: focusEquipment) { _, isFocused in
-                    showEquipmentHistory = isFocused && !equipmentHistoryOptions.isEmpty
-                    if isFocused { scrollMemoIntoView(equipmentAnchorID, proxy: proxy) }
+                    if isFocused { scrollMemoIntoView(equipmentAnchorID, proxy: proxy, anchor: .top) }
                 }
                 .safeAreaInset(edge: .bottom) {
                     if isMemoFocused {
@@ -405,58 +445,6 @@ struct RecordEditView: View {
         }
     }
 
-    private var equipmentHistoryMenu: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 3) {
-                ForEach(equipmentHistoryOptions) { option in
-                    Button {
-                        vm.sEquipment = option.id
-                        focusEquipment = false
-                        showEquipmentHistory = false
-                        dismissKeyboard()
-                    } label: {
-                        AZDropdownOptionButton(
-                            isSelected: option.id == vm.sEquipment,
-                            minWidth: max(220, equipmentFrame.width),
-                            lineLimit: 1,
-                            style: equipmentHistoryStyle
-                        ) {
-                            Text(option.id)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .frame(minWidth: max(220, equipmentFrame.width), alignment: .leading)
-        }
-        .scrollIndicators(.hidden)
-        .frame(height: equipmentHistoryPopoverHeight)
-        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-        .padding(8)
-        .shadow(color: Color.black.opacity(0.10), radius: 5, x: 0, y: 2)
-    }
-
-    private var equipmentHistoryPopoverHeight: CGFloat {
-        let rowHeight: CGFloat = 42
-        let rowSpacing: CGFloat = 3
-        let verticalPadding: CGFloat = 16
-        let count = min(equipmentHistoryOptions.count, 10)
-        return CGFloat(count) * rowHeight + CGFloat(max(count - 1, 0)) * rowSpacing + verticalPadding
-    }
-
-    private var equipmentHistoryStyle: AZPickerStyle {
-        AZPickerStyle.form.dropdownTextFitMode(.scale(minimumScaleFactor: 1))
-    }
-
-    private func dismissKeyboard() {
-        UIApplication.shared.sendAction(
-            #selector(UIResponder.resignFirstResponder),
-            to: nil,
-            from: nil,
-            for: nil
-        )
-    }
-
     // MARK: - ダイアル行
 
     @ViewBuilder
@@ -590,7 +578,7 @@ struct RecordEditView: View {
         }
     }
 
-    // MARK: - 連続平均
+    // MARK: - 測定の追加（複数回測定の平均）
 
     private var averageInputFields: [MeasurementAverageField] {
         if vm.valuesLocked {
@@ -743,17 +731,17 @@ struct RecordEditView: View {
         } else if focusNote2 {
             scrollMemoIntoView(note2AnchorID, proxy: proxy)
         } else if focusEquipment {
-            scrollMemoIntoView(equipmentAnchorID, proxy: proxy)
+            scrollMemoIntoView(equipmentAnchorID, proxy: proxy, anchor: .top)
         }
     }
 
-    private func scrollMemoIntoView(_ anchorID: String, proxy: ScrollViewProxy) {
-        // キーボード表示中もメモ欄の入力行が隠れないよう、少し遅らせて下端へ寄せる
+    private func scrollMemoIntoView(_ anchorID: String, proxy: ScrollViewProxy, anchor: UnitPoint = .bottom) {
+        // キーボード表示中もメモ欄の入力行が隠れないよう、少し遅らせて寄せる
         for delay in [0.05, 0.22] {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                 guard isMemoFocused else { return }
                 withAnimation(.easeInOut(duration: 0.18)) {
-                    proxy.scrollTo(anchorID, anchor: .bottom)
+                    proxy.scrollTo(anchorID, anchor: anchor)
                 }
             }
         }

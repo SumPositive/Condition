@@ -134,7 +134,6 @@ struct AZPickerStyle {
 
 /// SPM化を見据えた、Dynamic Type対応のプルダウンPicker
 struct AZDropdownPicker<Option: Hashable & Identifiable, Label: View>: View {
-    @State private var settings = AppSettings.shared
     @State private var buttonFrame: CGRect = .zero
     let options: [Option]
     @Binding var selection: Option
@@ -151,39 +150,13 @@ struct AZDropdownPicker<Option: Hashable & Identifiable, Label: View>: View {
             .azDropdownPopover(
                 isPresented: $isExpanded,
                 anchorFrame: $buttonFrame,
-                backgroundColor: style.optionBackground
+                backgroundColor: style.optionBackground,
+                dynamicTypeSize: popoverDynamicTypeSize,
+                dynamicTypeRange: style.dropdownPopoverDynamicTypeRange
             ) {
-                popoverContent
+                expandedOptions
             }
             .zIndex(isExpanded ? 100 : 0)
-    }
-
-    @ViewBuilder
-    private var popoverContent: some View {
-        if let popoverDynamicTypeSize {
-            // ポップオーバーは親環境を失いやすいため、必要な場合は文字サイズを明示適用する
-            expandedOptions
-                .dynamicTypeSize(popoverDynamicTypeSize)
-        } else {
-            expandedOptions
-                // 呼び出し側の上限制限を候補一覧へ引き継がず、実際のシステム文字サイズを使う
-                .dynamicTypeSize(unrestrictedPopoverDynamicTypeSize)
-        }
-    }
-
-    private var unrestrictedPopoverDynamicTypeSize: DynamicTypeSize {
-        // iOSのシステム文字サイズは、アプリ設定が自動の時だけ参照する
-        let baseSize = settings.fontScale.followsSystem
-            ? DynamicTypeSize(uiContentSizeCategory: UIApplication.shared.preferredContentSizeCategory)
-            : settings.fontScale.dynamicTypeSize
-        let range = style.dropdownPopoverDynamicTypeRange
-        if baseSize < range.lowerBound {
-            return range.lowerBound
-        }
-        if range.upperBound < baseSize {
-            return range.upperBound
-        }
-        return baseSize
     }
 
     private var popupOpensUpward: Bool {
@@ -328,9 +301,12 @@ enum AZDropdownPopoverMetrics {
 }
 
 struct AZDropdownPopoverModifier<PopoverContent: View>: ViewModifier {
+    @State private var settings = AppSettings.shared
     @Binding var isPresented: Bool
     @Binding var anchorFrame: CGRect
     var backgroundColor: Color
+    var dynamicTypeSize: DynamicTypeSize?
+    var dynamicTypeRange: ClosedRange<DynamicTypeSize>
     @ViewBuilder let popoverContent: () -> PopoverContent
 
     func body(content: Content) -> some View {
@@ -341,6 +317,8 @@ struct AZDropdownPopoverModifier<PopoverContent: View>: ViewModifier {
                 arrowEdge: AZDropdownPopoverMetrics.opensUpward(anchorFrame: anchorFrame) ? .bottom : .top
             ) {
                 popoverContent()
+                    // popover内は親環境を失いやすいため、標準で文字サイズを明示適用する
+                    .dynamicTypeSize(resolvedDynamicTypeSize)
                     .presentationCompactAdaptation(.popover)
                     .presentationBackground(backgroundColor)
                     // popoverの不透明背景を使い、内側パネルの角欠けを避ける
@@ -359,6 +337,25 @@ struct AZDropdownPopoverModifier<PopoverContent: View>: ViewModifier {
                 }
             }
     }
+
+    private var resolvedDynamicTypeSize: DynamicTypeSize {
+        let baseSize: DynamicTypeSize
+        if let dynamicTypeSize {
+            baseSize = dynamicTypeSize
+        } else if settings.fontScale.followsSystem {
+            baseSize = DynamicTypeSize(uiContentSizeCategory: UIApplication.shared.preferredContentSizeCategory)
+        } else {
+            baseSize = settings.fontScale.dynamicTypeSize
+        }
+
+        if baseSize < dynamicTypeRange.lowerBound {
+            return dynamicTypeRange.lowerBound
+        }
+        if dynamicTypeRange.upperBound < baseSize {
+            return dynamicTypeRange.upperBound
+        }
+        return baseSize
+    }
 }
 
 extension View {
@@ -366,6 +363,8 @@ extension View {
         isPresented: Binding<Bool>,
         anchorFrame: Binding<CGRect>,
         backgroundColor: Color = Color(.systemBackground),
+        dynamicTypeSize: DynamicTypeSize? = nil,
+        dynamicTypeRange: ClosedRange<DynamicTypeSize> = DynamicTypeSize.xSmall...DynamicTypeSize.accessibility5,
         @ViewBuilder content: @escaping () -> PopoverContent
     ) -> some View {
         modifier(
@@ -373,6 +372,8 @@ extension View {
                 isPresented: isPresented,
                 anchorFrame: anchorFrame,
                 backgroundColor: backgroundColor,
+                dynamicTypeSize: dynamicTypeSize,
+                dynamicTypeRange: dynamicTypeRange,
                 popoverContent: content
             )
         )
