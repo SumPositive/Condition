@@ -31,7 +31,7 @@ enum DateOpt: Int, CaseIterable, Codable, Identifiable {
         case .rest:         return "heart.fill"
         case .down:         return "moon.fill"
         case .sleep:        return "moon.zzz.fill"
-        case .preExercise:  return "figure.run"
+        case .preExercise:  return "figure.wave"
         case .postExercise: return "figure.walk"
         }
     }
