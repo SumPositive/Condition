@@ -6,6 +6,16 @@ import SwiftData
 import AZDial
 import HealthKit
 
+private enum MeasurementAverageField: Hashable {
+    case bpHi
+    case bpLo
+    case pulse
+    case weight
+    case temp
+    case bodyFat
+    case skMuscle
+}
+
 struct RecordEditView: View {
 
     @Environment(\.modelContext) private var context
@@ -16,6 +26,7 @@ struct RecordEditView: View {
     @State private var showDeleteAlert = false
     @State private var conflictData: RecentConflict? = nil
     @State private var isDateOptExpanded = false
+    @State private var measurementSamples: [MeasurementAverageField: [Int]] = [:]
     @FocusState private var focusNote1: Bool
     @FocusState private var focusNote2: Bool
     @FocusState private var focusEquipment: Bool
@@ -68,9 +79,19 @@ struct RecordEditView: View {
                 Form {
                     hkImportSection
                     dateSection
-                    Section("record.measurements") {
+                    Section {
                         ForEach(orderedRecordFields, id: \.rawValue) { kind in
                             fieldRow(for: kind)
+                        }
+                    } header: {
+                        HStack(alignment: .center) {
+                            Text("record.measurements")
+                            Spacer()
+                            Button("record.average.add") {
+                                addAverageSamples()
+                            }
+                            .font(.caption)
+                            .disabled(!canAddAverageSample)
                         }
                     }
                     healthKitSection
@@ -192,18 +213,18 @@ struct RecordEditView: View {
     private func fieldRow(for kind: GraphKind) -> some View {
         switch kind {
         case .bp:
-            dialRow(title: "metric.systolic.long", value: $vm.nBpHi_mmHg, enabled: $vm.bpHiEnabled, spec: MeasureRange.bpHi, unit: "unit.mmHg", stepperStep: 1, color: .red, locked: vm.valuesLocked)
-            dialRow(title: "metric.diastolic.long", value: $vm.nBpLo_mmHg, enabled: $vm.bpLoEnabled, spec: MeasureRange.bpLo, unit: "unit.mmHg", stepperStep: 1, color: .blue, locked: vm.valuesLocked)
+            dialRow(averageField: .bpHi, title: "metric.systolic.long", value: $vm.nBpHi_mmHg, enabled: $vm.bpHiEnabled, spec: MeasureRange.bpHi, unitKey: "unit.mmHg", stepperStep: 1, color: .red, locked: vm.valuesLocked)
+            dialRow(averageField: .bpLo, title: "metric.diastolic.long", value: $vm.nBpLo_mmHg, enabled: $vm.bpLoEnabled, spec: MeasureRange.bpLo, unitKey: "unit.mmHg", stepperStep: 1, color: .blue, locked: vm.valuesLocked)
         case .pulse:
-            dialRow(title: "metric.heartRate", value: $vm.nPulse_bpm, enabled: $vm.pulseEnabled, spec: MeasureRange.pulse, unit: "unit.bpm", stepperStep: 1, color: .orange, locked: vm.valuesLocked)
+            dialRow(averageField: .pulse, title: "metric.heartRate", value: $vm.nPulse_bpm, enabled: $vm.pulseEnabled, spec: MeasureRange.pulse, unitKey: "unit.bpm", stepperStep: 1, color: .orange, locked: vm.valuesLocked)
         case .weight:
-            dialRow(title: "metric.weight", value: $vm.nWeight_10Kg, enabled: $vm.weightEnabled, spec: MeasureRange.weight, unit: "unit.kg", stepperStep: 1, decimals: 1, color: .indigo, locked: vm.valuesLocked)
+            dialRow(averageField: .weight, title: "metric.weight", value: $vm.nWeight_10Kg, enabled: $vm.weightEnabled, spec: MeasureRange.weight, unitKey: "unit.kg", stepperStep: 1, decimals: 1, color: .indigo, locked: vm.valuesLocked)
         case .temp:
-            dialRow(title: "metric.bodyTemp", value: $vm.nTemp_10c, enabled: $vm.tempEnabled, spec: MeasureRange.temp, unit: "unit.celsius", stepperStep: 1, decimals: 1, color: .pink, locked: vm.valuesLocked)
+            dialRow(averageField: .temp, title: "metric.bodyTemp", value: $vm.nTemp_10c, enabled: $vm.tempEnabled, spec: MeasureRange.temp, unitKey: "unit.celsius", stepperStep: 1, decimals: 1, color: .pink, locked: vm.valuesLocked)
         case .bodyFat:
-            dialRow(title: "metric.bodyFat", value: $vm.nBodyFat_10p, enabled: $vm.bodyFatEnabled, spec: MeasureRange.bodyFat, unit: "%", stepperStep: 1, decimals: 1, color: .purple, locked: vm.valuesLocked)
+            dialRow(averageField: .bodyFat, title: "metric.bodyFat", value: $vm.nBodyFat_10p, enabled: $vm.bodyFatEnabled, spec: MeasureRange.bodyFat, unitKey: "%", stepperStep: 1, decimals: 1, color: .purple, locked: vm.valuesLocked)
         case .skMuscle:
-            dialRow(title: "metric.skeletalMuscle", value: $vm.nSkMuscle_10p, enabled: $vm.skMuscleEnabled, spec: MeasureRange.skMuscle, unit: "%", stepperStep: 1, decimals: 1, color: .teal, locked: vm.valuesLocked)
+            dialRow(averageField: .skMuscle, title: "metric.skeletalMuscle", value: $vm.nSkMuscle_10p, enabled: $vm.skMuscleEnabled, spec: MeasureRange.skMuscle, unitKey: "%", stepperStep: 1, decimals: 1, color: .teal, locked: vm.valuesLocked)
         case .bpAvg, .bmi, .weightChange:
             EmptyView()
         }
@@ -341,11 +362,12 @@ struct RecordEditView: View {
 
     @ViewBuilder
     private func dialRow(
+        averageField: MeasurementAverageField,
         title: LocalizedStringKey,
         value: Binding<Int>,
         enabled: Binding<Bool>,
         spec: MeasureSpec,
-        unit: LocalizedStringKey,
+        unitKey: String,
         stepperStep: Int,
         decimals: Int = 0,
         color: Color = .primary,
@@ -358,13 +380,13 @@ struct RecordEditView: View {
                     Text(title).font(.callout)
                     Spacer()
                     rowControls(value: value, enabled: enabled, spec: spec,
-                                unit: unit, decimals: decimals, color: color, locked: locked)
+                                unit: LocalizedStringKey(unitKey), decimals: decimals, color: color, locked: locked)
                 }
                 // 2行：見出し（左寄せ） ／ 値＋単位＋スイッチ（右寄せ）
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title).font(.callout)
                     rowControls(value: value, enabled: enabled, spec: spec,
-                                unit: unit, decimals: decimals, color: color, locked: locked)
+                                unit: LocalizedStringKey(unitKey), decimals: decimals, color: color, locked: locked)
                         .frame(maxWidth: .infinity, alignment: .trailing)
                 }
             }
@@ -380,10 +402,68 @@ struct RecordEditView: View {
                     tuning: AppSettings.shared.dialTuning
                 )
                 .disabled(locked)
+                averageStatusRow(for: averageField, decimals: decimals)
             }
         }
         .disabled(locked)
         .padding(.vertical, 4)
+    }
+
+    @ViewBuilder
+    private func averageStatusRow(
+        for field: MeasurementAverageField,
+        decimals: Int
+    ) -> some View {
+        if let samples = measurementSamples[field], !samples.isEmpty {
+            HStack(alignment: .center, spacing: 16) {
+                Spacer(minLength: 0)
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(Array(samples.enumerated()), id: \.offset) { index, sample in
+                        HStack(spacing: 5) {
+                            Image(systemName: sampleIconName(index + 1))
+                                .symbolRenderingMode(.hierarchical)
+                                .frame(width: 18, alignment: .trailing)
+                            averageNumberText(sample, decimals: decimals)
+                        }
+                    }
+                }
+                .fixedSize(horizontal: true, vertical: false)
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(
+                        String(
+                            format: String(localized: "record.average.resultFormat"),
+                            formattedMeasurement(averageValue(samples), decimals: decimals)
+                        )
+                    )
+                    if 3 <= samples.count {
+                        Text(
+                            String(
+                                format: String(localized: "record.average.standardDeviationFormat"),
+                                formattedMeasurement(standardDeviation(samples), decimals: decimals)
+                            )
+                        )
+                        .foregroundStyle(standardDeviationColor(standardDeviation(samples), for: field))
+                    }
+                }
+                .monospacedDigit()
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+            }
+            .font(.callout)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+    }
+
+    private func averageNumberText(_ value: Int, decimals: Int) -> some View {
+        ZStack(alignment: .trailing) {
+            Text(averageNumberPlaceholder(decimals: decimals))
+                .hidden()
+            Text(formattedMeasurement(value, decimals: decimals))
+                .lineLimit(1)
+        }
+        .monospacedDigit()
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     /// 値・単位・トグルをまとめた横並びコントロール
@@ -408,6 +488,147 @@ struct RecordEditView: View {
             }
             Toggle("", isOn: enabled)
                 .labelsHidden()
+        }
+    }
+
+    // MARK: - 連続平均
+
+    private var averageInputFields: [MeasurementAverageField] {
+        if vm.valuesLocked {
+            return []
+        }
+        var fields: [MeasurementAverageField] = []
+        if vm.bpHiEnabled {
+            fields.append(.bpHi)
+        }
+        if vm.bpLoEnabled {
+            fields.append(.bpLo)
+        }
+        if vm.pulseEnabled {
+            fields.append(.pulse)
+        }
+        if vm.weightEnabled {
+            fields.append(.weight)
+        }
+        if vm.tempEnabled {
+            fields.append(.temp)
+        }
+        if vm.bodyFatEnabled {
+            fields.append(.bodyFat)
+        }
+        if vm.skMuscleEnabled {
+            fields.append(.skMuscle)
+        }
+        return fields
+    }
+
+    private var canAddAverageSample: Bool {
+        averageInputFields.contains { field in
+            (measurementSamples[field]?.count ?? 0) < 5
+        }
+    }
+
+    private func addAverageSamples() {
+        for field in averageInputFields {
+            var samples = measurementSamples[field] ?? []
+            if 5 <= samples.count {
+                continue
+            }
+            samples.append(measurementValue(for: field))
+            measurementSamples[field] = samples
+            setMeasurementValue(averageValue(samples), for: field)
+        }
+    }
+
+    private func measurementValue(for field: MeasurementAverageField) -> Int {
+        switch field {
+        case .bpHi: return vm.nBpHi_mmHg
+        case .bpLo: return vm.nBpLo_mmHg
+        case .pulse: return vm.nPulse_bpm
+        case .weight: return vm.nWeight_10Kg
+        case .temp: return vm.nTemp_10c
+        case .bodyFat: return vm.nBodyFat_10p
+        case .skMuscle: return vm.nSkMuscle_10p
+        }
+    }
+
+    private func setMeasurementValue(_ value: Int, for field: MeasurementAverageField) {
+        switch field {
+        case .bpHi: vm.nBpHi_mmHg = value
+        case .bpLo: vm.nBpLo_mmHg = value
+        case .pulse: vm.nPulse_bpm = value
+        case .weight: vm.nWeight_10Kg = value
+        case .temp: vm.nTemp_10c = value
+        case .bodyFat: vm.nBodyFat_10p = value
+        case .skMuscle: vm.nSkMuscle_10p = value
+        }
+    }
+
+    private func averageValue(_ samples: [Int]) -> Int {
+        if samples.isEmpty {
+            return 0
+        }
+        let sum = samples.reduce(0, +)
+        return (sum + samples.count / 2) / samples.count
+    }
+
+    private func sampleIconName(_ index: Int) -> String {
+        "\(min(max(index, 1), 5)).circle"
+    }
+
+    private func standardDeviation(_ samples: [Int]) -> Int {
+        if samples.count < 2 {
+            return 0
+        }
+        let mean = Double(samples.reduce(0, +)) / Double(samples.count)
+        let variance = samples.reduce(0.0) { partial, value in
+            let diff = Double(value) - mean
+            return partial + diff * diff
+        } / Double(samples.count)
+        return Int(sqrt(variance).rounded())
+    }
+
+    private func standardDeviationTolerance(for field: MeasurementAverageField) -> (blue: Int, red: Int) {
+        switch field {
+        case .bpHi, .bpLo:
+            return (blue: 5, red: 10)
+        case .pulse:
+            return (blue: 5, red: 10)
+        case .weight:
+            return (blue: 2, red: 5)
+        case .temp:
+            return (blue: 1, red: 3)
+        case .bodyFat, .skMuscle:
+            return (blue: 5, red: 15)
+        }
+    }
+
+    private func standardDeviationColor(_ value: Int, for field: MeasurementAverageField) -> Color {
+        let tolerance = standardDeviationTolerance(for: field)
+        if value <= tolerance.blue {
+            return .blue
+        }
+        if tolerance.red <= value {
+            return .red
+        }
+        let progress = Double(value - tolerance.blue) / Double(tolerance.red - tolerance.blue)
+        return Color(
+            red: 0.0 + 1.0 * progress,
+            green: 0.48 * (1.0 - progress),
+            blue: 1.0 * (1.0 - progress)
+        )
+    }
+
+    private func averageNumberPlaceholder(decimals: Int) -> String {
+        decimals == 0 ? "999" : "999.9"
+    }
+
+    private func formattedMeasurement(_ value: Int, decimals: Int) -> String {
+        if decimals == 0 {
+            return "\(value)"
+        } else {
+            let scale = pow(10.0, Double(decimals))
+            return String(format: "%.\(decimals)f", Double(value) / scale)
         }
     }
 

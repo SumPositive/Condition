@@ -3820,6 +3820,57 @@
         }
       }
     },
+    "record.average.add" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add to average"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "連続して平均する"
+          }
+        }
+      }
+    },
+    "record.average.resultFormat" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Average %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "平均 %@"
+          }
+        }
+      }
+    },
+    "record.average.standardDeviationFormat" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SD %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "標準偏差 %@"
+          }
+        }
+      }
+    },
     "record.cautionFlag" : {
       "extractionState" : "manual",
       "localizations" : {
