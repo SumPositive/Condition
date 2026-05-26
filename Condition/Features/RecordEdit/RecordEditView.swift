@@ -128,10 +128,7 @@ struct RecordEditView: View {
 
                     // メモセクション
                     Section("record.memo.section") {
-                        AZMemoEditor(placeholder: "record.memo1", text: $vm.sNote1, isFocused: $focusNote1)
-                            .id(note1AnchorID)
-                        AZMemoEditor(placeholder: "record.memo2", text: $vm.sNote2, isFocused: $focusNote2)
-                            .id(note2AnchorID)
+                        // 測定場所・機器をメモ入力より先に配置する
                         AZMemoEditor(
                             placeholder: "record.device",
                             text: $vm.sEquipment,
@@ -147,6 +144,10 @@ struct RecordEditView: View {
                             ) {
                                 equipmentHistoryMenu
                             }
+                        AZMemoEditor(placeholder: "record.memo1", text: $vm.sNote1, isFocused: $focusNote1)
+                            .id(note1AnchorID)
+                        AZMemoEditor(placeholder: "record.memo2", text: $vm.sNote2, isFocused: $focusNote2)
+                            .id(note2AnchorID)
                         Toggle(isOn: $vm.bCaution) {
                             HStack(spacing: 6) {
                                 if vm.bCaution {
