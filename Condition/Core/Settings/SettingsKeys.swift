@@ -18,6 +18,7 @@ enum SettingsKeys {
     static let settDialStyle         = "KVS_SettDialStyle"           // ダイアルスタイル (DialStyle.rawValue)
     static let settDialStyleForcedVersion = "KVS_DialStyleForcedVersion" // ダイアルスタイル強制移行版
     static let settDialTuning        = "KVS_SettDialTuning"          // ダイアル操作感度 (JSONデータ)
+    static let settDialTuningMildMigrationVersion = "KVS_DialTuningMildMigrationVersion" // ダイアル操作感度の控えめ移行版
 
     // MARK: - 統計設定
     static let settStatType            = "KVS_SettStatType"           // 統計タイプ (0=Hi-Lo, 1=24H)
@@ -67,6 +68,7 @@ enum SettingsKeys {
         settDialStyle,
         settDialStyleForcedVersion,
         settDialTuning,
+        settDialTuningMildMigrationVersion,
         settStatType,
         settStatDays,
         settStatAvgShow,

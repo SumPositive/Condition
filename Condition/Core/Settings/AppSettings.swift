@@ -145,7 +145,7 @@ final class AppSettings {
     var dialStyle: String = DialStyle.shape.id {
         didSet { ud.set(dialStyle, forKey: SettingsKeys.settDialStyle) }
     }
-    var dialTuning: AZDialInteractionTuning = .default {
+    var dialTuning: AZDialInteractionTuning = AZDialInteractionTuningPreset.mild.tuning {
         didSet { saveDialTuning() }
     }
 
@@ -463,18 +463,31 @@ final class AppSettings {
     }
 
     private func loadDialTuning() {
-        // 保存済みの操作感度がなければ標準値を使う
+        let mildMigrationVersion = 1
+        let migratedVersion = ud.integer(forKey: SettingsKeys.settDialTuningMildMigrationVersion)
         guard let data = ud.data(forKey: SettingsKeys.settDialTuning),
               let tuning = try? JSONDecoder().decode(AZDialInteractionTuning.self, from: data) else {
-            dialTuning = .default
+            // 新規インストールでは操作感度の初期値を控えめにする
+            dialTuning = AZDialInteractionTuningPreset.mild.tuning
+            ud.set(mildMigrationVersion, forKey: SettingsKeys.settDialTuningMildMigrationVersion)
             return
+        }
+        if migratedVersion < mildMigrationVersion {
+            // 既存ユーザーが標準のままなら一度だけ控えめへ移行する
+            ud.set(mildMigrationVersion, forKey: SettingsKeys.settDialTuningMildMigrationVersion)
+            if tuning == .default {
+                dialTuning = AZDialInteractionTuningPreset.mild.tuning
+                return
+            }
         }
         dialTuning = tuning
     }
 
     private func saveDialTuning() {
         // UserDefaultsに入れられるようJSONデータへ変換する
-        guard let data = try? JSONEncoder().encode(dialTuning) else { return }
+        guard let data = try? JSONEncoder().encode(dialTuning) else {
+            return
+        }
         ud.set(data, forKey: SettingsKeys.settDialTuning)
     }
 
