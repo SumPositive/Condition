@@ -11,7 +11,7 @@ final class BodyRecord {
     @Attribute(.spotlight) var dateTime: Date = Date()
 
     // MARK: - メタデータ
-    var nDateOpt: Int = DateOpt.rest.rawValue        // DateOpt rawValue
+    var nDateOpt: Int = DateOpt.cat02.rawValue       // DateOpt rawValue
     var nDataSource: Int = RecordDataSource.appInput.rawValue  // RecordDataSource rawValue
     var bCaution: Bool = false                       // 注意フラグ
 var sNote1: String = ""
@@ -35,7 +35,7 @@ var sNote1: String = ""
 
     // MARK: - 初期化
 
-    init(dateTime: Date = Date(), dateOpt: DateOpt = .rest) {
+    init(dateTime: Date = Date(), dateOpt: DateOpt = .cat02) {
         self.dateTime = dateTime
         self.nDateOpt = dateOpt.rawValue
     }
@@ -55,7 +55,7 @@ var sNote1: String = ""
 
     // MARK: - DateOpt アクセサ
     @Transient var dateOpt: DateOpt {
-        get { DateOpt(rawValue: nDateOpt) ?? .rest }
+        get { DateOpt(rawValue: nDateOpt) ?? .cat02 }
         set { nDateOpt = newValue.rawValue }
     }
 

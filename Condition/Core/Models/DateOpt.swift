@@ -5,34 +5,34 @@ import Foundation
 import SwiftUI
 
 enum DateOpt: Int, CaseIterable, Codable, Identifiable {
-    case wake        = 0  // 起床時
-    case rest        = 1  // 安静時
-    case down        = 2  // 就寝前
-    case sleep       = 3  // 就寝時
-    case preExercise = 4  // 運動前
-    case postExercise = 5 // 運動後
+    case cat01 = 0  // 既定: 起床時
+    case cat02 = 1  // 既定: 安静時
+    case cat03 = 2  // 既定: 就寝前
+    case cat04 = 3  // 既定: 就寝時
+    case cat05 = 4  // 既定: 運動前
+    case cat06 = 5  // 既定: 運動後
 
     var id: Int { rawValue }
 
     var label: String {
         switch self {
-        case .wake:         return "category.wake"
-        case .rest:         return "category.rest"
-        case .down:         return "category.beforeBed"
-        case .sleep:        return "category.bedtime"
-        case .preExercise:  return "category.preExercise"
-        case .postExercise: return "category.postExercise"
+        case .cat01: return "category.wake"
+        case .cat02: return "category.rest"
+        case .cat03: return "category.beforeBed"
+        case .cat04: return "category.bedtime"
+        case .cat05: return "category.preExercise"
+        case .cat06: return "category.postExercise"
         }
     }
 
     var defaultIcon: String {
         switch self {
-        case .wake:         return "sun.horizon.fill"
-        case .rest:         return "heart.fill"
-        case .down:         return "moon.fill"
-        case .sleep:        return "moon.zzz.fill"
-        case .preExercise:  return "figure.wave"
-        case .postExercise: return "figure.walk"
+        case .cat01: return "sun.horizon.fill"
+        case .cat02: return "heart.fill"
+        case .cat03: return "moon.fill"
+        case .cat04: return "moon.zzz.fill"
+        case .cat05: return "figure.wave"
+        case .cat06: return "figure.walk"
         }
     }
 
@@ -42,12 +42,12 @@ enum DateOpt: Int, CaseIterable, Codable, Identifiable {
 
     var defaultColorKey: String {
         switch self {
-        case .wake:         return "green"
-        case .rest:         return "blue"
-        case .down:         return "orange"
-        case .sleep:        return "purple"
-        case .preExercise:  return "teal"
-        case .postExercise: return "red"
+        case .cat01: return "green"
+        case .cat02: return "blue"
+        case .cat03: return "orange"
+        case .cat04: return "purple"
+        case .cat05: return "teal"
+        case .cat06: return "red"
         }
     }
 
@@ -61,12 +61,12 @@ enum DateOpt: Int, CaseIterable, Codable, Identifiable {
 
     var shortLabel: String {
         switch self {
-        case .wake:         return "category.wake.short"
-        case .rest:         return "category.rest.short"
-        case .down:         return "category.beforeBed.short"
-        case .sleep:        return "category.bedtime.short"
-        case .preExercise:  return "category.preExercise.short"
-        case .postExercise: return "category.postExercise.short"
+        case .cat01: return "category.wake.short"
+        case .cat02: return "category.rest.short"
+        case .cat03: return "category.beforeBed.short"
+        case .cat04: return "category.bedtime.short"
+        case .cat05: return "category.preExercise.short"
+        case .cat06: return "category.postExercise.short"
         }
     }
 }
@@ -101,23 +101,23 @@ struct DateOptAppearance: Codable, Equatable, Identifiable {
 extension DateOpt {
     var defaultNameJa: String {
         switch self {
-        case .wake:         return "起床時"
-        case .rest:         return "安静時"
-        case .down:         return "就寝前"
-        case .sleep:        return "就寝時"
-        case .preExercise:  return "運動前"
-        case .postExercise: return "運動後"
+        case .cat01: return "起床時"
+        case .cat02: return "安静時"
+        case .cat03: return "就寝前"
+        case .cat04: return "就寝時"
+        case .cat05: return "運動前"
+        case .cat06: return "運動後"
         }
     }
 
     var defaultNameEn: String {
         switch self {
-        case .wake:         return "Wake"
-        case .rest:         return "Rest"
-        case .down:         return "PreBed"
-        case .sleep:        return "Bedtime"
-        case .preExercise:  return "PreEx"
-        case .postExercise: return "PostEx"
+        case .cat01: return "Wake"
+        case .cat02: return "Rest"
+        case .cat03: return "PreBed"
+        case .cat04: return "Bedtime"
+        case .cat05: return "PreEx"
+        case .cat06: return "PostEx"
         }
     }
 
@@ -288,9 +288,9 @@ enum DateOptEstimator {
 
     private static func matrixDateOpt(hour: Int, hourMap: [Int]) -> DateOpt {
         guard 0 <= hour, hour < hourMap.count else {
-            return .rest
+            return .cat02
         }
-        return DateOpt(rawValue: hourMap[hour]) ?? .rest
+        return DateOpt(rawValue: hourMap[hour]) ?? .cat02
     }
 
     private static func minutesOfDay(_ date: Date, calendar: Calendar) -> Int {

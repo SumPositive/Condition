@@ -116,7 +116,7 @@ final class RecordEditViewModel {
         case .goalEdit:
             let settings = AppSettings.shared
             dateTime    = BodyRecord.goalDate
-            dateOpt     = .rest
+            dateOpt     = .cat02
             bCaution    = false
             sNote1      = ""
             sNote2      = ""

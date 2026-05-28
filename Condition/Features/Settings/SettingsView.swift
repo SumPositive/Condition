@@ -672,14 +672,14 @@ struct SettingsView: View {
                 record = existing
                 updated += 1
             } else {
-                record = BodyRecord(dateTime: date, dateOpt: imported.dateOpt ?? .rest)
+                record = BodyRecord(dateTime: date, dateOpt: imported.dateOpt ?? .cat02)
                 context.insert(record)
                 existingByDate[date] = record
                 inserted += 1
             }
 
             record.dateTime = date
-            record.dateOpt = imported.dateOpt ?? .rest
+            record.dateOpt = imported.dateOpt ?? .cat02
             record.dataSource = imported.dataSource ?? .appInput
             record.bCaution = imported.cautionFlag ?? false
             record.sNote1 = imported.memo1 ?? ""

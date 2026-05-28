@@ -405,11 +405,11 @@ private struct DemoDataGenerator {
                 let dateOpt: DateOpt
                 let hour: Int
                 if i == 0 {
-                    let opts: [(DateOpt, Int)] = [(.wake, 7), (.rest, 20), (.down, 22)]
+                    let opts: [(DateOpt, Int)] = [(.cat01, 7), (.cat02, 20), (.cat03, 22)]
                     let picked = opts[Int.random(in: 0..<opts.count, using: &rng)]
                     dateOpt = picked.0; hour = picked.1
                 } else {
-                    dateOpt = .rest; hour = Int.random(in: 12...15, using: &rng)
+                    dateOpt = .cat02; hour = Int.random(in: 12...15, using: &rng)
                 }
                 let minute = Int.random(in: 0...59, using: &rng)
                 guard let dt = cal.date(bySettingHour: hour, minute: minute, second: 0, of: day) else { continue }

@@ -226,13 +226,13 @@ final class AppSettings {
         var map = Array(repeating: -1, count: 24)
         let around = DateOptConstants.aroundHour
         for offset in -around..<around {
-            map[(down  + offset + 24) % 24] = DateOpt.down.rawValue
+            map[(down  + offset + 24) % 24] = DateOpt.cat03.rawValue
         }
         for offset in -around..<around {
-            map[(sleep + offset + 24) % 24] = DateOpt.sleep.rawValue
+            map[(sleep + offset + 24) % 24] = DateOpt.cat04.rawValue
         }
         for offset in -around..<around {
-            map[(wake  + offset + 24) % 24] = DateOpt.wake.rawValue
+            map[(wake  + offset + 24) % 24] = DateOpt.cat01.rawValue
         }
         return map
     }
@@ -508,6 +508,6 @@ final class AppSettings {
     // MARK: - DateOpt 自動判定
     func autoDateOpt(for date: Date) -> DateOpt {
         let hour = Calendar(identifier: .gregorian).component(.hour, from: date)
-        return DateOpt(rawValue: dateOptHourMap[hour]) ?? .rest
+        return DateOpt(rawValue: dateOptHourMap[hour]) ?? .cat02
     }
 }
