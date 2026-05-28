@@ -543,6 +543,10 @@ struct SettingsView: View {
                 let data = try Data(contentsOf: url)
                 let decoder = JSONDecoder()
                 let envelope = try decoder.decode(RecordImportEnvelope.self, from: data)
+                if let categoryAppearances = envelope.categoryAppearances {
+                    // バックアップに同梱された区分表示マスタを復元する
+                    settings.dateOptAppearances = normalizedDateOptAppearances(categoryAppearances)
+                }
                 let result = try mergeImportedRecords(envelope.records)
                 alertItem = .raw(
                     title: String(localized: "settings.share.importDoneTitle"),
@@ -641,6 +645,7 @@ struct SettingsView: View {
         }
 
         let envelope: [String: Any] = [
+            "categoryAppearances": categoryAppearanceObjects(),
             "exportDate": iso.string(from: Date()),
             "records": result,
         ]
@@ -693,6 +698,28 @@ struct SettingsView: View {
         return (inserted, updated)
     }
 
+    private func categoryAppearanceObjects() -> [[String: Any]] {
+        settings.dateOptAppearances.map { appearance in
+            [
+                "dateOptRawValue": appearance.dateOptRawValue,
+                "nameJa": appearance.nameJa,
+                "nameEn": appearance.nameEn,
+                "iconName": appearance.iconName,
+                "colorKey": appearance.colorKey,
+            ]
+        }
+    }
+
+    private func normalizedDateOptAppearances(_ imported: [DateOptAppearance]) -> [DateOptAppearance] {
+        DateOpt.allCases.map { dateOpt in
+            if let appearance = imported.first(where: { $0.dateOptRawValue == dateOpt.rawValue }) {
+                // 既存区分だけを採用し、新しい区分や欠落区分は既定値で補完する
+                return appearance
+            }
+            return dateOpt.defaultAppearance
+        }
+    }
+
     private var progressOverlay: some View {
         ZStack {
             // 入出力処理中は背面操作を受け付けない
@@ -731,6 +758,7 @@ private extension SettingsView {
 }
 
 private struct RecordImportEnvelope: Decodable {
+    let categoryAppearances: [DateOptAppearance]?
     let records: [RecordImportRecord]
 }
 

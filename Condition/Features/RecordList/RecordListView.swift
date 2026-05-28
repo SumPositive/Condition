@@ -946,6 +946,7 @@ private struct ExportSheetView: View {
             var obj: [String: Any] = [
                 "dateTime":  iso.string(from: r.dateTime),
                 "condition": r.dateOpt.displayName,
+                "conditionRaw": r.nDateOpt,
             ]
             for kind in visibleKinds {
                 switch kind {
