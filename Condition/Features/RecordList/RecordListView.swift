@@ -609,7 +609,8 @@ struct RecordRowView: View {
                         }
                         Image(systemName: record.dateOpt.icon)
                             .font(.system(size: catIconSz))
-                            .foregroundStyle(.secondary)
+                            // 区分アイコンはカスタム色を反映する
+                            .foregroundStyle(record.dateOpt.color)
                     }
                     .frame(width: catW, alignment: .center)
                 }
