@@ -135,6 +135,7 @@ struct AZPickerStyle {
 /// SPM化を見据えた、Dynamic Type対応のプルダウンPicker
 struct AZDropdownPicker<Option: Hashable & Identifiable, Label: View>: View {
     @State private var buttonFrame: CGRect = .zero
+    @State private var screenHeight: CGFloat = 0
     let options: [Option]
     @Binding var selection: Option
     @Binding var isExpanded: Bool
@@ -150,6 +151,7 @@ struct AZDropdownPicker<Option: Hashable & Identifiable, Label: View>: View {
             .azDropdownPopover(
                 isPresented: $isExpanded,
                 anchorFrame: $buttonFrame,
+                screenHeight: $screenHeight,
                 backgroundColor: style.optionBackground,
                 dynamicTypeSize: popoverDynamicTypeSize,
                 dynamicTypeRange: style.dropdownPopoverDynamicTypeRange
@@ -160,13 +162,18 @@ struct AZDropdownPicker<Option: Hashable & Identifiable, Label: View>: View {
     }
 
     private var popupOpensUpward: Bool {
-        AZDropdownPopoverMetrics.opensUpward(anchorFrame: buttonFrame)
+        AZDropdownPopoverMetrics.opensUpward(anchorFrame: buttonFrame, screenHeight: screenHeight)
     }
 
     private var popupMaxHeight: CGFloat {
         let margin: CGFloat = 20
         let minimumHeight: CGFloat = 120
-        return AZDropdownPopoverMetrics.maxHeight(anchorFrame: buttonFrame, margin: margin, minimumHeight: minimumHeight)
+        return AZDropdownPopoverMetrics.maxHeight(
+            anchorFrame: buttonFrame,
+            screenHeight: screenHeight,
+            margin: margin,
+            minimumHeight: minimumHeight
+        )
     }
 
     private var optionPanelWidth: CGFloat {
@@ -279,24 +286,36 @@ struct AZDropdownPicker<Option: Hashable & Identifiable, Label: View>: View {
     }
 }
 
+@MainActor
 enum AZDropdownPopoverMetrics {
-    static func opensUpward(anchorFrame: CGRect) -> Bool {
+    static func opensUpward(anchorFrame: CGRect, screenHeight: CGFloat) -> Bool {
         if anchorFrame == .zero {
             return true
         }
+        let screenHeight = resolvedScreenHeight(screenHeight)
         let upperSpace = anchorFrame.minY
-        let lowerSpace = UIScreen.main.bounds.height - anchorFrame.maxY
+        let lowerSpace = screenHeight - anchorFrame.maxY
         return lowerSpace < upperSpace
     }
 
     static func maxHeight(
         anchorFrame: CGRect,
+        screenHeight: CGFloat,
         margin: CGFloat = 20,
         minimumHeight: CGFloat = 120
     ) -> CGFloat {
+        let screenHeight = resolvedScreenHeight(screenHeight)
         let upperSpace = max(minimumHeight, anchorFrame.minY - margin)
-        let lowerSpace = max(minimumHeight, UIScreen.main.bounds.height - anchorFrame.maxY - margin)
-        return opensUpward(anchorFrame: anchorFrame) ? upperSpace : lowerSpace
+        let lowerSpace = max(minimumHeight, screenHeight - anchorFrame.maxY - margin)
+        return opensUpward(anchorFrame: anchorFrame, screenHeight: screenHeight) ? upperSpace : lowerSpace
+    }
+
+    private static func resolvedScreenHeight(_ screenHeight: CGFloat) -> CGFloat {
+        // 呼び出し側が画面高さを渡せない時は、MainActor上でUIKitから取得する
+        if 0 < screenHeight {
+            return screenHeight
+        }
+        return UIScreen.main.bounds.height
     }
 }
 
@@ -304,6 +323,7 @@ struct AZDropdownPopoverModifier<PopoverContent: View>: ViewModifier {
     @State private var settings = AppSettings.shared
     @Binding var isPresented: Bool
     @Binding var anchorFrame: CGRect
+    @Binding var screenHeight: CGFloat
     var backgroundColor: Color
     var dynamicTypeSize: DynamicTypeSize?
     var dynamicTypeRange: ClosedRange<DynamicTypeSize>
@@ -314,7 +334,7 @@ struct AZDropdownPopoverModifier<PopoverContent: View>: ViewModifier {
             .popover(
                 isPresented: $isPresented,
                 attachmentAnchor: .rect(.bounds),
-                arrowEdge: AZDropdownPopoverMetrics.opensUpward(anchorFrame: anchorFrame) ? .bottom : .top
+                arrowEdge: AZDropdownPopoverMetrics.opensUpward(anchorFrame: anchorFrame, screenHeight: screenHeight) ? .bottom : .top
             ) {
                 popoverContent()
                     // popover内は親環境を失いやすいため、標準で文字サイズを明示適用する
@@ -330,9 +350,11 @@ struct AZDropdownPopoverModifier<PopoverContent: View>: ViewModifier {
                         .onAppear {
                             // 表示位置を測って、上下の広い側へ吹き出す
                             anchorFrame = proxy.frame(in: .global)
+                            screenHeight = proxy.frame(in: .global).maxY + proxy.frame(in: .global).minY
                         }
                         .onChange(of: proxy.frame(in: .global)) { _, newValue in
                             anchorFrame = newValue
+                            screenHeight = newValue.maxY + newValue.minY
                         }
                 }
             }
@@ -362,6 +384,7 @@ extension View {
     func azDropdownPopover<PopoverContent: View>(
         isPresented: Binding<Bool>,
         anchorFrame: Binding<CGRect>,
+        screenHeight: Binding<CGFloat> = .constant(0),
         backgroundColor: Color = Color(.systemBackground),
         dynamicTypeSize: DynamicTypeSize? = nil,
         dynamicTypeRange: ClosedRange<DynamicTypeSize> = DynamicTypeSize.xSmall...DynamicTypeSize.accessibility5,
@@ -371,6 +394,7 @@ extension View {
             AZDropdownPopoverModifier(
                 isPresented: isPresented,
                 anchorFrame: anchorFrame,
+                screenHeight: screenHeight,
                 backgroundColor: backgroundColor,
                 dynamicTypeSize: dynamicTypeSize,
                 dynamicTypeRange: dynamicTypeRange,

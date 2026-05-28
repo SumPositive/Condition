@@ -285,7 +285,7 @@ struct RecentConflictSheet: View {
             HStack(spacing: 6) {
                 Image(systemName: conflict.previous.dateOpt.icon)
                     .foregroundStyle(.secondary)
-                Text(LocalizedStringKey(conflict.previous.dateOpt.label))
+                Text(conflict.previous.dateOpt.displayName)
                 Text(Self.timeFormatter.string(from: conflict.previous.dateTime))
                     .monospacedDigit()
             }

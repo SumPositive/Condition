@@ -440,7 +440,7 @@ struct RecordEditView: View {
         ) { opt in
             HStack(spacing: 6) {
                 Image(systemName: opt.icon)
-                Text(LocalizedStringKey(opt.label))
+                Text(opt.displayName)
             }
         }
     }

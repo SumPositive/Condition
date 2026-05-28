@@ -945,7 +945,7 @@ private struct ExportSheetView: View {
         for r in targetRecords {
             var obj: [String: Any] = [
                 "dateTime":  iso.string(from: r.dateTime),
-                "condition": NSLocalizedString(r.dateOpt.label, comment: ""),
+                "condition": r.dateOpt.displayName,
             ]
             for kind in visibleKinds {
                 switch kind {
@@ -1019,7 +1019,7 @@ private struct ExportSheetView: View {
 
         var rows: [String] = [headers.joined(separator: ",")]
         for r in targetRecords {
-            var fields = [escape(df.string(from: r.dateTime)), escape(NSLocalizedString(r.dateOpt.label, comment: ""))]
+            var fields = [escape(df.string(from: r.dateTime)), escape(r.dateOpt.displayName)]
             for kind in visibleKinds {
                 switch kind {
                 case .bp:
@@ -1215,7 +1215,7 @@ private struct ExportPDFPageView: View {
                 Text(Self.dtdf.string(from: r.dateTime))
                     .lineLimit(1)
                     .frame(width: PDFLayout.dateColW, alignment: .leading).padding(3)
-                Text(NSLocalizedString(r.dateOpt.label, comment: ""))
+                Text(r.dateOpt.displayName)
                     .lineLimit(1)
                     .frame(width: PDFLayout.optColW, alignment: .center).padding(3)
                 ForEach(visibleKinds, id: \.rawValue) { kind in

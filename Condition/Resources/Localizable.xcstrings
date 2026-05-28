@@ -4171,15 +4171,127 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Default Time & Type"
+            "value" : "Category Estimation Time Map"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "時間帯と区分の初期値"
+            "value" : "区分推定の時間帯マップ"
           }
         }
+      }
+    },
+    "settings.dateCategoryDefaults.help" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Used when history is sparse or category estimation is off" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "履歴が少ない時や区分推定がOFFの時に使います" } }
+      }
+    },
+    "settings.category" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Category" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "区分" } }
+      }
+    },
+    "settings.category.estimate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Estimate the category for new records" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "新しい記録の区分を推定する" } }
+      }
+    },
+    "settings.category.estimate.help" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Suggests a category by weighing records from the last month by weekday, time proximity, recency, and the time-of-day defaults. When off, only the time-of-day map below is used." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "過去1ヶ月の記録を曜日・時刻の近さ・新しさ・時間帯マップで重み付けして区分を提示します。OFFのときは下の時間帯マップだけを使います。" } }
+      }
+    },
+    "settings.category.estimateDistribution" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Latest Category Estimation Results" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "区分推定結果　最新の分布" } }
+      }
+    },
+    "settings.category.estimateDistribution.help" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Shows estimated categories by weekday and hour" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "曜日と時刻ごとの推定結果を表示します" } }
+      }
+    },
+    "settings.category.appearance" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Category Icons and Names" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "区分のアイコンと名称" } }
+      }
+    },
+    "settings.category.color" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Color" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "色" } }
+      }
+    },
+    "settings.category.icon" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Icon" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "アイコン" } }
+      }
+    },
+    "settings.category.name" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Name" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "名称" } }
+      }
+    },
+    "settings.category.name.en" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "English" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "英語" } }
+      }
+    },
+    "settings.category.name.ja" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Japanese" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "日本語" } }
+      }
+    },
+    "settings.category.name.limit.en" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Within 8 characters" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Within 8 characters" } }
+      }
+    },
+    "settings.category.name.limit.ja" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "4文字以内" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "4文字以内" } }
+      }
+    },
+    "settings.category.number" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Category %d" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "区分 %d" } }
+      }
+    },
+    "settings.category.preview" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Preview" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "プレビュー" } }
       }
     },
     "settings.dialDesign" : {

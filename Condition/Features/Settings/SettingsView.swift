@@ -239,7 +239,7 @@ struct SettingsView: View {
                     NavigationLink {
                         DateOptMatrixView()
                     } label: {
-                        Text("settings.dateCategoryDefaults")
+                        Text("settings.category")
                     }
 
                     // ヘルスケア
@@ -622,7 +622,7 @@ struct SettingsView: View {
         for record in records {
             var object: [String: Any] = [
                 "dateTime": iso.string(from: record.dateTime),
-                "condition": NSLocalizedString(record.dateOpt.label, comment: ""),
+                "condition": record.dateOpt.displayName,
                 "conditionRaw": record.nDateOpt,
                 "dataSourceRaw": record.nDataSource,
                 "cautionFlag": record.bCaution,
@@ -764,6 +764,9 @@ private struct RecordImportRecord: Decodable {
         guard let condition else { return nil }
         if let exact = DateOpt.allCases.first(where: { $0.label == condition }) {
             return exact
+        }
+        if let custom = DateOpt.allCases.first(where: { $0.displayName == condition }) {
+            return custom
         }
         return DateOpt.allCases.first {
             NSLocalizedString($0.label, comment: "") == condition
@@ -1276,7 +1279,65 @@ struct DateOptMatrixView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
-                BeginnerHelpBanner("help.dateOptMatrix", storageKey: "helpDismissed.dateOptMatrix")
+                // 区分の表示名・アイコン・色を編集する
+                NavigationLink {
+                    DateOptAppearanceListView()
+                } label: {
+                    HStack {
+                        Text("settings.category.appearance")
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .padding(12)
+                .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10))
+                .padding(.bottom, 8)
+
+                // 新しい記録の区分推定を切り替えるスイッチ
+                VStack(alignment: .leading, spacing: 8) {
+                    Toggle("settings.category.estimate", isOn: $settings.estimateDateOpt)
+                    if settings.userLevel == .beginner {
+                        Text("settings.category.estimate.help")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(12)
+                .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10))
+                .padding(.bottom, 8)
+
+                if settings.estimateDateOpt {
+                    // 推定分布表は別画面で広く表示する
+                    NavigationLink {
+                        DateOptEstimateDistributionView()
+                    } label: {
+                        HStack {
+                            Text("settings.category.estimateDistribution")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                    .padding(12)
+                    .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10))
+                    .padding(.bottom, 10)
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("settings.dateCategoryDefaults")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Text("settings.dateCategoryDefaults.help")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 6)
 
                 // ヘッダー行
                 HStack(spacing: 1) {
@@ -1286,7 +1347,7 @@ struct DateOptMatrixView: View {
                             Image(systemName: kind.icon)
                                 .font(.caption)
                                 .foregroundStyle(kind.color)
-                            Text(LocalizedStringKey(kind.label))
+                            Text(kind.displayName)
                                 .font(.system(size: 10))
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.5)
@@ -1334,8 +1395,305 @@ struct DateOptMatrixView: View {
         }
         .scrollIndicators(.hidden)
         .background(Color(.systemGroupedBackground))
-        .navigationTitle("settings.dateCategoryDefaults")
+        .navigationTitle("settings.category")
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct DateOptAppearanceListView: View {
+    @State private var settings = AppSettings.shared
+
+    var body: some View {
+        List {
+            Section {
+                ForEach(DateOpt.allCases) { dateOpt in
+                    NavigationLink {
+                        DateOptAppearanceEditView(
+                            dateOpt: dateOpt,
+                            appearance: appearanceBinding(for: dateOpt)
+                        )
+                    } label: {
+                        HStack(spacing: 12) {
+                            // セル左端は番号だけにして、改行を防ぐ
+                            Text("\(dateOpt.rawValue + 1)")
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                                .frame(width: 24, alignment: .leading)
+                            Image(systemName: appearance(for: dateOpt).iconName)
+                                .foregroundStyle(DateOptColorOption.color(for: appearance(for: dateOpt).colorKey))
+                                .frame(width: 24)
+                            Text(appearance(for: dateOpt).displayName)
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("settings.category.appearance")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func appearance(for dateOpt: DateOpt) -> DateOptAppearance {
+        settings.dateOptAppearances.first { $0.dateOptRawValue == dateOpt.rawValue } ?? dateOpt.defaultAppearance
+    }
+
+    private func appearanceBinding(for dateOpt: DateOpt) -> Binding<DateOptAppearance> {
+        Binding {
+            appearance(for: dateOpt)
+        } set: { newValue in
+            // 配列全体を差し替えて、@Observable と UserDefaults 保存を確実に発火させる
+            var values = settings.dateOptAppearances
+            if let index = values.firstIndex(where: { $0.dateOptRawValue == dateOpt.rawValue }) {
+                values[index] = newValue
+            } else {
+                values.append(newValue)
+            }
+            settings.dateOptAppearances = values
+        }
+    }
+}
+
+private struct DateOptAppearanceEditView: View {
+    let dateOpt: DateOpt
+    @Binding var appearance: DateOptAppearance
+
+    private let japaneseLimit = 4
+    private let englishLimit = 8
+    private let columns = [GridItem(.adaptive(minimum: 44), spacing: 10)]
+    private var isJapaneseLocale: Bool {
+        Locale.current.language.languageCode?.identifier == "ja"
+    }
+
+    var body: some View {
+        Form {
+            Section {
+                // 現在の名称・アイコン・色の組み合わせを確認する
+                HStack(spacing: 12) {
+                    Image(systemName: appearance.iconName)
+                        .font(.title3)
+                        .foregroundStyle(DateOptColorOption.color(for: appearance.colorKey))
+                        .frame(width: 28)
+                    Text(appearance.displayName)
+                        .font(.headline)
+                    Spacer()
+                }
+                .padding(.vertical, 4)
+            } header: {
+                Text("settings.category.preview")
+            }
+
+            Section {
+                if isJapaneseLocale {
+                    TextField("settings.category.name.ja", text: $appearance.nameJa)
+                        .onChange(of: appearance.nameJa) { _, value in
+                            // 日本語名は日本語だけを残し、4文字以内に制限する
+                            appearance.nameJa = limitedJapanese(value, count: japaneseLimit)
+                        }
+                } else {
+                    TextField("settings.category.name.en", text: $appearance.nameEn)
+                        .textInputAutocapitalization(.words)
+                        .onChange(of: appearance.nameEn) { _, value in
+                            // 英語名は英数字と空白だけを残し、省略名として8文字までにする
+                            appearance.nameEn = limitedEnglish(value, count: englishLimit)
+                        }
+                }
+            } header: {
+                HStack {
+                    Text("settings.category.name")
+                    Spacer()
+                    Text(isJapaneseLocale ? "settings.category.name.limit.ja" : "settings.category.name.limit.en")
+                }
+            }
+
+            Section {
+                LazyVGrid(columns: columns, spacing: 10) {
+                    ForEach(DateOptIconOption.all, id: \.self) { iconName in
+                        Button {
+                            appearance.iconName = iconName
+                        } label: {
+                            Image(systemName: iconName)
+                                .font(.title3)
+                                .foregroundStyle(appearance.iconName == iconName ? Color.white : Color.primary)
+                                .frame(width: 42, height: 42)
+                                .background(
+                                    Circle()
+                                        .fill(appearance.iconName == iconName ? Color.accentColor : Color(.secondarySystemGroupedBackground))
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.vertical, 4)
+            } header: {
+                Text("settings.category.icon")
+            }
+
+            Section {
+                LazyVGrid(columns: columns, spacing: 10) {
+                    ForEach(DateOptColorOption.all) { option in
+                        Button {
+                            appearance.colorKey = option.id
+                        } label: {
+                            let isSelected = appearance.colorKey == option.id
+                            ZStack {
+                                Circle()
+                                    .fill(option.color)
+                                    .frame(width: 34, height: 34)
+                                    .overlay {
+                                        // 選択中の色は外枠で明確にする
+                                        Circle()
+                                            .stroke(isSelected ? Color.primary : Color.clear, lineWidth: 2)
+                                    }
+                                if appearance.colorKey == option.id {
+                                    Image(systemName: "checkmark")
+                                        .font(.caption.weight(.bold))
+                                        .foregroundStyle(.white)
+                                }
+                            }
+                            .frame(width: 42, height: 42)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.vertical, 4)
+            } header: {
+                Text("settings.category.color")
+            }
+
+        }
+        .navigationTitle(String(format: NSLocalizedString("settings.category.number", comment: ""), dateOpt.rawValue + 1))
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func limited(_ value: String, count: Int) -> String {
+        if value.count <= count {
+            return value
+        }
+        return String(value.prefix(count))
+    }
+
+    private func limitedJapanese(_ value: String, count: Int) -> String {
+        let japaneseOnly = value.filter { character in
+            character.unicodeScalars.allSatisfy { scalar in
+                (0x3040...0x30FF).contains(scalar.value)
+                    || (0x3400...0x9FFF).contains(scalar.value)
+                    || (0xFF00...0xFFEF).contains(scalar.value)
+            }
+        }
+        return limited(String(japaneseOnly), count: count)
+    }
+
+    private func limitedEnglish(_ value: String, count: Int) -> String {
+        let englishOnly = value.filter { character in
+            character.unicodeScalars.allSatisfy { scalar in
+                scalar.value == 0x20
+                    || (0x30...0x39).contains(scalar.value)
+                    || (0x41...0x5A).contains(scalar.value)
+                    || (0x61...0x7A).contains(scalar.value)
+            }
+        }
+        return limited(String(englishOnly), count: count)
+    }
+}
+
+private struct DateOptEstimateDistributionView: View {
+    @State private var settings = AppSettings.shared
+    @Query(
+        filter: #Predicate<BodyRecord> { $0.dateTime < bodyRecordGoalDate },
+        sort: \BodyRecord.dateTime,
+        order: .reverse
+    )
+    private var records: [BodyRecord]
+
+    @ScaledMetric(relativeTo: .caption2) private var distributionCellSize: CGFloat = 18
+    @ScaledMetric(relativeTo: .caption) private var distributionHourWidth: CGFloat = 28
+
+    var body: some View {
+        let referenceDate = Date()
+        ScrollView {
+            distributionTable(referenceDate: referenceDate)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 4)
+        }
+        .scrollIndicators(.hidden)
+        .background(Color(.systemGroupedBackground))
+        .navigationTitle("settings.category.estimateDistribution")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func distributionTable(referenceDate: Date) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            // 横軸は曜日、縦軸は時刻。各セルに推定区分アイコンを置く
+            VStack(spacing: 1) {
+                HStack(spacing: 1) {
+                    Spacer().frame(width: distributionHourWidth)
+                    ForEach(1...7, id: \.self) { weekday in
+                        Text(weekdayLabel(weekday))
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+
+                ForEach(0..<24, id: \.self) { hour in
+                    HStack(spacing: 1) {
+                        Text(String(format: "%d", hour))
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                            .frame(width: distributionHourWidth, alignment: .trailing)
+                            .padding(.trailing, 2)
+                        ForEach(1...7, id: \.self) { weekday in
+                            let dateOpt = estimatedDateOpt(
+                                weekday: weekday,
+                                hour: hour,
+                                referenceDate: referenceDate
+                            )
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 3)
+                                    .fill(dateOpt.color.opacity(0.18))
+                                // 分布表は密度を優先し、アイコンで行高が膨らまないようにする
+                                Image(systemName: dateOpt.icon)
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(dateOpt.color)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .frame(height: distributionCellSize)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(10)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func estimatedDateOpt(weekday: Int, hour: Int, referenceDate: Date) -> DateOpt {
+        let target = targetDate(weekday: weekday, hour: hour, referenceDate: referenceDate)
+        return DateOptEstimator.estimate(
+            from: records,
+            targetDate: target,
+            hourMap: settings.dateOptHourMap,
+            referenceDate: referenceDate
+        )
+    }
+
+    private func targetDate(weekday: Int, hour: Int, referenceDate: Date) -> Date {
+        var calendar = Calendar.current
+        calendar.locale = Locale.current
+        var components = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: referenceDate)
+        components.weekday = weekday
+        components.hour = hour
+        components.minute = 0
+        components.second = 0
+        // 推定器は曜日と時刻を使うため、同じ週の代表日時を作れば十分
+        return calendar.date(from: components) ?? referenceDate
+    }
+
+    private func weekdayLabel(_ weekday: Int) -> String {
+        let symbols = Calendar.current.veryShortWeekdaySymbols
+        guard 1 <= weekday, weekday <= symbols.count else {
+            return ""
+        }
+        return symbols[weekday - 1]
     }
 }
 

@@ -413,7 +413,7 @@ private struct SelectionDetailRow: View {
             // 通常サイズ: 1行
             HStack(spacing: 6) {
                 Image(systemName: record.dateOpt.icon)
-                Text(LocalizedStringKey(record.dateOpt.label))
+                Text(record.dateOpt.displayName)
                 Text(dateText).foregroundStyle(color.opacity(0.7))
                 Spacer()
                 Text(detail).bold()
@@ -422,7 +422,7 @@ private struct SelectionDetailRow: View {
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 6) {
                     Image(systemName: record.dateOpt.icon)
-                    Text(LocalizedStringKey(record.dateOpt.label))
+                    Text(record.dateOpt.displayName)
                     Text(dateText).foregroundStyle(color.opacity(0.7))
                 }
                 Text(detail)

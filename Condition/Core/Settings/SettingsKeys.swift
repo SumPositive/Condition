@@ -40,6 +40,7 @@ enum SettingsKeys {
     static let dateOptSleepHour = "KVS_DateOptSleep_HOUR"
     /// 時刻→区分マトリックス ([Int] 24要素, -1=未割当=.restにフォールバック)
     static let settDateOptHourMap = "KVS_SettDateOptHourMap"
+    static let settDateOptAppearances = "KVS_SettDateOptAppearances" // 区分の名称・アイコン・色 (JSONデータ)
 
     // MARK: - 目標値
     static let goalBpHi      = "Goal_nBpHi_mmHg"
@@ -84,6 +85,7 @@ enum SettingsKeys {
         dateOptDownHour,
         dateOptSleepHour,
         settDateOptHourMap,
+        settDateOptAppearances,
         goalBpHi,
         goalBpLo,
         goalPulse,
@@ -113,4 +115,5 @@ enum UDefKeys {
     static let openNewRecordOnForeground = "UDEF_OpenNewRecordOnForeground" // フォアグランド復帰時に新しい記録を開く
     static let mergeWindowMinutes        = "UDEF_MergeWindowMinutes"        // 記録をまとめる時間（分）0=しない
     static let mergeDefaultAction        = "UDEF_MergeDefaultAction"        // 衝突解決の初期選択 ConflictAction.rawValue
+    static let estimateDateOpt           = "UDEF_EstimateDateOpt"           // 区分を蓄積記録から推定して初期表示する
 }

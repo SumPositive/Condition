@@ -202,13 +202,24 @@ final class RecordEditViewModel {
             bodyFatEnabled   = 0 < p.nBodyFat_10p
             skMuscleEnabled  = 0 < p.nSkMuscle_10p
 
-            // 「記録をまとめる」時間以内であれば、直前の区分を引き継ぐ
+            // 区分の決定（優先順位: まとめ時間内の直前区分 ＞ 推定 ＞ 時間帯マップ(init済み)）
+            var resolvedDateOpt = false
             let windowMinutes = AppSettings.shared.mergeWindowMinutes
             if windowMinutes > 0 {
                 let diff = now.timeIntervalSince(p.dateTime)
                 if diff >= 0, diff <= TimeInterval(windowMinutes) * 60 {
                     dateOpt = p.dateOpt
+                    resolvedDateOpt = true
                 }
+            }
+            // 推定が有効なら、曜日・時刻差・新しさ・時間帯マトリックスを重み付けして提示
+            if !resolvedDateOpt, AppSettings.shared.estimateDateOpt {
+                dateOpt = DateOptEstimator.estimate(
+                    from: allPrev,
+                    targetDate: now,
+                    hourMap: AppSettings.shared.dateOptHourMap,
+                    referenceDate: now
+                )
             }
         }
     }

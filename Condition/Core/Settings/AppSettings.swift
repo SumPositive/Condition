@@ -205,6 +205,9 @@ final class AppSettings {
     var dateOptHourMap: [Int] = AppSettings.factoryDefaultHourMap {
         didSet { ud.set(dateOptHourMap, forKey: SettingsKeys.settDateOptHourMap) }
     }
+    var dateOptAppearances: [DateOptAppearance] = DateOpt.allCases.map(\.defaultAppearance) {
+        didSet { DateOptAppearanceStore.save(dateOptAppearances) }
+    }
 
     /// 出荷時初期値（画像定義）
     static let factoryDefaultHourMap: [Int] = [
@@ -289,6 +292,12 @@ final class AppSettings {
         didSet { ud.set(mergeDefaultAction, forKey: UDefKeys.mergeDefaultAction) }
     }
 
+    // MARK: - 区分の推定
+    /// 蓄積した記録（曜日・時刻）から区分を推定して初期表示する。OFF時は時間帯マップを使用
+    var estimateDateOpt: Bool = true {
+        didSet { ud.set(estimateDateOpt, forKey: UDefKeys.estimateDateOpt) }
+    }
+
     // MARK: - 新規記録シート（非永続・セッションのみ）
     /// TabView 上位から新規記録シートを開くトリガー
     var showNewRecordSheet: Bool = false
@@ -307,6 +316,7 @@ final class AppSettings {
             UDefKeys.appearanceMode: AppAppearanceMode.automatic.rawValue,
             UDefKeys.userLevel:     AppUserLevel.beginner.rawValue,
             UDefKeys.fontScale:     AppFontScale.system.rawValue,
+            UDefKeys.estimateDateOpt: true,
         ])
         migrateFromKVSIfNeeded()
         loadFromUserDefaults()
@@ -325,6 +335,9 @@ final class AppSettings {
         }
         if ud.object(forKey: UDefKeys.mergeDefaultAction) != nil {
             mergeDefaultAction = ud.integer(forKey: UDefKeys.mergeDefaultAction)
+        }
+        if ud.object(forKey: UDefKeys.estimateDateOpt) != nil {
+            estimateDateOpt = ud.bool(forKey: UDefKeys.estimateDateOpt)
         }
     }
 
@@ -440,6 +453,7 @@ final class AppSettings {
         } else {
             dateOptHourMap = AppSettings.factoryDefaultHourMap
         }
+        dateOptAppearances = DateOptAppearanceStore.appearances()
 
         let gbh = ud.integer(forKey: SettingsKeys.goalBpHi)
         if 0 < gbh { goalBpHi = gbh }

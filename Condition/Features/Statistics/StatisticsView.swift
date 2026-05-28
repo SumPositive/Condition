@@ -439,7 +439,7 @@ struct BpJshView: View {
                             Circle()
                                 .fill(opt.color)
                                 .frame(width: 8, height: 8)
-                            Text(LocalizedStringKey(opt.label))
+                            Text(opt.displayName)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -754,7 +754,7 @@ struct BpDateOptCorrView: View {
         var result: [BpPoint] = []
         var idx = 0
         for r in validRecords {
-            let cat = DateOpt(rawValue: r.nDateOpt)?.label ?? "category.other"
+            let cat = DateOpt(rawValue: r.nDateOpt)?.displayName ?? NSLocalizedString("category.other", comment: "")
             result.append(BpPoint(id: idx,     category: cat, value: r.nBpHi_mmHg, isHi: true))
             result.append(BpPoint(id: idx + 1, category: cat, value: r.nBpLo_mmHg, isHi: false))
             idx += 2
@@ -768,12 +768,12 @@ struct BpDateOptCorrView: View {
             guard !filtered.isEmpty else { return nil }
             let hi = Double(filtered.map { $0.nBpHi_mmHg }.reduce(0, +)) / Double(filtered.count)
             let lo = Double(filtered.map { $0.nBpLo_mmHg }.reduce(0, +)) / Double(filtered.count)
-            return CatMean(id: opt.label, category: opt.label, hiAvg: hi, loAvg: lo)
+            return CatMean(id: "\(opt.rawValue)", category: opt.displayName, hiAvg: hi, loAvg: lo)
         }
     }
 
     private var categoryOrder: [String] {
-        DateOpt.allCases.map { $0.label }
+        DateOpt.allCases.map(\.displayName)
     }
 
     private var yDomain: ClosedRange<Int> {
@@ -895,11 +895,11 @@ struct BpDateOptCorrView: View {
             AxisMarks { value in
                 AxisValueLabel {
                     if let s = value.as(String.self),
-                       let opt = DateOpt.allCases.first(where: { $0.label == s }) {
+                       let opt = DateOpt.allCases.first(where: { $0.displayName == s }) {
                         VStack(spacing: 2) {
                             Image(systemName: opt.icon)
                                 .font(.system(size: xLabelSize))
-                            Text(LocalizedStringKey(s))
+                            Text(s)
                                 .font(.system(size: 10))
                                 .multilineTextAlignment(.center)
                         }
