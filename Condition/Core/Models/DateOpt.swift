@@ -16,12 +16,12 @@ enum DateOpt: Int, CaseIterable, Codable, Identifiable {
 
     var label: String {
         switch self {
-        case .cat01: return "category.wake"
-        case .cat02: return "category.rest"
-        case .cat03: return "category.beforeBed"
-        case .cat04: return "category.bedtime"
-        case .cat05: return "category.preExercise"
-        case .cat06: return "category.postExercise"
+        case .cat01: return "category.cat01"
+        case .cat02: return "category.cat02"
+        case .cat03: return "category.cat03"
+        case .cat04: return "category.cat04"
+        case .cat05: return "category.cat05"
+        case .cat06: return "category.cat06"
         }
     }
 
@@ -57,17 +57,6 @@ enum DateOpt: Int, CaseIterable, Codable, Identifiable {
 
     var displayName: String {
         DateOptAppearanceStore.appearance(for: self).displayName
-    }
-
-    var shortLabel: String {
-        switch self {
-        case .cat01: return "category.wake.short"
-        case .cat02: return "category.rest.short"
-        case .cat03: return "category.beforeBed.short"
-        case .cat04: return "category.bedtime.short"
-        case .cat05: return "category.preExercise.short"
-        case .cat06: return "category.postExercise.short"
-        }
     }
 }
 

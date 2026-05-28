@@ -471,6 +471,7 @@
       }
     },
     "category.bedtime" : {
+      "comment" : "過去export JSONのimport互換のため残す旧キー",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -505,6 +506,7 @@
       }
     },
     "category.bedtime.short" : {
+      "comment" : "過去export JSONのimport互換のため残す旧キー",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -521,7 +523,56 @@
         }
       }
     },
+    "category.cat01" : {
+      "comment" : "旧キー category.wake は過去export JSONのimport互換のため残す",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Waking" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "起床時" } }
+      }
+    },
+    "category.cat02" : {
+      "comment" : "旧キー category.rest は過去export JSONのimport互換のため残す",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Resting" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "安静時" } }
+      }
+    },
+    "category.cat03" : {
+      "comment" : "旧キー category.beforeBed は過去export JSONのimport互換のため残す",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Before Bed" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "就寝前" } }
+      }
+    },
+    "category.cat04" : {
+      "comment" : "旧キー category.bedtime は過去export JSONのimport互換のため残す",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Bedtime" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "就寝時" } }
+      }
+    },
+    "category.cat05" : {
+      "comment" : "旧キー category.preExercise は過去export JSONのimport互換のため残す",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Before Workout" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "運動前" } }
+      }
+    },
+    "category.cat06" : {
+      "comment" : "旧キー category.postExercise は過去export JSONのimport互換のため残す",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "After Workout" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "運動後" } }
+      }
+    },
     "category.beforeBed" : {
+      "comment" : "過去export JSONのimport互換のため残す旧キー",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -539,6 +590,7 @@
       }
     },
     "category.beforeBed.short" : {
+      "comment" : "過去export JSONのimport互換のため残す旧キー",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -573,6 +625,7 @@
       }
     },
     "category.postExercise" : {
+      "comment" : "過去export JSONのimport互換のため残す旧キー",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -590,6 +643,7 @@
       }
     },
     "category.postExercise.short" : {
+      "comment" : "過去export JSONのimport互換のため残す旧キー",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -607,6 +661,7 @@
       }
     },
     "category.preExercise" : {
+      "comment" : "過去export JSONのimport互換のため残す旧キー",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -624,6 +679,7 @@
       }
     },
     "category.preExercise.short" : {
+      "comment" : "過去export JSONのimport互換のため残す旧キー",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -641,6 +697,7 @@
       }
     },
     "category.rest" : {
+      "comment" : "過去export JSONのimport互換のため残す旧キー",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -658,6 +715,7 @@
       }
     },
     "category.rest.short" : {
+      "comment" : "過去export JSONのimport互換のため残す旧キー",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -675,6 +733,7 @@
       }
     },
     "category.wake" : {
+      "comment" : "過去export JSONのimport互換のため残す旧キー",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -709,6 +768,7 @@
       }
     },
     "category.wake.short" : {
+      "comment" : "過去export JSONのimport互換のため残す旧キー",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {

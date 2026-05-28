@@ -796,6 +796,10 @@ private struct RecordImportRecord: Decodable {
         if let custom = DateOpt.allCases.first(where: { $0.displayName == condition }) {
             return custom
         }
+        // 旧export JSONは旧キー名をconditionに持つ可能性があるため、import互換として残す
+        if let legacy = legacyDateOpt(for: condition) {
+            return legacy
+        }
         return DateOpt.allCases.first {
             NSLocalizedString($0.label, comment: "") == condition
         }
@@ -804,6 +808,18 @@ private struct RecordImportRecord: Decodable {
     var dataSource: RecordDataSource? {
         guard let dataSourceRaw else { return nil }
         return RecordDataSource(rawValue: dataSourceRaw)
+    }
+
+    private func legacyDateOpt(for condition: String) -> DateOpt? {
+        let legacyPairs: [(String, DateOpt)] = [
+            ("category.wake", .cat01),
+            ("category.rest", .cat02),
+            ("category.beforeBed", .cat03),
+            ("category.bedtime", .cat04),
+            ("category.preExercise", .cat05),
+            ("category.postExercise", .cat06),
+        ]
+        return legacyPairs.first { $0.0 == condition }?.1
     }
 }
 
