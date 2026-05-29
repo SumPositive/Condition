@@ -523,6 +523,18 @@ struct RecordEditView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     ForEach(Array(samples.enumerated()), id: \.offset) { index, sample in
                         HStack(spacing: 5) {
+                            if index == samples.count - 1 {
+                                Button("record.average.undoLast") {
+                                    removeLastAverageSample(for: field)
+                                }
+                                .buttonStyle(.borderless)
+                                .font(.caption)
+                            } else {
+                                // 最終行だけボタンを出しても番号と数値の桁位置が揃うよう幅を確保する
+                                Text("record.average.undoLast")
+                                    .font(.caption)
+                                    .hidden()
+                            }
                             Image(systemName: sampleIconName(index + 1))
                                 .symbolRenderingMode(.hierarchical)
                                 .frame(width: 18, alignment: .trailing)
@@ -539,12 +551,11 @@ struct RecordEditView: View {
                         )
                     )
                     if 3 <= samples.count {
-                        Text(
-                            String(
-                                format: String(localized: "record.average.standardDeviationFormat"),
-                                formattedMeasurement(standardDeviation(samples), decimals: decimals)
-                            )
-                        )
+                        HStack(alignment: .firstTextBaseline, spacing: 4) {
+                            Text("stat.standardDeviation.short")
+                                .font(.caption)
+                            Text(formattedMeasurement(standardDeviation(samples), decimals: decimals))
+                        }
                         .foregroundStyle(standardDeviationColor(standardDeviation(samples), for: field))
                     }
                 }
@@ -638,6 +649,20 @@ struct RecordEditView: View {
                 continue
             }
             samples.append(measurementValue(for: field))
+            measurementSamples[field] = samples
+            setMeasurementValue(averageValue(samples), for: field)
+        }
+    }
+
+    private func removeLastAverageSample(for field: MeasurementAverageField) {
+        guard var samples = measurementSamples[field],
+              let removed = samples.popLast()
+        else { return }
+
+        if samples.isEmpty {
+            measurementSamples[field] = nil
+            setMeasurementValue(removed, for: field)
+        } else {
             measurementSamples[field] = samples
             setMeasurementValue(averageValue(samples), for: field)
         }

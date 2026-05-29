@@ -173,6 +173,8 @@ private struct GraphContentView: View {
             }
         }
         .overlay { if isExporting { exportingOverlay } }
+        // 区分のアイコン・名称・色を変更したらグラフ表示も再生成する
+        .id(settings.dateOptAppearanceRevision)
         .environment(\.scrollCapture, scrollCapture)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {

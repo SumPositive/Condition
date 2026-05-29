@@ -161,6 +161,8 @@ private struct StatisticsContentView: View {
                     content.dynamicTypeSize(AppSettings.shared.fontScale.dynamicTypeSize)
                 }
             }
+            // 区分のアイコン・名称・色を変更したら統計チャートを再生成する
+            .id(settings.dateOptAppearanceRevision)
         }
     }
 

@@ -3928,6 +3928,23 @@
         }
       }
     },
+    "record.average.undoLast" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Undo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消"
+          }
+        }
+      }
+    },
     "record.average.standardDeviationFormat" : {
       "extractionState" : "manual",
       "localizations" : {

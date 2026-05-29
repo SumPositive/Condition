@@ -205,8 +205,13 @@ final class AppSettings {
     var dateOptHourMap: [Int] = AppSettings.factoryDefaultHourMap {
         didSet { ud.set(dateOptHourMap, forKey: SettingsKeys.settDateOptHourMap) }
     }
+    var dateOptAppearanceRevision: Int = 0
     var dateOptAppearances: [DateOptAppearance] = DateOpt.allCases.map(\.defaultAppearance) {
-        didSet { DateOptAppearanceStore.save(dateOptAppearances) }
+        didSet {
+            DateOptAppearanceStore.save(dateOptAppearances)
+            // 区分の表示設定だけを参照する画面にも再描画を伝える
+            dateOptAppearanceRevision += 1
+        }
     }
 
     /// 出荷時初期値（画像定義）

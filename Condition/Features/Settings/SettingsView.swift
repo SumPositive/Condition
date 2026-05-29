@@ -1445,6 +1445,8 @@ struct DateOptMatrixView: View {
         }
         .scrollIndicators(.hidden)
         .background(Color(.systemGroupedBackground))
+        // 区分のアイコン・名称・色を変更したら時間帯マップも再生成する
+        .id(settings.dateOptAppearanceRevision)
         .navigationTitle("settings.category")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -1516,113 +1518,112 @@ private struct DateOptAppearanceEditView: View {
     }
 
     var body: some View {
-        Form {
-            Section {
-                // 現在の名称・アイコン・色の組み合わせを確認する
-                HStack(spacing: 12) {
-                    Image(systemName: appearance.isDefined ? appearance.iconName : dateOpt.undefinedIcon)
-                        .font(.title3)
-                        .foregroundStyle(dateOpt.color)
-                        .frame(width: 28)
-                    if appearance.isDefined {
-                        Text(appearance.displayName)
-                            .font(.headline)
-                    } else {
-                        // 未使用時は区分番号と状態を並べて、対象区分を分かりやすくする
-                        HStack(spacing: 6) {
-                            Text(dateOpt.placeholderName)
-                            Text("settings.category.undefinedPreview")
-                        }
-                        .font(.headline)
-                    }
-                    Spacer()
-                }
-                .padding(.vertical, 4)
-            } header: {
-                Text("settings.category.preview")
-            }
+        VStack(spacing: 8) {
+            // 現在の名称・アイコン・色をタイトル直下で軽く確認できるようにする
+            previewContent
+                .padding(.top, 6)
 
-            Section {
-                if isJapaneseLocale {
-                    TextField("settings.category.name.ja", text: $appearance.nameJa, prompt: Text(dateOpt.namePlaceholder))
-                        .onChange(of: appearance.nameJa) { _, value in
-                            // 日本語名は日本語だけを残し、4文字以内に制限する
-                            appearance.nameJa = limitedJapanese(value, count: japaneseLimit)
-                        }
-                } else {
-                    TextField("settings.category.name.en", text: $appearance.nameEn, prompt: Text(dateOpt.namePlaceholder))
-                        .textInputAutocapitalization(.words)
-                        .onChange(of: appearance.nameEn) { _, value in
-                            // 英語名は英数字と空白だけを残し、省略名として8文字までにする
-                            appearance.nameEn = limitedEnglish(value, count: englishLimit)
-                        }
-                }
-            } header: {
-                HStack {
-                    Text("settings.category.name")
-                    Spacer()
-                    Text(isJapaneseLocale ? "settings.category.name.limit.ja" : "settings.category.name.limit.en")
-                }
-            }
-
-            Section {
-                LazyVGrid(columns: columns, spacing: 10) {
-                    ForEach(DateOptIconOption.all, id: \.self) { iconName in
-                        Button {
-                            appearance.iconName = iconName
-                        } label: {
-                            Image(systemName: iconName)
-                                .font(.title3)
-                                .foregroundStyle(appearance.iconName == iconName ? Color.white : Color.primary)
-                                .frame(width: 42, height: 42)
-                                .background(
-                                    Circle()
-                                        .fill(appearance.iconName == iconName ? Color.accentColor : Color(.secondarySystemGroupedBackground))
-                                )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.vertical, 4)
-            } header: {
-                Text("settings.category.icon")
-            }
-
-            Section {
-                LazyVGrid(columns: columns, spacing: 10) {
-                    ForEach(DateOptColorOption.all) { option in
-                        Button {
-                            appearance.colorKey = option.id
-                        } label: {
-                            let isSelected = appearance.colorKey == option.id
-                            ZStack {
-                                Circle()
-                                    .fill(option.color)
-                                    .frame(width: 34, height: 34)
-                                    .overlay {
-                                        // 選択中の色は外枠で明確にする
-                                        Circle()
-                                            .stroke(isSelected ? Color.primary : Color.clear, lineWidth: 2)
-                                    }
-                                if appearance.colorKey == option.id {
-                                    Image(systemName: "checkmark")
-                                        .font(.caption.weight(.bold))
-                                        .foregroundStyle(.white)
-                                }
+            Form {
+                Section {
+                    if isJapaneseLocale {
+                        TextField("settings.category.name.ja", text: $appearance.nameJa, prompt: Text(dateOpt.namePlaceholder))
+                            .onChange(of: appearance.nameJa) { _, value in
+                                // 日本語名は日本語だけを残し、4文字以内に制限する
+                                appearance.nameJa = limitedJapanese(value, count: japaneseLimit)
                             }
-                            .frame(width: 42, height: 42)
-                        }
-                        .buttonStyle(.plain)
+                    } else {
+                        TextField("settings.category.name.en", text: $appearance.nameEn, prompt: Text(dateOpt.namePlaceholder))
+                            .textInputAutocapitalization(.words)
+                            .onChange(of: appearance.nameEn) { _, value in
+                                // 英語名は英数字と空白だけを残し、省略名として8文字までにする
+                                appearance.nameEn = limitedEnglish(value, count: englishLimit)
+                            }
+                    }
+                } header: {
+                    HStack {
+                        Text("settings.category.name")
+                        Spacer()
+                        Text(isJapaneseLocale ? "settings.category.name.limit.ja" : "settings.category.name.limit.en")
                     }
                 }
-                .padding(.vertical, 4)
-            } header: {
-                Text("settings.category.color")
-            }
 
+                Section {
+                    LazyVGrid(columns: columns, spacing: 10) {
+                        ForEach(DateOptIconOption.all, id: \.self) { iconName in
+                            Button {
+                                appearance.iconName = iconName
+                            } label: {
+                                Image(systemName: iconName)
+                                    .font(.title3)
+                                    .foregroundStyle(appearance.iconName == iconName ? Color.white : Color.primary)
+                                    .frame(width: 42, height: 42)
+                                    .background(
+                                        Circle()
+                                            .fill(appearance.iconName == iconName ? Color.accentColor : Color(.secondarySystemGroupedBackground))
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                } header: {
+                    Text("settings.category.icon")
+                }
+
+                Section {
+                    LazyVGrid(columns: columns, spacing: 10) {
+                        ForEach(DateOptColorOption.all) { option in
+                            Button {
+                                appearance.colorKey = option.id
+                            } label: {
+                                let isSelected = appearance.colorKey == option.id
+                                ZStack {
+                                    Circle()
+                                        .fill(option.color)
+                                        .frame(width: 34, height: 34)
+                                        .overlay {
+                                            // 選択中の色は外枠で明確にする
+                                            Circle()
+                                                .stroke(isSelected ? Color.primary : Color.clear, lineWidth: 2)
+                                        }
+                                    if appearance.colorKey == option.id {
+                                        Image(systemName: "checkmark")
+                                            .font(.caption.weight(.bold))
+                                            .foregroundStyle(.white)
+                                    }
+                                }
+                                .frame(width: 42, height: 42)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                } header: {
+                    Text("settings.category.color")
+                }
+            }
         }
         .navigationTitle(String(format: NSLocalizedString("settings.category.number", comment: ""), dateOpt.rawValue + 1))
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var previewContent: some View {
+        HStack(spacing: 8) {
+            Image(systemName: appearance.isDefined ? appearance.iconName : dateOpt.undefinedIcon)
+                .font(.title3)
+                .foregroundStyle(dateOpt.color)
+            if appearance.isDefined {
+                Text(appearance.displayName)
+            } else {
+                HStack(spacing: 6) {
+                    Text(dateOpt.placeholderName)
+                    Text("settings.category.undefinedPreview")
+                }
+            }
+        }
+        .font(.headline)
+        .lineLimit(1)
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private func limited(_ value: String, count: Int) -> String {
@@ -1677,6 +1678,8 @@ private struct DateOptEstimateDistributionView: View {
         }
         .scrollIndicators(.hidden)
         .background(Color(.systemGroupedBackground))
+        // 区分のアイコン・名称・色を変更したら推定分布も再生成する
+        .id(settings.dateOptAppearanceRevision)
         .navigationTitle("settings.category.estimateDistribution")
         .navigationBarTitleDisplayMode(.inline)
     }
