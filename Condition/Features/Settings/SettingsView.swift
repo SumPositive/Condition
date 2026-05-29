@@ -637,10 +637,10 @@ struct SettingsView: View {
             if 0 < record.nBpHi_mmHg { object["bpSystolic"] = record.nBpHi_mmHg }
             if 0 < record.nBpLo_mmHg { object["bpDiastolic"] = record.nBpLo_mmHg }
             if 0 < record.nPulse_bpm { object["heartRate"] = record.nPulse_bpm }
-            if 0 < record.nTemp_10c { object["bodyTemp"] = Double(record.nTemp_10c) / 10.0 }
-            if 0 < record.nWeight_10Kg { object["weight"] = Double(record.nWeight_10Kg) / 10.0 }
-            if 0 < record.nBodyFat_10p { object["bodyFat"] = Double(record.nBodyFat_10p) / 10.0 }
-            if 0 < record.nSkMuscle_10p { object["skeletalMuscle"] = Double(record.nSkMuscle_10p) / 10.0 }
+            if 0 < record.nTemp_10c { object["bodyTemp"] = decimalNumber(record.nTemp_10c, scale: 1) }
+            if 0 < record.nWeight_10Kg { object["weight"] = decimalNumber(record.nWeight_10Kg, scale: 1) }
+            if 0 < record.nBodyFat_10p { object["bodyFat"] = decimalNumber(record.nBodyFat_10p, scale: 1) }
+            if 0 < record.nSkMuscle_10p { object["skeletalMuscle"] = decimalNumber(record.nSkMuscle_10p, scale: 1) }
             result.append(object)
         }
 
@@ -651,6 +651,11 @@ struct SettingsView: View {
         ]
 
         return (try? JSONSerialization.data(withJSONObject: envelope, options: style.jsonOptions)) ?? Data()
+    }
+
+    private func decimalNumber(_ value: Int, scale: Int) -> NSDecimalNumber {
+        // JSON出力でDoubleの2進小数誤差が長く出ないよう、10進数として出力する
+        NSDecimalNumber(value: value).dividing(by: NSDecimalNumber(mantissa: 1, exponent: Int16(scale), isNegative: false))
     }
 
     private func mergeImportedRecords(_ importedRecords: [RecordImportRecord]) throws -> (inserted: Int, updated: Int) {

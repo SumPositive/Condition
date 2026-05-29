@@ -957,13 +957,13 @@ private struct ExportSheetView: View {
                 case .pulse:
                     if r.nPulse_bpm > 0 { obj["heartRate"] = r.nPulse_bpm }
                 case .temp:
-                    if r.nTemp_10c > 0 { obj["bodyTemp"] = Double(r.nTemp_10c) / 10.0 }
+                    if 0 < r.nTemp_10c { obj["bodyTemp"] = decimalNumber(r.nTemp_10c, scale: 1) }
                 case .weight:
-                    if r.nWeight_10Kg > 0 { obj["weight"] = Double(r.nWeight_10Kg) / 10.0 }
+                    if 0 < r.nWeight_10Kg { obj["weight"] = decimalNumber(r.nWeight_10Kg, scale: 1) }
                 case .bodyFat:
-                    if r.nBodyFat_10p > 0 { obj["bodyFat"] = Double(r.nBodyFat_10p) / 10.0 }
+                    if 0 < r.nBodyFat_10p { obj["bodyFat"] = decimalNumber(r.nBodyFat_10p, scale: 1) }
                 case .skMuscle:
-                    if r.nSkMuscle_10p > 0 { obj["skeletalMuscle"] = Double(r.nSkMuscle_10p) / 10.0 }
+                    if 0 < r.nSkMuscle_10p { obj["skeletalMuscle"] = decimalNumber(r.nSkMuscle_10p, scale: 1) }
                 default: break
                 }
             }
@@ -981,6 +981,11 @@ private struct ExportSheetView: View {
         ]
         return (try? JSONSerialization.data(withJSONObject: envelope,
                                            options: [.prettyPrinted, .sortedKeys])) ?? Data()
+    }
+
+    private func decimalNumber(_ value: Int, scale: Int) -> NSDecimalNumber {
+        // JSON出力でDoubleの2進小数誤差が長く出ないよう、10進数として出力する
+        NSDecimalNumber(value: value).dividing(by: NSDecimalNumber(mantissa: 1, exponent: Int16(scale), isNegative: false))
     }
 
     // MARK: - CSV（Excel 互換・UTF-8 BOM付き）
