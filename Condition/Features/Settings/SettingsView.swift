@@ -1509,12 +1509,22 @@ private struct DateOptAppearanceListView: View {
 private struct DateOptAppearanceEditView: View {
     let dateOpt: DateOpt
     @Binding var appearance: DateOptAppearance
+    @State private var draftName: String
+    @FocusState private var isNameFocused: Bool
 
-    private let japaneseLimit = 4
+    private let draftNameLimit = 100
     private let englishLimit = 8
     private let columns = [GridItem(.adaptive(minimum: 44), spacing: 10)]
     private var isJapaneseLocale: Bool {
         Locale.current.language.languageCode?.identifier == "ja"
+    }
+
+    init(dateOpt: DateOpt, appearance: Binding<DateOptAppearance>) {
+        self.dateOpt = dateOpt
+        _appearance = appearance
+        let languageCode = Locale.current.language.languageCode?.identifier ?? "en"
+        // 入力中は確定前の文字列を保持し、画面を離れる時に表示用の制限を適用する
+        _draftName = State(initialValue: languageCode == "ja" ? appearance.wrappedValue.nameJa : appearance.wrappedValue.nameEn)
     }
 
     var body: some View {
@@ -1526,17 +1536,27 @@ private struct DateOptAppearanceEditView: View {
             Form {
                 Section {
                     if isJapaneseLocale {
-                        TextField("settings.category.name.ja", text: $appearance.nameJa, prompt: Text(dateOpt.namePlaceholder))
-                            .onChange(of: appearance.nameJa) { _, value in
-                                // 日本語名は日本語だけを残し、4文字以内に制限する
-                                appearance.nameJa = limitedJapanese(value, count: japaneseLimit)
+                        TextField("settings.category.name.ja", text: $draftName, prompt: Text(dateOpt.namePlaceholder))
+                            .focused($isNameFocused)
+                            .submitLabel(.done)
+                            .onSubmit { commitDraftName() }
+                            .onChange(of: draftName) { _, value in
+                                // 入力中は変換を邪魔しないため、十分長い上限だけを適用する
+                                if draftNameLimit < value.count {
+                                    draftName = limited(value, count: draftNameLimit)
+                                }
                             }
                     } else {
-                        TextField("settings.category.name.en", text: $appearance.nameEn, prompt: Text(dateOpt.namePlaceholder))
+                        TextField("settings.category.name.en", text: $draftName, prompt: Text(dateOpt.namePlaceholder))
                             .textInputAutocapitalization(.words)
-                            .onChange(of: appearance.nameEn) { _, value in
-                                // 英語名は英数字と空白だけを残し、省略名として8文字までにする
-                                appearance.nameEn = limitedEnglish(value, count: englishLimit)
+                            .focused($isNameFocused)
+                            .submitLabel(.done)
+                            .onSubmit { commitDraftName() }
+                            .onChange(of: draftName) { _, value in
+                                // 入力中は変換を邪魔しないため、十分長い上限だけを適用する
+                                if draftNameLimit < value.count {
+                                    draftName = limited(value, count: draftNameLimit)
+                                }
                             }
                     }
                 } header: {
@@ -1603,27 +1623,62 @@ private struct DateOptAppearanceEditView: View {
                 }
             }
         }
+        .onChange(of: isNameFocused) { _, focused in
+            if !focused {
+                commitDraftName()
+            }
+        }
+        .onDisappear {
+            commitDraftName()
+        }
         .navigationTitle(String(format: NSLocalizedString("settings.category.number", comment: ""), dateOpt.rawValue + 1))
         .navigationBarTitleDisplayMode(.inline)
     }
 
     private var previewContent: some View {
-        HStack(spacing: 8) {
-            Image(systemName: appearance.isDefined ? appearance.iconName : dateOpt.undefinedIcon)
+        let previewName = draftName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return HStack(spacing: 8) {
+            Image(systemName: previewName.isEmpty ? dateOpt.undefinedIcon : appearance.iconName)
                 .font(.title3)
-                .foregroundStyle(dateOpt.color)
-            if appearance.isDefined {
-                Text(appearance.displayName)
-            } else {
+                .foregroundStyle(previewName.isEmpty ? Color.secondary : DateOptColorOption.color(for: appearance.colorKey))
+            if previewName.isEmpty {
                 HStack(spacing: 6) {
                     Text(dateOpt.placeholderName)
                     Text("settings.category.undefinedPreview")
                 }
+            } else {
+                Text(previewName)
             }
         }
         .font(.headline)
         .lineLimit(1)
         .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    private func commitDraftName() {
+        let committedName = finalizedName(draftName)
+        if isJapaneseLocale {
+            if appearance.nameJa != committedName {
+                appearance.nameJa = committedName
+            }
+        } else {
+            if appearance.nameEn != committedName {
+                appearance.nameEn = committedName
+            }
+        }
+        if draftName != committedName {
+            draftName = committedName
+        }
+    }
+
+    private func finalizedName(_ value: String) -> String {
+        if isJapaneseLocale {
+            // 保存時にja名は全角2・半角英数字1の表示幅8以内へ丸める
+            return limitedJapanese(value.trimmingCharacters(in: .whitespacesAndNewlines), units: englishLimit)
+        } else {
+            // 保存時に英語名を半角英数字8文字以内へ丸める
+            return limitedEnglish(value.trimmingCharacters(in: .whitespacesAndNewlines), count: englishLimit)
+        }
     }
 
     private func limited(_ value: String, count: Int) -> String {
@@ -1633,15 +1688,38 @@ private struct DateOptAppearanceEditView: View {
         return String(value.prefix(count))
     }
 
-    private func limitedJapanese(_ value: String, count: Int) -> String {
-        let japaneseOnly = value.filter { character in
-            character.unicodeScalars.allSatisfy { scalar in
-                (0x3040...0x30FF).contains(scalar.value)
-                    || (0x3400...0x9FFF).contains(scalar.value)
-                    || (0xFF00...0xFFEF).contains(scalar.value)
+    private func limitedJapanese(_ value: String, units: Int) -> String {
+        var usedUnits = 0
+        var result = ""
+        for character in value {
+            guard let cost = japaneseNameCharacterCost(character) else { continue }
+            if units < usedUnits + cost {
+                break
             }
+            result.append(character)
+            usedUnits += cost
         }
-        return limited(String(japaneseOnly), count: count)
+        return result
+    }
+
+    private func japaneseNameCharacterCost(_ character: Character) -> Int? {
+        let scalars = character.unicodeScalars
+        if scalars.allSatisfy({ scalar in
+            scalar.value == 0x20
+                || (0x30...0x39).contains(scalar.value)
+                || (0x41...0x5A).contains(scalar.value)
+                || (0x61...0x7A).contains(scalar.value)
+        }) {
+            return 1
+        }
+        if scalars.allSatisfy({ scalar in
+            (0x3040...0x30FF).contains(scalar.value)
+                || (0x3400...0x9FFF).contains(scalar.value)
+                || (0xFF00...0xFFEF).contains(scalar.value)
+        }) {
+            return 2
+        }
+        return nil
     }
 
     private func limitedEnglish(_ value: String, count: Int) -> String {

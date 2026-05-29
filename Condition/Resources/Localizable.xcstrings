@@ -4367,8 +4367,8 @@
     "settings.category.name.limit.ja" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "4文字以内" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "4文字以内" } }
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Full 4 / Half 8" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "全角4/半角8" } }
       }
     },
     "settings.category.number" : {
