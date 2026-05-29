@@ -672,6 +672,14 @@ private struct DailyBp: Identifiable {
     var id: Date { date }
 }
 
+private struct DailyCategoryBp: Identifiable {
+    let date: Date
+    let dateOpt: DateOpt
+    let hi: Double
+    let lo: Double
+    var id: String { "\(dateOpt.rawValue)-\(date.timeIntervalSince1970)" }
+}
+
 struct BpChartView: View {
     let records: [BodyRecord]
     let period: GraphPeriod
@@ -687,15 +695,26 @@ struct BpChartView: View {
         records.filter { $0.nBpHi_mmHg > 0 && $0.nBpLo_mmHg > 0 }
             .sorted { $0.dateTime < $1.dateTime }
     }
+    private var hiddenDateOptRawValues: Set<Int> {
+        Set(settings.statBpDistributionHiddenDateOpts)
+    }
+    private var visibleRecords: [BodyRecord] {
+        let hidden = hiddenDateOptRawValues
+        return validRecords.filter { record in
+            // 未使用区分は凡例にも出さず、血圧グラフにも描画しない
+            guard let dateOpt = DateOpt(rawValue: record.nDateOpt), dateOpt.isDefined else { return false }
+            return !hidden.contains(dateOpt.rawValue)
+        }
+    }
     private var periodStart: Date {
         cal.date(byAdding: .day, value: -period.rawValue, to: Date()) ?? Date()
     }
-    private var periodRecords: [BodyRecord] { validRecords.filter { $0.dateTime >= periodStart } }
+    private var periodRecords: [BodyRecord] { visibleRecords.filter { periodStart <= $0.dateTime } }
 
     private func dayStart(_ date: Date) -> Date { cal.startOfDay(for: date) }
 
     private var dailyAverages: [DailyBp] {
-        let grouped = Dictionary(grouping: validRecords) { dayStart($0.dateTime) }
+        let grouped = Dictionary(grouping: visibleRecords) { dayStart($0.dateTime) }
         return grouped.map { date, recs in
             let hi = Double(recs.map(\.nBpHi_mmHg).reduce(0, +)) / Double(recs.count)
             let lo = Double(recs.map(\.nBpLo_mmHg).reduce(0, +)) / Double(recs.count)
@@ -703,10 +722,28 @@ struct BpChartView: View {
         }.sorted { $0.date < $1.date }
     }
 
+    private var dailyCategoryAverages: [DailyCategoryBp] {
+        let grouped = Dictionary(grouping: visibleRecords) { record in
+            "\(record.nDateOpt)-\(dayStart(record.dateTime).timeIntervalSince1970)"
+        }
+        return grouped.compactMap { _, recs in
+            guard let first = recs.first,
+                  let dateOpt = DateOpt(rawValue: first.nDateOpt), dateOpt.isDefined else { return nil }
+            let hi = Double(recs.map(\.nBpHi_mmHg).reduce(0, +)) / Double(recs.count)
+            let lo = Double(recs.map(\.nBpLo_mmHg).reduce(0, +)) / Double(recs.count)
+            return DailyCategoryBp(date: dayStart(first.dateTime), dateOpt: dateOpt, hi: hi, lo: lo)
+        }.sorted { lhs, rhs in
+            if lhs.date == rhs.date {
+                return lhs.dateOpt.rawValue < rhs.dateOpt.rawValue
+            }
+            return lhs.date < rhs.date
+        }
+    }
+
     private var selectedDayRecords: [BodyRecord] {
         guard let date = selectedDate else { return [] }
         let target = dayStart(date)
-        return validRecords.filter { dayStart($0.dateTime) == target }
+        return visibleRecords.filter { dayStart($0.dateTime) == target }
     }
 
     private var avgHi: Int? {
@@ -730,10 +767,17 @@ struct BpChartView: View {
     // Y軸タイトドメイン用（過去1年の上最大・下最小）
     private var yearRecords: [BodyRecord] {
         let oneYearAgo = cal.date(byAdding: .year, value: -1, to: Date()) ?? Date()
-        return validRecords.filter { $0.dateTime >= oneYearAgo }
+        return visibleRecords.filter { oneYearAgo <= $0.dateTime }
     }
     private var yearMaxHi: Int? { yearRecords.map(\.nBpHi_mmHg).max() }
     private var yearMinLo: Int? { yearRecords.map(\.nBpLo_mmHg).min() }
+
+    private var bpLineMode: Binding<GraphBpLineMode> {
+        Binding(
+            get: { GraphBpLineMode(rawValue: settings.graphBpLineMode) ?? .average },
+            set: { settings.graphBpLineMode = $0.rawValue }
+        )
+    }
 
     var body: some View {
         PanelContainer {
@@ -767,46 +811,70 @@ struct BpChartView: View {
 
             // チャート
             Chart {
-                // 上〜下の帯（日次平均）
-                ForEach(dailyAverages) { d in
-                    AreaMark(
-                        x: .value("record.datetime", d.date),
-                        yStart: .value("metric.diastolic.short", d.lo),
-                        yEnd:   .value("metric.systolic.short", d.hi)
-                    )
-                    .foregroundStyle(Color.purple.opacity(0.08))
-                    .interpolationMethod(.catmullRom)
-                }
-                // 上ライン（日次平均を経由）
-                ForEach(dailyAverages) { d in
-                    LineMark(x: .value("record.datetime", d.date), y: .value("metric.systolic.short", d.hi),
-                             series: .value("chart.series", "metric.systolic.short"))
-                        .foregroundStyle(.red)
+                if bpLineMode.wrappedValue == .average {
+                    // 上〜下の帯（日次平均）
+                    ForEach(dailyAverages) { d in
+                        AreaMark(
+                            x: .value("record.datetime", d.date),
+                            yStart: .value("metric.diastolic.short", d.lo),
+                            yEnd:   .value("metric.systolic.short", d.hi)
+                        )
+                        .foregroundStyle(Color.purple.opacity(0.08))
+                        .interpolationMethod(.catmullRom)
+                    }
+                    // 上ライン（日次平均を経由）
+                    ForEach(dailyAverages) { d in
+                        LineMark(x: .value("record.datetime", d.date), y: .value("metric.systolic.short", d.hi),
+                                 series: .value("chart.series", "metric.systolic.short"))
+                            .foregroundStyle(.red)
+                            .lineStyle(StrokeStyle(lineWidth: 2))
+                            .interpolationMethod(.catmullRom)
+                    }
+                    // 下ライン（日次平均を経由）
+                    ForEach(dailyAverages) { d in
+                        LineMark(x: .value("record.datetime", d.date), y: .value("metric.diastolic.short", d.lo),
+                                 series: .value("chart.series", "metric.diastolic.short"))
+                            .foregroundStyle(.blue)
+                            .lineStyle(StrokeStyle(lineWidth: 2))
+                            .interpolationMethod(.catmullRom)
+                    }
+                } else {
+                    // 区分別モードでは、ON区分ごとの日次平均を区分色で描く
+                    ForEach(dailyCategoryAverages) { d in
+                        LineMark(
+                            x: .value("record.datetime", d.date),
+                            y: .value("metric.systolic.short", d.hi),
+                            series: .value("chart.series", "\(d.dateOpt.rawValue)-hi")
+                        )
+                        .foregroundStyle(d.dateOpt.color)
                         .lineStyle(StrokeStyle(lineWidth: 2))
                         .interpolationMethod(.catmullRom)
+                    }
+                    ForEach(dailyCategoryAverages) { d in
+                        LineMark(
+                            x: .value("record.datetime", d.date),
+                            y: .value("metric.diastolic.short", d.lo),
+                            series: .value("chart.series", "\(d.dateOpt.rawValue)-lo")
+                        )
+                        .foregroundStyle(d.dateOpt.color.opacity(0.72))
+                        .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 2]))
+                        .interpolationMethod(.catmullRom)
+                    }
                 }
                 // 上ポイント（個別レコード、同日は同X）
-                ForEach(validRecords) { r in
+                ForEach(visibleRecords) { r in
                     PointMark(x: .value("record.datetime", dayStart(r.dateTime)), y: .value("metric.systolic.short", Double(r.nBpHi_mmHg)))
                         .foregroundStyle(r.dateOpt.color)
                         .symbolSize(18)
                 }
-                // 下ライン（日次平均を経由）
-                ForEach(dailyAverages) { d in
-                    LineMark(x: .value("record.datetime", d.date), y: .value("metric.diastolic.short", d.lo),
-                             series: .value("chart.series", "metric.diastolic.short"))
-                        .foregroundStyle(.blue)
-                        .lineStyle(StrokeStyle(lineWidth: 2))
-                        .interpolationMethod(.catmullRom)
-                }
                 // 下ポイント（個別レコード、同日は同X）
-                ForEach(validRecords) { r in
+                ForEach(visibleRecords) { r in
                     PointMark(x: .value("record.datetime", dayStart(r.dateTime)), y: .value("metric.diastolic.short", Double(r.nBpLo_mmHg)))
                         .foregroundStyle(r.dateOpt.color)
                         .symbolSize(18)
                 }
                 // 平均血圧ライン（graphBpMean ON 時のみ）
-                if settings.graphBpMean {
+                if settings.graphBpMean && bpLineMode.wrappedValue == .average {
                     ForEach(dailyAverages) { d in
                         LineMark(x: .value("record.datetime", d.date), y: .value("metric.meanBloodPressure.short", d.map),
                                  series: .value("chart.series", "metric.meanBloodPressure.short"))
@@ -860,11 +928,19 @@ struct BpChartView: View {
                     AxisValueLabel { if let v = value.as(Double.self) { Text(String(Int(v.rounded()))).font(.caption) } }
                 }
             }
-            .tapToSelectDay($selectedDate, validDays: Set(validRecords.map { dayStart($0.dateTime) }))
-            .standardXAxis(period: period, scrollPosition: $scrollPosition, kind: .bp, oldestDate: validRecords.first?.dateTime, newestDate: validRecords.last?.dateTime)
+            .tapToSelectDay($selectedDate, validDays: Set(visibleRecords.map { dayStart($0.dateTime) }))
+            .standardXAxis(period: period, scrollPosition: $scrollPosition, kind: .bp, oldestDate: visibleRecords.first?.dateTime, newestDate: visibleRecords.last?.dateTime)
             .frame(height: adaptiveChartHeight(base: scaledBase, width: chartWidth))
             .padding(.horizontal, 8)
             .padding(.bottom, 4)
+
+            bpCategoryLegend
+                .padding(.horizontal, 14)
+                .padding(.bottom, 6)
+
+            bpLineModePicker
+                .padding(.horizontal, 14)
+                .padding(.bottom, 8)
 
             // 選択詳細（同日複数レコードも全表示）
             if !selectedDayRecords.isEmpty {
@@ -881,6 +957,65 @@ struct BpChartView: View {
             }
 
         }
+    }
+
+    private var bpCategoryLegend: some View {
+        let cols = [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())]
+        return LazyVGrid(columns: cols, alignment: .center, spacing: 8) {
+            ForEach(DateOpt.allCases.filter(\.isDefined), id: \.self) { opt in
+                let isOn = !hiddenDateOptRawValues.contains(opt.rawValue)
+                Button {
+                    toggleBpDistributionDateOpt(opt)
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: isOn ? "checkmark.square.fill" : "square")
+                            .font(.caption2)
+                        Image(systemName: opt.icon)
+                            .font(.caption2)
+                        Text(opt.displayName)
+                            .font(.caption)
+                    }
+                    .foregroundStyle(isOn ? opt.color : Color.secondary)
+                    .padding(.vertical, 4)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var bpLineModePicker: some View {
+        HStack(spacing: 8) {
+            Text("graph.bpLineMode")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            AZRadioPicker(
+                options: GraphBpLineMode.allCases,
+                selection: bpLineMode,
+                minOptionWidth: 64,
+                maxOptionWidth: 120,
+                horizontalPadding: 10,
+                optionSpacing: 4,
+                groupPadding: 4,
+                wrapsOptions: false,
+                fillsWidth: false
+            ) { mode in
+                Text(LocalizedStringKey(mode.titleKey))
+            }
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func toggleBpDistributionDateOpt(_ opt: DateOpt) {
+        var hidden = hiddenDateOptRawValues
+        if hidden.contains(opt.rawValue) {
+            hidden.remove(opt.rawValue)
+        } else {
+            // 統計の血圧分布と同じON/OFF設定を共有する
+            hidden.insert(opt.rawValue)
+        }
+        settings.statBpDistributionHiddenDateOpts = hidden.sorted()
     }
 }
 

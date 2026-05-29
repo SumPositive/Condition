@@ -53,6 +53,20 @@ enum AppFontScale: Int, CaseIterable, Identifiable {
     }
 }
 
+enum GraphBpLineMode: Int, CaseIterable, Identifiable {
+    case average = 0
+    case category = 1
+
+    var id: Int { rawValue }
+
+    var titleKey: String {
+        switch self {
+        case .average: return "graph.bpLineMode.average"
+        case .category: return "graph.bpLineMode.category"
+        }
+    }
+}
+
 // アプリ全体の外観モード
 enum AppAppearanceMode: Int, CaseIterable, Identifiable {
     case automatic = 0
@@ -141,6 +155,9 @@ final class AppSettings {
     }
     var graphWeightChange: Bool = true {
         didSet { ud.set(graphWeightChange, forKey: SettingsKeys.settGraphWeightChange) }
+    }
+    var graphBpLineMode: Int = GraphBpLineMode.average.rawValue {
+        didSet { ud.set(graphBpLineMode, forKey: SettingsKeys.settGraphBpLineMode) }
     }
     var dialStyle: String = DialStyle.shape.id {
         didSet { ud.set(dialStyle, forKey: SettingsKeys.settDialStyle) }
@@ -397,6 +414,7 @@ final class AppSettings {
         if 0 < tall { graphBMITall = tall }
         if ud.object(forKey: SettingsKeys.settGraphWeightMA)     != nil { graphWeightMA     = ud.bool(forKey: SettingsKeys.settGraphWeightMA) }
         if ud.object(forKey: SettingsKeys.settGraphWeightChange) != nil { graphWeightChange = ud.bool(forKey: SettingsKeys.settGraphWeightChange) }
+        if ud.object(forKey: SettingsKeys.settGraphBpLineMode)   != nil { graphBpLineMode   = ud.integer(forKey: SettingsKeys.settGraphBpLineMode) }
         // dialStyle: 強制デフォルト移行バージョン
         let dialStyleForceVersion = 1  // Shape をデフォルトにした版
         let forcedVersion = ud.integer(forKey: SettingsKeys.settDialStyleForcedVersion)

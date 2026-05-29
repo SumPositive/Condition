@@ -15,6 +15,7 @@ enum SettingsKeys {
     static let settGraphBMI          = "KVS_SettGraphBMI"           // BMIグラフ表示
     static let settGraphWeightMA     = "KVS_SettGraphWeightMA"       // 体重移動平均
     static let settGraphWeightChange = "KVS_SettGraphWeightChange"   // 体重変化量
+    static let settGraphBpLineMode    = "KVS_SettGraphBpLineMode"     // 血圧グラフ線モード
     static let settDialStyle         = "KVS_SettDialStyle"           // ダイアルスタイル (DialStyle.rawValue)
     static let settDialStyleForcedVersion = "KVS_DialStyleForcedVersion" // ダイアルスタイル強制移行版
     static let settDialTuning        = "KVS_SettDialTuning"          // ダイアル操作感度 (JSONデータ)
@@ -67,6 +68,7 @@ enum SettingsKeys {
         settGraphBMI,
         settGraphWeightMA,
         settGraphWeightChange,
+        settGraphBpLineMode,
         settDialStyle,
         settDialStyleForcedVersion,
         settDialTuning,
