@@ -128,14 +128,22 @@ struct RecordEditView: View {
                             fieldRow(for: kind)
                         }
                     } header: {
-                        HStack(alignment: .center) {
+                        HStack(alignment: .center, spacing: 16) {
                             Text("record.measurements")
-                            Spacer()
                             Button("record.average.add") {
                                 addAverageSamples()
                             }
-                            .font(.caption)
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 5)
+                            .background {
+                                // 小さなヘッダーボタンでも押しやすいようカプセル状の面を持たせる
+                                Capsule()
+                                    .fill(canAddAverageSample ? Color.accentColor.opacity(0.12) : Color(.systemFill))
+                            }
+                            .contentShape(Capsule())
                             .disabled(!canAddAverageSample)
+                            Spacer()
                         }
                     }
                     healthKitSection
@@ -529,10 +537,13 @@ struct RecordEditView: View {
                                 }
                                 .buttonStyle(.borderless)
                                 .font(.caption)
+                                .foregroundStyle(.red)
+                                .padding(.trailing, 4)
                             } else {
                                 // 最終行だけボタンを出しても番号と数値の桁位置が揃うよう幅を確保する
                                 Text("record.average.undoLast")
                                     .font(.caption)
+                                    .padding(.trailing, 4)
                                     .hidden()
                             }
                             Image(systemName: sampleIconName(index + 1))

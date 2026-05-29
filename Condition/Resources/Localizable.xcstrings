@@ -3934,13 +3934,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Undo"
+            "value" : "Undo >"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "取消"
+            "value" : "取消 >"
           }
         }
       }
