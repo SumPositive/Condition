@@ -992,25 +992,33 @@ struct BpChartView: View {
     }
 
     private var bpLineModePicker: some View {
-        HStack(spacing: 8) {
-            Text("graph.bpLineMode")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            AZRadioPicker(
-                options: GraphBpLineMode.allCases,
-                selection: bpLineMode,
-                minOptionWidth: 64,
-                maxOptionWidth: 120,
-                horizontalPadding: 10,
-                optionSpacing: 4,
-                groupPadding: 4,
-                wrapsOptions: false,
-                fillsWidth: false
-            ) { mode in
-                Text(LocalizedStringKey(mode.titleKey))
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Text("graph.bpLineMode")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                AZRadioPicker(
+                    options: GraphBpLineMode.allCases,
+                    selection: bpLineMode,
+                    minOptionWidth: 64,
+                    maxOptionWidth: 120,
+                    horizontalPadding: 10,
+                    optionSpacing: 4,
+                    groupPadding: 4,
+                    wrapsOptions: false,
+                    fillsWidth: false
+                ) { mode in
+                    Text(LocalizedStringKey(mode.titleKey))
+                }
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+                Spacer(minLength: 0)
             }
-            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-            Spacer(minLength: 0)
+            if settings.userLevel == .beginner {
+                // 初心者向けに、脈圧と心拍数も同じ描画条件を参照することを明示する
+                Text("graph.bpLineMode.appliesToPulse")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 

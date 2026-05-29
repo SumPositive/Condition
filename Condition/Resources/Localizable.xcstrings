@@ -1804,6 +1804,23 @@
         }
       }
     },
+    "graph.bpLineMode.appliesToPulse" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This setting also applies to heart rate and pulse pressure."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "この設定は心拍数と脈圧にも適用されます"
+          }
+        }
+      }
+    },
     "graph.bpLineMode.average" : {
       "extractionState" : "manual",
       "localizations" : {
