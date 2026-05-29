@@ -571,6 +571,20 @@
         "ja" : { "stringUnit" : { "state" : "translated", "value" : "運動後" } }
       }
     },
+    "category.cat07" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "" } }
+      }
+    },
+    "category.cat08" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "" } }
+      }
+    },
     "category.beforeBed" : {
       "comment" : "過去export JSONのimport互換のため残す旧キー",
       "extractionState" : "manual",
@@ -4347,11 +4361,25 @@
         "ja" : { "stringUnit" : { "state" : "translated", "value" : "区分 %d" } }
       }
     },
+    "settings.category.placeholderNumber" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Category %d" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "区分%d" } }
+      }
+    },
     "settings.category.preview" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Preview" } },
         "ja" : { "stringUnit" : { "state" : "translated", "value" : "プレビュー" } }
+      }
+    },
+    "settings.category.undefinedPreview" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "(Unused)" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "（未使用）" } }
       }
     },
     "settings.dialDesign" : {

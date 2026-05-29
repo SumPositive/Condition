@@ -11,6 +11,8 @@ enum DateOpt: Int, CaseIterable, Codable, Identifiable {
     case cat04 = 3  // 既定: 就寝時
     case cat05 = 4  // 既定: 運動前
     case cat06 = 5  // 既定: 運動後
+    case cat07 = 6  // 既定: 未定義
+    case cat08 = 7  // 既定: 未定義
 
     var id: Int { rawValue }
 
@@ -22,22 +24,28 @@ enum DateOpt: Int, CaseIterable, Codable, Identifiable {
         case .cat04: return "category.cat04"
         case .cat05: return "category.cat05"
         case .cat06: return "category.cat06"
+        case .cat07: return "category.cat07"
+        case .cat08: return "category.cat08"
         }
     }
 
     var defaultIcon: String {
         switch self {
-        case .cat01: return "sun.horizon.fill"
-        case .cat02: return "heart.fill"
-        case .cat03: return "moon.fill"
-        case .cat04: return "moon.zzz.fill"
-        case .cat05: return "figure.wave"
-        case .cat06: return "figure.walk"
+        case .cat01: return defaultNamedIcon
+        case .cat02: return defaultNamedIcon
+        case .cat03: return defaultNamedIcon
+        case .cat04: return defaultNamedIcon
+        case .cat05: return defaultNamedIcon
+        case .cat06: return defaultNamedIcon
+        case .cat07: return undefinedIcon
+        case .cat08: return undefinedIcon
         }
     }
 
     var icon: String {
-        DateOptAppearanceStore.appearance(for: self).iconName
+        let appearance = DateOptAppearanceStore.appearance(for: self)
+        // 未定義区分は番号アイコンで表示し、設定済みなら選択アイコンを使う
+        return appearance.isDefined ? appearance.iconName : undefinedIcon
     }
 
     var defaultColorKey: String {
@@ -48,15 +56,49 @@ enum DateOpt: Int, CaseIterable, Codable, Identifiable {
         case .cat04: return "purple"
         case .cat05: return "teal"
         case .cat06: return "red"
+        case .cat07: return "gray"
+        case .cat08: return "gray"
         }
     }
 
     var color: Color {
-        DateOptColorOption.color(for: DateOptAppearanceStore.appearance(for: self).colorKey)
+        let appearance = DateOptAppearanceStore.appearance(for: self)
+        // 未定義区分は保存色に関係なくグレー系で表示する
+        return appearance.isDefined ? DateOptColorOption.color(for: appearance.colorKey) : .secondary
     }
 
     var displayName: String {
         DateOptAppearanceStore.appearance(for: self).displayName
+    }
+
+    var placeholderName: String {
+        let format = NSLocalizedString("settings.category.placeholderNumber", comment: "")
+        return String(format: format, rawValue + 1)
+    }
+
+    var namePlaceholder: String {
+        placeholderName
+    }
+
+    var isDefined: Bool {
+        DateOptAppearanceStore.appearance(for: self).isDefined
+    }
+
+    var defaultNamedIcon: String {
+        switch self {
+        case .cat01: return "sun.horizon.fill"
+        case .cat02: return "heart.fill"
+        case .cat03: return "moon.fill"
+        case .cat04: return "moon.zzz.fill"
+        case .cat05: return "figure.wave"
+        case .cat06: return "figure.walk"
+        case .cat07: return "7.square.fill"
+        case .cat08: return "8.square.fill"
+        }
+    }
+
+    var undefinedIcon: String {
+        "\(rawValue + 1).square"
     }
 }
 
@@ -73,9 +115,15 @@ struct DateOptAppearance: Codable, Equatable, Identifiable {
     var displayName: String {
         let languageCode = Locale.current.language.languageCode?.identifier ?? "en"
         if languageCode == "ja" {
-            return nameJa.isEmpty ? fallbackNameJa : nameJa
+            return nameJa.isEmpty ? fallbackNameJaOrPlaceholder : nameJa
         }
-        return nameEn.isEmpty ? fallbackNameEn : nameEn
+        return nameEn.isEmpty ? fallbackNameEnOrPlaceholder : nameEn
+    }
+
+    var isDefined: Bool {
+        let languageCode = Locale.current.language.languageCode?.identifier ?? "en"
+        // 名称を空欄にした区分は、既定名があっても未定義として扱う
+        return languageCode == "ja" ? !nameJa.isEmpty : !nameEn.isEmpty
     }
 
     private var fallbackNameJa: String {
@@ -84,6 +132,20 @@ struct DateOptAppearance: Codable, Equatable, Identifiable {
 
     private var fallbackNameEn: String {
         DateOpt(rawValue: dateOptRawValue)?.defaultNameEn ?? ""
+    }
+
+    private var fallbackNameJaOrPlaceholder: String {
+        if fallbackNameJa.isEmpty {
+            return DateOpt(rawValue: dateOptRawValue)?.placeholderName ?? ""
+        }
+        return fallbackNameJa
+    }
+
+    private var fallbackNameEnOrPlaceholder: String {
+        if fallbackNameEn.isEmpty {
+            return DateOpt(rawValue: dateOptRawValue)?.placeholderName ?? ""
+        }
+        return fallbackNameEn
     }
 }
 
@@ -96,6 +158,8 @@ extension DateOpt {
         case .cat04: return "就寝時"
         case .cat05: return "運動前"
         case .cat06: return "運動後"
+        case .cat07: return ""
+        case .cat08: return ""
         }
     }
 
@@ -107,6 +171,8 @@ extension DateOpt {
         case .cat04: return "Bedtime"
         case .cat05: return "PreEx"
         case .cat06: return "PostEx"
+        case .cat07: return ""
+        case .cat08: return ""
         }
     }
 
@@ -125,6 +191,7 @@ extension DateOpt {
 enum DateOptIconOption {
     static let all: [String] = [
         "sun.horizon.fill",
+        "sun.max.fill",
         "heart.fill",
         "moon.fill",
         "moon.zzz.fill",
@@ -141,7 +208,19 @@ enum DateOptIconOption {
         "clock.fill",
         "leaf.fill",
         "bolt.heart.fill",
-        "drop.fill"
+        "drop.fill",
+        "smoke.fill",
+        "snowflake",
+        "tag.fill",
+        "tag",
+        "1.square.fill",
+        "2.square.fill",
+        "3.square.fill",
+        "4.square.fill",
+        "5.square.fill",
+        "6.square.fill",
+        "7.square.fill",
+        "8.square.fill"
     ]
 }
 
@@ -160,7 +239,9 @@ struct DateOptColorOption: Identifiable {
         DateOptColorOption(id: "pink", color: .pink),
         DateOptColorOption(id: "indigo", color: .indigo),
         DateOptColorOption(id: "cyan", color: .cyan),
-        DateOptColorOption(id: "brown", color: .brown)
+        DateOptColorOption(id: "brown", color: .brown),
+        // 区分7/8の初期色として使うグレー系
+        DateOptColorOption(id: "gray", color: .secondary)
     ]
 
     static func color(for key: String) -> Color {

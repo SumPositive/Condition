@@ -699,8 +699,9 @@ struct SettingsView: View {
     }
 
     private func categoryAppearanceObjects() -> [[String: Any]] {
-        settings.dateOptAppearances.map { appearance in
-            [
+        DateOpt.allCases.map { dateOpt in
+            let appearance = settings.dateOptAppearances.first { $0.dateOptRawValue == dateOpt.rawValue } ?? dateOpt.defaultAppearance
+            return [
                 "dateOptRawValue": appearance.dateOptRawValue,
                 "nameJa": appearance.nameJa,
                 "nameEn": appearance.nameEn,
@@ -789,7 +790,7 @@ private struct RecordImportRecord: Decodable {
         if let conditionRaw {
             return DateOpt(rawValue: conditionRaw)
         }
-        guard let condition else { return nil }
+        guard let condition, !condition.isEmpty else { return nil }
         if let exact = DateOpt.allCases.first(where: { $0.label == condition }) {
             return exact
         }
@@ -1391,7 +1392,7 @@ struct DateOptMatrixView: View {
                             Image(systemName: kind.icon)
                                 .font(.caption)
                                 .foregroundStyle(kind.color)
-                            Text(kind.displayName)
+                            Text(kind.isDefined ? kind.displayName : kind.placeholderName)
                                 .font(.system(size: 10))
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.5)
@@ -1451,6 +1452,7 @@ private struct DateOptAppearanceListView: View {
         List {
             Section {
                 ForEach(DateOpt.allCases) { dateOpt in
+                    let appearance = appearance(for: dateOpt)
                     NavigationLink {
                         DateOptAppearanceEditView(
                             dateOpt: dateOpt,
@@ -1463,10 +1465,11 @@ private struct DateOptAppearanceListView: View {
                                 .foregroundStyle(.secondary)
                                 .monospacedDigit()
                                 .frame(width: 24, alignment: .leading)
-                            Image(systemName: appearance(for: dateOpt).iconName)
-                                .foregroundStyle(DateOptColorOption.color(for: appearance(for: dateOpt).colorKey))
+                            Image(systemName: appearance.isDefined ? appearance.iconName : dateOpt.undefinedIcon)
+                                .foregroundStyle(dateOpt.color)
                                 .frame(width: 24)
-                            Text(appearance(for: dateOpt).displayName)
+                            Text(appearance.isDefined ? appearance.displayName : String(localized: "settings.category.undefinedPreview"))
+                                .foregroundStyle(appearance.isDefined ? Color.primary : Color.secondary)
                         }
                     }
                 }
@@ -1512,12 +1515,21 @@ private struct DateOptAppearanceEditView: View {
             Section {
                 // 現在の名称・アイコン・色の組み合わせを確認する
                 HStack(spacing: 12) {
-                    Image(systemName: appearance.iconName)
+                    Image(systemName: appearance.isDefined ? appearance.iconName : dateOpt.undefinedIcon)
                         .font(.title3)
-                        .foregroundStyle(DateOptColorOption.color(for: appearance.colorKey))
+                        .foregroundStyle(dateOpt.color)
                         .frame(width: 28)
-                    Text(appearance.displayName)
+                    if appearance.isDefined {
+                        Text(appearance.displayName)
+                            .font(.headline)
+                    } else {
+                        // 未使用時は区分番号と状態を並べて、対象区分を分かりやすくする
+                        HStack(spacing: 6) {
+                            Text(dateOpt.placeholderName)
+                            Text("settings.category.undefinedPreview")
+                        }
                         .font(.headline)
+                    }
                     Spacer()
                 }
                 .padding(.vertical, 4)
@@ -1527,13 +1539,13 @@ private struct DateOptAppearanceEditView: View {
 
             Section {
                 if isJapaneseLocale {
-                    TextField("settings.category.name.ja", text: $appearance.nameJa)
+                    TextField("settings.category.name.ja", text: $appearance.nameJa, prompt: Text(dateOpt.namePlaceholder))
                         .onChange(of: appearance.nameJa) { _, value in
                             // 日本語名は日本語だけを残し、4文字以内に制限する
                             appearance.nameJa = limitedJapanese(value, count: japaneseLimit)
                         }
                 } else {
-                    TextField("settings.category.name.en", text: $appearance.nameEn)
+                    TextField("settings.category.name.en", text: $appearance.nameEn, prompt: Text(dateOpt.namePlaceholder))
                         .textInputAutocapitalization(.words)
                         .onChange(of: appearance.nameEn) { _, value in
                             // 英語名は英数字と空白だけを残し、省略名として8文字までにする

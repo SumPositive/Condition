@@ -118,6 +118,8 @@ struct AZPickerStyle {
     var dropdownPopoverDynamicTypeRange: ClosedRange<DynamicTypeSize> = DynamicTypeSize.xSmall...DynamicTypeSize.accessibility5
     /// ドロップダウン選択中表示と候補一覧の幅不足時処理
     var dropdownTextFitMode: AZPickerTextFitMode = .wrap
+    /// ラベル内で指定した色をそのまま使う
+    var preservesLabelForegroundStyle: Bool = false
     /// 選択ボタン右端のインジケータデフォルトは非表示
     var dropdownIndicator: AZDropdownIndicator = .none
 
@@ -213,11 +215,18 @@ struct AZDropdownPicker<Option: Hashable & Identifiable, Label: View>: View {
         .buttonStyle(.plain)
     }
 
+    @ViewBuilder
     private var selectedLabel: some View {
-        label(selection)
-            .font(.subheadline)
-            .foregroundStyle(Color.primary)
-            .azPickerTextFit(style.dropdownTextFitMode, alignment: .center)
+        if style.preservesLabelForegroundStyle {
+            label(selection)
+                .font(.subheadline)
+                .azPickerTextFit(style.dropdownTextFitMode, alignment: .center)
+        } else {
+            label(selection)
+                .font(.subheadline)
+                .foregroundStyle(Color.primary)
+                .azPickerTextFit(style.dropdownTextFitMode, alignment: .center)
+        }
     }
 
     /// 選択ボタン右端のインジケータスタイル設定で非表示／chevron を切り替える
@@ -350,11 +359,12 @@ struct AZDropdownPopoverModifier<PopoverContent: View>: ViewModifier {
                         .onAppear {
                             // 表示位置を測って、上下の広い側へ吹き出す
                             anchorFrame = proxy.frame(in: .global)
-                            screenHeight = proxy.frame(in: .global).maxY + proxy.frame(in: .global).minY
+                            screenHeight = UIScreen.main.bounds.height
                         }
                         .onChange(of: proxy.frame(in: .global)) { _, newValue in
                             anchorFrame = newValue
-                            screenHeight = newValue.maxY + newValue.minY
+                            // 実画面の高さで上下余白を比べ、狭い側へ縮む判定を避ける
+                            screenHeight = UIScreen.main.bounds.height
                         }
                 }
             }
@@ -412,11 +422,7 @@ struct AZDropdownOptionButton<Label: View>: View {
     @ViewBuilder let label: () -> Label
 
     var body: some View {
-        label()
-            .font(.subheadline.weight(isSelected ? .semibold : .regular))
-            .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
-            .azPickerTextFit(style.dropdownTextFitMode, alignment: style.dropdownOptionTextAlignment)
-            .lineLimit(lineLimit)
+        optionLabel
             .padding(.horizontal, style.dropdownOptionHorizontalPadding)
             .padding(.vertical, style.dropdownOptionVerticalPadding)
             .frame(minWidth: minWidth, maxWidth: .infinity, alignment: style.dropdownOptionAlignment)
@@ -431,6 +437,22 @@ struct AZDropdownOptionButton<Label: View>: View {
                         lineWidth: isSelected ? 1.2 : 1
                     )
             )
+    }
+
+    @ViewBuilder
+    private var optionLabel: some View {
+        if style.preservesLabelForegroundStyle {
+            label()
+                .font(.subheadline.weight(isSelected ? .semibold : .regular))
+                .azPickerTextFit(style.dropdownTextFitMode, alignment: style.dropdownOptionTextAlignment)
+                .lineLimit(lineLimit)
+        } else {
+            label()
+                .font(.subheadline.weight(isSelected ? .semibold : .regular))
+                .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
+                .azPickerTextFit(style.dropdownTextFitMode, alignment: style.dropdownOptionTextAlignment)
+                .lineLimit(lineLimit)
+        }
     }
 }
 

@@ -433,16 +433,26 @@ struct RecordEditView: View {
     private var dateOptPicker: some View {
         // 区分はメニューではなく共通のドロップダウンPickerで選ぶ
         AZDropdownPicker(
-            options: DateOpt.allCases,
+            options: DateOpt.allCases.filter(\.isDefined),
             selection: $vm.dateOpt,
             isExpanded: $isDateOptExpanded,
-            minWidth: 150
+            minWidth: 150,
+            style: dateOptPickerStyle
         ) { opt in
             HStack(spacing: 6) {
                 Image(systemName: opt.icon)
+                    .foregroundStyle(opt.color)
                 Text(opt.displayName)
+                    .foregroundStyle(opt.color)
             }
         }
+    }
+
+    private var dateOptPickerStyle: AZPickerStyle {
+        var style = AZPickerStyle.form
+        // 区分候補は各区分のカスタム色をそのまま表示する
+        style.preservesLabelForegroundStyle = true
+        return style
     }
 
     // MARK: - ダイアル行

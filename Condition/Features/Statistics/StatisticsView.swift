@@ -434,14 +434,14 @@ struct BpJshView: View {
                 // 区分（DateOpt）凡例
                 let cols = [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())]
                 LazyVGrid(columns: cols, alignment: .center, spacing: 4) {
-                    ForEach(DateOpt.allCases, id: \.self) { opt in
+                    ForEach(DateOpt.allCases.filter(\.isDefined), id: \.self) { opt in
                         HStack(spacing: 4) {
-                            Circle()
-                                .fill(opt.color)
-                                .frame(width: 8, height: 8)
+                            Image(systemName: opt.icon)
+                                .font(.caption2)
+                                .foregroundStyle(opt.color)
                             Text(opt.displayName)
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(opt.color)
                         }
                     }
                 }
@@ -730,11 +730,11 @@ struct BpDateOptCorrView: View {
 
     @Environment(\.chartAvailableWidth) private var chartWidth
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @ScaledMetric(relativeTo: .caption) private var xLabelSize: CGFloat = 10
 
     private struct BpPoint: Identifiable {
         let id: Int
         let category: String
+        let dateOptRaw: Int
         let value: Int
         let isHi: Bool
     }
@@ -742,6 +742,7 @@ struct BpDateOptCorrView: View {
     private struct CatMean: Identifiable {
         let id: String
         let category: String
+        let dateOptRaw: Int
         let hiAvg: Double
         let loAvg: Double
     }
@@ -754,9 +755,9 @@ struct BpDateOptCorrView: View {
         var result: [BpPoint] = []
         var idx = 0
         for r in validRecords {
-            let cat = DateOpt(rawValue: r.nDateOpt)?.displayName ?? NSLocalizedString("category.other", comment: "")
-            result.append(BpPoint(id: idx,     category: cat, value: r.nBpHi_mmHg, isHi: true))
-            result.append(BpPoint(id: idx + 1, category: cat, value: r.nBpLo_mmHg, isHi: false))
+            guard let dateOpt = DateOpt(rawValue: r.nDateOpt), dateOpt.isDefined else { continue }
+            result.append(BpPoint(id: idx,     category: dateOpt.displayName, dateOptRaw: dateOpt.rawValue, value: r.nBpHi_mmHg, isHi: true))
+            result.append(BpPoint(id: idx + 1, category: dateOpt.displayName, dateOptRaw: dateOpt.rawValue, value: r.nBpLo_mmHg, isHi: false))
             idx += 2
         }
         return result
@@ -764,16 +765,17 @@ struct BpDateOptCorrView: View {
 
     private var means: [CatMean] {
         DateOpt.allCases.compactMap { opt in
+            guard opt.isDefined else { return nil }
             let filtered = validRecords.filter { $0.nDateOpt == opt.rawValue }
             guard !filtered.isEmpty else { return nil }
             let hi = Double(filtered.map { $0.nBpHi_mmHg }.reduce(0, +)) / Double(filtered.count)
             let lo = Double(filtered.map { $0.nBpLo_mmHg }.reduce(0, +)) / Double(filtered.count)
-            return CatMean(id: "\(opt.rawValue)", category: opt.displayName, hiAvg: hi, loAvg: lo)
+            return CatMean(id: "\(opt.rawValue)", category: opt.displayName, dateOptRaw: opt.rawValue, hiAvg: hi, loAvg: lo)
         }
     }
 
     private var categoryOrder: [String] {
-        DateOpt.allCases.map(\.displayName)
+        DateOpt.allCases.filter(\.isDefined).map(\.displayName)
     }
 
     private var yDomain: ClosedRange<Int> {
@@ -898,11 +900,15 @@ struct BpDateOptCorrView: View {
                        let opt = DateOpt.allCases.first(where: { $0.displayName == s }) {
                         VStack(spacing: 2) {
                             Image(systemName: opt.icon)
-                                .font(.system(size: xLabelSize))
+                                .font(.caption)
+                                .foregroundStyle(opt.color)
                             Text(s)
-                                .font(.system(size: 10))
+                                .font(.caption)
+                                .foregroundStyle(opt.color)
                                 .multilineTextAlignment(.center)
                         }
+                        // 区分軸は読みやすくしつつ、特大文字サイズまでで上限を止める
+                        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                     }
                 }
             }
