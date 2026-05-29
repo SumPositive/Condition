@@ -63,6 +63,12 @@ struct RecordEditView: View {
         return false
     }
 
+    private var dateOptCandidates: [DateOpt] {
+        // 新規作成では未使用区分を出さず、編集では過去記録の区分を戻せるよう全件表示する
+        if case .edit = vm.mode { return DateOpt.allCases }
+        return DateOpt.allCases.filter(\.isDefined)
+    }
+
     private var title: LocalizedStringKey {
         switch vm.mode {
         case .addNew:    return "record.new.title"
@@ -433,7 +439,7 @@ struct RecordEditView: View {
     private var dateOptPicker: some View {
         // 区分はメニューではなく共通のドロップダウンPickerで選ぶ
         AZDropdownPicker(
-            options: DateOpt.allCases.filter(\.isDefined),
+            options: dateOptCandidates,
             selection: $vm.dateOpt,
             isExpanded: $isDateOptExpanded,
             minWidth: 150,
@@ -442,7 +448,7 @@ struct RecordEditView: View {
             HStack(spacing: 6) {
                 Image(systemName: opt.icon)
                     .foregroundStyle(opt.color)
-                Text(opt.displayName)
+                Text(opt.isDefined ? opt.displayName : opt.placeholderName)
                     .foregroundStyle(opt.color)
             }
         }
