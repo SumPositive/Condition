@@ -309,6 +309,7 @@ struct BpJshView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var showJSHInfo = false
     @ScaledMetric(relativeTo: .caption) private var zoneLabelSize: CGFloat = 10
+    private var settings: AppSettings { AppSettings.shared }
 
     private var isJapanese: Bool {
         Locale.preferredLanguages.first?.hasPrefix("ja") ?? true
@@ -316,6 +317,19 @@ struct BpJshView: View {
 
     private var validRecords: [BodyRecord] {
         records.filter { $0.nBpHi_mmHg > 0 && $0.nBpLo_mmHg > 0 }
+    }
+
+    private var hiddenDateOptRawValues: Set<Int> {
+        Set(settings.statBpDistributionHiddenDateOpts)
+    }
+
+    private var visiblePlotRecords: [BodyRecord] {
+        let hidden = hiddenDateOptRawValues
+        return validRecords.filter { record in
+            // 未使用区分は凡例にも出さず、散布図にも描画しない
+            guard let dateOpt = DateOpt(rawValue: record.nDateOpt), dateOpt.isDefined else { return false }
+            return !hidden.contains(record.nDateOpt)
+        }
     }
 
     var body: some View {
@@ -375,7 +389,7 @@ struct BpJshView: View {
                     // ゾーンラベル（Y軸寄り）
                     jshZoneLabels()
                     // データ点
-                    ForEach(validRecords) { r in
+                    ForEach(visiblePlotRecords) { r in
                         PointMark(
                             x: .value("metric.diastolic.short", r.nBpLo_mmHg),
                             y: .value("metric.systolic.short", r.nBpHi_mmHg)
@@ -435,16 +449,25 @@ struct BpJshView: View {
 
                 // 区分（DateOpt）凡例
                 let cols = [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())]
-                LazyVGrid(columns: cols, alignment: .center, spacing: 4) {
+                LazyVGrid(columns: cols, alignment: .center, spacing: 8) {
                     ForEach(DateOpt.allCases.filter(\.isDefined), id: \.self) { opt in
-                        HStack(spacing: 4) {
-                            Image(systemName: opt.icon)
-                                .font(.caption2)
-                                .foregroundStyle(opt.color)
-                            Text(opt.displayName)
-                                .font(.caption)
-                                .foregroundStyle(opt.color)
+                        let isOn = !hiddenDateOptRawValues.contains(opt.rawValue)
+                        Button {
+                            toggleBpDistributionDateOpt(opt)
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: isOn ? "checkmark.square.fill" : "square")
+                                    .font(.caption2)
+                                Image(systemName: opt.icon)
+                                    .font(.caption2)
+                                Text(opt.displayName)
+                                    .font(.caption)
+                            }
+                            .foregroundStyle(isOn ? opt.color : Color.secondary)
+                            .padding(.vertical, 4)
+                            .contentShape(Rectangle())
                         }
+                        .buttonStyle(.plain)
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -456,6 +479,17 @@ struct BpJshView: View {
     }
 
     private func dateOptColor(_ opt: DateOpt) -> Color { opt.color }
+
+    private func toggleBpDistributionDateOpt(_ opt: DateOpt) {
+        var hidden = hiddenDateOptRawValues
+        if hidden.contains(opt.rawValue) {
+            hidden.remove(opt.rawValue)
+        } else {
+            // OFFにした区分だけ保存し、未保存時は全区分ONとして扱う
+            hidden.insert(opt.rawValue)
+        }
+        settings.statBpDistributionHiddenDateOpts = hidden.sorted()
+    }
 
     @ChartContentBuilder
     private func jshBoundaryLines() -> some ChartContent {

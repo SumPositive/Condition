@@ -182,6 +182,9 @@ final class AppSettings {
     var statHiddenSections: [Int] = [] {
         didSet { ud.set(statHiddenSections, forKey: SettingsKeys.settStatHiddenSections) }
     }
+    var statBpDistributionHiddenDateOpts: [Int] = [] {
+        didSet { ud.set(statBpDistributionHiddenDateOpts, forKey: SettingsKeys.settStatBpDistributionHiddenDateOpts) }
+    }
 
     // MARK: - 機能切替
     var goalEnabled: Bool = true {
@@ -438,6 +441,9 @@ final class AppSettings {
         }
         if let arr = ud.array(forKey: SettingsKeys.settStatHiddenSections) as? [Int] {
             statHiddenSections = arr
+        }
+        if let arr = ud.array(forKey: SettingsKeys.settStatBpDistributionHiddenDateOpts) as? [Int] {
+            statBpDistributionHiddenDateOpts = arr
         }
 
         if ud.object(forKey: SettingsKeys.bGoal) != nil { goalEnabled = ud.bool(forKey: SettingsKeys.bGoal) }

@@ -28,6 +28,7 @@ enum SettingsKeys {
     static let settStat24HLine         = "KVS_SettStat24H_Line"       // 24H線表示
     static let settStatSections        = "KVS_SettStatSections"       // 統計セクション順序 ([Int])
     static let settStatHiddenSections  = "KVS_SettStatHiddenSections" // 非表示統計セクション ([Int])
+    static let settStatBpDistributionHiddenDateOpts = "KVS_SettStatBpDistributionHiddenDateOpts" // 血圧分布で非表示にする区分 ([Int])
     static let settGraphDisplayOrder   = "KVS_SettGraphDisplayOrder"  // グラフ専用パネル順序 ([Int])
     static let settGraphHiddenPanels   = "KVS_SettGraphHiddenPanels"  // グラフ専用非表示パネル ([Int])
 
@@ -77,6 +78,7 @@ enum SettingsKeys {
         settStat24HLine,
         settStatSections,
         settStatHiddenSections,
+        settStatBpDistributionHiddenDateOpts,
         settGraphDisplayOrder,
         settGraphHiddenPanels,
         bGoal,
