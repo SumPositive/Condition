@@ -814,6 +814,12 @@ struct BpDateOptCorrView: View {
         DateOpt.allCases.filter(\.isDefined).map(\.displayName)
     }
 
+    private var showsCategoryAxisText: Bool {
+        let count = max(categoryOrder.count, 1)
+        // 区分名が重なり始める幅では、軸ラベルをアイコンだけにする
+        return 72 <= chartWidth / CGFloat(count)
+    }
+
     private var yDomain: ClosedRange<Int> {
         guard !points.isEmpty else { return 50...180 }
         let vals = points.map { $0.value }
@@ -938,10 +944,12 @@ struct BpDateOptCorrView: View {
                             Image(systemName: opt.icon)
                                 .font(.caption)
                                 .foregroundStyle(opt.color)
-                            Text(s)
-                                .font(.caption)
-                                .foregroundStyle(opt.color)
-                                .multilineTextAlignment(.center)
+                            if showsCategoryAxisText {
+                                Text(s)
+                                    .font(.caption)
+                                    .foregroundStyle(opt.color)
+                                    .multilineTextAlignment(.center)
+                            }
                         }
                         // 区分軸は読みやすくしつつ、特大文字サイズまでで上限を止める
                         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
