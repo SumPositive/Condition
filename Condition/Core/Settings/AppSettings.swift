@@ -159,6 +159,9 @@ final class AppSettings {
     var graphBpLineMode: Int = GraphBpLineMode.average.rawValue {
         didSet { ud.set(graphBpLineMode, forKey: SettingsKeys.settGraphBpLineMode) }
     }
+    var graphBpHiddenDateOpts: [Int] = [] {
+        didSet { ud.set(graphBpHiddenDateOpts, forKey: SettingsKeys.settGraphBpHiddenDateOpts) }
+    }
     var dialStyle: String = DialStyle.shape.id {
         didSet { ud.set(dialStyle, forKey: SettingsKeys.settDialStyle) }
     }
@@ -415,6 +418,10 @@ final class AppSettings {
         if ud.object(forKey: SettingsKeys.settGraphWeightMA)     != nil { graphWeightMA     = ud.bool(forKey: SettingsKeys.settGraphWeightMA) }
         if ud.object(forKey: SettingsKeys.settGraphWeightChange) != nil { graphWeightChange = ud.bool(forKey: SettingsKeys.settGraphWeightChange) }
         if ud.object(forKey: SettingsKeys.settGraphBpLineMode)   != nil { graphBpLineMode   = ud.integer(forKey: SettingsKeys.settGraphBpLineMode) }
+        if let arr = ud.array(forKey: SettingsKeys.settGraphBpHiddenDateOpts) as? [Int] {
+            // グラフの区分チェックは統計とは独立して保持する
+            graphBpHiddenDateOpts = arr
+        }
         // dialStyle: 強制デフォルト移行バージョン
         let dialStyleForceVersion = 1  // Shape をデフォルトにした版
         let forcedVersion = ud.integer(forKey: SettingsKeys.settDialStyleForcedVersion)
