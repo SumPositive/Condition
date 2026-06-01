@@ -34,6 +34,8 @@ struct RecordEditView: View {
     @State private var isDateOptExpanded = false
     @State private var measurementSamples: [MeasurementAverageField: [Int]] = [:]
     @State private var showsFloatingAverageAddButton = false
+    @State private var isCancelArmed = false
+    @State private var cancelArmTask: Task<Void, Never>? = nil
     @FocusState private var focusNote1: Bool
     @FocusState private var focusNote2: Bool
     @FocusState private var focusEquipment: Bool
@@ -62,6 +64,11 @@ struct RecordEditView: View {
     private var isNewRecord: Bool {
         if case .addNew = vm.mode { return true }
         return false
+    }
+
+    private var hasAverageSamples: Bool {
+        // 測定追加後は平均計算中として扱い、不用意な閉じ操作を抑止する
+        measurementSamples.values.contains { !$0.isEmpty }
     }
 
     private var dateOptCandidates: [DateOpt] {
@@ -129,12 +136,12 @@ struct RecordEditView: View {
                             fieldRow(for: kind)
                         }
                     } header: {
-                        ZStack(alignment: .leading) {
+                        HStack(alignment: .center, spacing: 8) {
                             Text("record.measurements")
                             if !showsFloatingAverageAddButton {
-                                // 元ボタンは画面幅の中央に置き、フローティング表示後は重複しないよう非表示にする
-                                averageAddButton(font: .caption.weight(.semibold))
-                                    .frame(maxWidth: .infinity, alignment: .center)
+                                Spacer(minLength: 8)
+                                // 英語表示などで見出しと重ならないよう、通常ボタンは右寄せにする
+                                averageAddHeaderControl(font: .caption.weight(.semibold))
                             }
                         }
                     }
@@ -260,8 +267,22 @@ struct RecordEditView: View {
                     .tint(vm.isModified ? .accentColor : Color(.secondaryLabel))
                 }
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("action.cancel") {
-                        dismiss()
+                    Button {
+                        handleCancelTapped()
+                    } label: {
+                        Text("action.cancel")
+                            // 平均計算中はキャンセル文字を小さくして、誤タップしにくくする
+                            .font(hasAverageSamples ? .caption2 : .body)
+                            .foregroundColor(isCancelArmed ? .white : .primary)
+                            .padding(.horizontal, hasAverageSamples ? 6 : 0)
+                            .padding(.vertical, hasAverageSamples ? 3 : 0)
+                            .background {
+                                if isCancelArmed {
+                                    // 1回目タップ後は背景も赤にして、再タップで閉じる状態を明示する
+                                    Capsule()
+                                        .fill(Color.red)
+                                }
+                            }
                     }
                 }
             }
@@ -282,6 +303,16 @@ struct RecordEditView: View {
             }
             // isModified は ViewModel の didSet で管理（View 側 onChange 不要）
             .onChange(of: vm.isModified) { _, newValue in onModifiedChanged?(newValue) }
+            .onChange(of: hasAverageSamples) { _, hasSamples in
+                if !hasSamples {
+                    clearCancelArmed()
+                }
+            }
+            // 平均計算中は、下スワイプでシートを閉じられないようにする
+            .interactiveDismissDisabled(hasAverageSamples)
+            .onDisappear {
+                cancelArmTask?.cancel()
+            }
         }
         .overlay(alignment: .top) {
             if showsFloatingAverageAddButton {
@@ -298,6 +329,35 @@ struct RecordEditView: View {
     }
 
     // MARK: - セクション分割ヘルパー
+
+    private func handleCancelTapped() {
+        guard hasAverageSamples else {
+            dismiss()
+            return
+        }
+
+        if isCancelArmed {
+            clearCancelArmed()
+            dismiss()
+            return
+        }
+
+        // 平均計算中は1回目のタップで警告色にし、2秒以内の再タップだけキャンセル実行する
+        isCancelArmed = true
+        cancelArmTask?.cancel()
+        cancelArmTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2))
+            if !Task.isCancelled {
+                isCancelArmed = false
+            }
+        }
+    }
+
+    private func clearCancelArmed() {
+        cancelArmTask?.cancel()
+        cancelArmTask = nil
+        isCancelArmed = false
+    }
 
     /// 設定の順序と非表示設定に従った表示フィールド一覧
     private var orderedRecordFields: [GraphKind] {
@@ -614,6 +674,14 @@ struct RecordEditView: View {
     }
 
     // MARK: - 測定の追加（複数回測定の平均）
+
+    private func averageAddHeaderControl(font: Font) -> some View {
+        HStack(spacing: 4) {
+            averageAddButton(font: font)
+            // 複数回測定の操作説明は、追加ボタンの右から開けるようにする
+            BeginnerHelpBanner("record.average.add.help", storageKey: "helpDismissed.record.averageAdd", compact: true)
+        }
+    }
 
     private func averageAddButton(font: Font) -> some View {
         Button("record.average.add") {

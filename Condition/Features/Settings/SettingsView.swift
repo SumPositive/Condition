@@ -36,6 +36,46 @@ private struct SettingsPickerOption: Hashable, Identifiable {
     let titleKey: String
 }
 
+private struct SettingsHelpTitle: View {
+    let titleKey: LocalizedStringKey
+    let helpKey: LocalizedStringKey
+    let storageKey: String
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 4) {
+            Text(titleKey)
+            // 設定項目の説明は見出しの右に集約する
+            BeginnerHelpBanner(helpKey, storageKey: storageKey, compact: true)
+        }
+    }
+}
+
+private struct SettingsAdaptivePickerRow<Title: View, Control: View>: View {
+    @ViewBuilder let title: () -> Title
+    @ViewBuilder let control: () -> Control
+
+    init(
+        @ViewBuilder _ title: @escaping () -> Title,
+        @ViewBuilder control: @escaping () -> Control
+    ) {
+        self.title = title
+        self.control = control
+    }
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 8) {
+                title()
+                control()
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                title()
+                control()
+            }
+        }
+    }
+}
+
 struct SettingsView: View {
 
     @Environment(\.modelContext) private var context
@@ -140,9 +180,14 @@ struct SettingsView: View {
                 // MARK: - 表示
                 Section("settings.display") {
                     VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 8) {
-                            Text("settings.userLevel")
-                                .font(.subheadline)
+                        SettingsAdaptivePickerRow {
+                            SettingsHelpTitle(
+                                titleKey: "settings.userLevel",
+                                helpKey: "settings.help.userLevel",
+                                storageKey: "helpDismissed.settings.userLevel"
+                            )
+                            .font(.subheadline)
+                        } control: {
                             // ユーザレベルはDynamic Typeに強いラジオPickerで選ぶ
                             AZRadioPicker(
                                 options: AppUserLevel.allCases,
@@ -158,17 +203,12 @@ struct SettingsView: View {
                                 Text(LocalizedStringKey(level.titleKey))
                             }
                         }
-                        if settings.userLevel == .beginner {
-                            Text("settings.help.userLevel")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
                     }
 
-                    HStack(spacing: 8) {
+                    SettingsAdaptivePickerRow {
                         Text("appearance.mode")
                             .font(.subheadline)
+                    } control: {
                         // 外観モードも同じラジオPickerで揃える
                         AZRadioPicker(
                             options: AppAppearanceMode.allCases,
@@ -186,9 +226,14 @@ struct SettingsView: View {
                     }
 
                     VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 8) {
-                            Text("settings.fontScale")
-                                .font(.subheadline)
+                        SettingsAdaptivePickerRow {
+                            SettingsHelpTitle(
+                                titleKey: "settings.fontScale",
+                                helpKey: "settings.help.fontScale",
+                                storageKey: "helpDismissed.settings.fontScale"
+                            )
+                            .font(.subheadline)
+                        } control: {
                             // 文字サイズは選択肢が欠けないようラジオPickerで表示する
                             AZRadioPicker(
                                 options: AppFontScale.allCases,
@@ -203,12 +248,6 @@ struct SettingsView: View {
                             ) { scale in
                                 Text(LocalizedStringKey(scale.titleKey))
                             }
-                        }
-                        if settings.userLevel == .beginner {
-                            Text("settings.help.fontScale")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
                         }
                     }
 
@@ -225,12 +264,15 @@ struct SettingsView: View {
                 // MARK: - 記録
                 Section("tab.records") {
                     VStack(alignment: .leading, spacing: 8) {
-                        Toggle("settings.openNewRecordOnForeground", isOn: $settings.openNewRecordOnForeground)
-                        if settings.userLevel == .beginner {
-                            Text("settings.help.openNewRecordOnForeground")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
+                        HStack {
+                            SettingsHelpTitle(
+                                titleKey: "settings.openNewRecordOnForeground",
+                                helpKey: "settings.help.openNewRecordOnForeground",
+                                storageKey: "helpDismissed.settings.openNewRecordOnForeground"
+                            )
+                            Spacer()
+                            Toggle("settings.openNewRecordOnForeground", isOn: $settings.openNewRecordOnForeground)
+                                .labelsHidden()
                         }
                     }
                     NavigationLink("settings.fieldOrder") {
@@ -248,10 +290,16 @@ struct SettingsView: View {
                             HealthKitSettingsView()
                         } label: {
                             VStack(alignment: .leading, spacing: 6) {
-                                Toggle(
-                                    "health.integration",
-                                    isOn: $settings.hkEnabled
-                                )
+                                HStack {
+                                    SettingsHelpTitle(
+                                        titleKey: "health.integration",
+                                        helpKey: "health.integrationHelp",
+                                        storageKey: "helpDismissed.health.integration"
+                                    )
+                                    Spacer()
+                                    Toggle("health.integration", isOn: $settings.hkEnabled)
+                                        .labelsHidden()
+                                }
                                 .onChange(of: settings.hkEnabled) { _, enabled in
                                     if enabled {
                                         Task { await healthKit.requestAuthorization() }
@@ -261,14 +309,6 @@ struct SettingsView: View {
                                         healthKit.clearLastAutoImportAt()
                                     }
                                 }
-
-                                if settings.userLevel == .beginner {
-                                    // 初心者向けに、削除が連携されない点を明示する
-                                    Text("health.integrationHelp")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                }
                             }
                         }
                     }
@@ -276,7 +316,11 @@ struct SettingsView: View {
                     // 記録をまとめる（衝突検出）
                     VStack(alignment: .leading, spacing: 8) {
                         AZAdaptiveControlRow {
-                            Text("settings.merge.window")
+                            SettingsHelpTitle(
+                                titleKey: "settings.merge.window",
+                                helpKey: "settings.help.merge",
+                                storageKey: "helpDismissed.settings.merge"
+                            )
                                 .font(.subheadline)
                         } control: {
                             // 記録をまとめる時間は共通のドロップダウンPickerで選ぶ
@@ -305,12 +349,6 @@ struct SettingsView: View {
                             }
                         }
                         .zIndex(isMergeDefaultActionExpanded ? 60 : 0)
-                        if settings.userLevel == .beginner {
-                            Text("settings.help.merge")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
                     }
                 }
                 .onAppear { if healthKit.isAvailable { healthKit.checkAuthorization() } }
@@ -331,17 +369,20 @@ struct SettingsView: View {
                 // MARK: - 共有
                 Section("settings.panel.share") {
                     VStack(alignment: .leading, spacing: 8) {
-                        Button {
-                            exportRecordsJSON()
-                        } label: {
-                            Label("settings.share.exportRecords", systemImage: "square.and.arrow.up")
+                        HStack(spacing: 4) {
+                            Button {
+                                exportRecordsJSON()
+                            } label: {
+                                Label("settings.share.exportRecords", systemImage: "square.and.arrow.up")
+                            }
+                            BeginnerHelpBanner("settings.help.exportRecords", storageKey: "helpDismissed.settings.exportRecords", compact: true)
                         }
 
                         if settings.userLevel != .beginner {
-                            HStack(spacing: 8) {
-                                Spacer(minLength: 40)
+                            SettingsAdaptivePickerRow {
                                 Text("settings.exportFormat.title")
                                     .font(.subheadline)
+                            } control: {
                                 // JSON形式はラジオPickerで現在値を明示する
                                 AZRadioPicker(
                                     options: RecordJSONExportStyle.allCases,
@@ -359,41 +400,27 @@ struct SettingsView: View {
                             }
                         }
 
-                        if settings.userLevel == .beginner {
-                            Text("settings.help.exportRecords")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 4) {
+                            Button {
+                                showImportPicker = true
+                            } label: {
+                                Label("settings.share.importRecords", systemImage: "square.and.arrow.down")
+                            }
+                            BeginnerHelpBanner("settings.help.importRecords", storageKey: "helpDismissed.settings.importRecords", compact: true)
                         }
                     }
 
                     VStack(alignment: .leading, spacing: 8) {
-                        Button {
-                            showImportPicker = true
-                        } label: {
-                            Label("settings.share.importRecords", systemImage: "square.and.arrow.down")
-                        }
-
-                        if settings.userLevel == .beginner {
-                            Text("settings.help.importRecords")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                    }
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Button {
-                            showPruneOldRecordsConfirmSheet = true
-                        } label: {
-                            Label("settings.share.pruneOldRecords", systemImage: "trash")
-                        }
-
-                        if settings.userLevel == .beginner {
-                            Text("settings.help.pruneOldRecords")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
+                        HStack(spacing: 4) {
+                            Button {
+                                showPruneOldRecordsConfirmSheet = true
+                            } label: {
+                                Label("settings.share.pruneOldRecords", systemImage: "trash")
+                            }
+                            BeginnerHelpBanner("settings.help.pruneOldRecords", storageKey: "helpDismissed.settings.pruneOldRecords", compact: true)
                         }
                     }
                 }
@@ -422,6 +449,8 @@ struct SettingsView: View {
             }
             .scrollIndicators(.hidden)
             .navigationTitle("tab.settings")
+            // タブ画面のタイトルは中央固定表示に揃える
+            .navigationBarTitleDisplayMode(.inline)
         }
         .sheet(isPresented: $showSafari) {
             SafariView(url: aboutURL)
@@ -1347,12 +1376,15 @@ struct DateOptMatrixView: View {
 
                 // 新しい記録の区分推定を切り替えるスイッチ
                 VStack(alignment: .leading, spacing: 8) {
-                    Toggle("settings.category.estimate", isOn: $settings.estimateDateOpt)
-                    if settings.userLevel == .beginner {
-                        Text("settings.category.estimate.help")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
+                    HStack {
+                        SettingsHelpTitle(
+                            titleKey: "settings.category.estimate",
+                            helpKey: "settings.category.estimate.help",
+                            storageKey: "helpDismissed.settings.categoryEstimate"
+                        )
+                        Spacer()
+                        Toggle("settings.category.estimate", isOn: $settings.estimateDateOpt)
+                            .labelsHidden()
                     }
                 }
                 .padding(12)
@@ -1378,13 +1410,13 @@ struct DateOptMatrixView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("settings.dateCategoryDefaults")
+                    SettingsHelpTitle(
+                        titleKey: "settings.dateCategoryDefaults",
+                        helpKey: "settings.dateCategoryDefaults.help",
+                        storageKey: "helpDismissed.settings.dateCategoryDefaults"
+                    )
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.secondary)
-                    Text("settings.dateCategoryDefaults.help")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, 6)
@@ -1983,12 +2015,6 @@ struct FieldOrderSettingsView: View {
     var body: some View {
         List {
             Section {
-                BeginnerHelpBanner("help.fieldOrder", storageKey: "helpDismissed.fieldOrder")
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-            }
-            Section {
                 ForEach(settings.graphPanelOrder, id: \.self) { raw in
                     if let kind = GraphKind(rawValue: raw), kind.isRecordField {
                         Toggle(isOn: Binding(
@@ -2018,6 +2044,16 @@ struct FieldOrderSettingsView: View {
         .environment(\.editMode, .constant(.active))
         .navigationTitle("settings.fieldOrder")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                HStack(spacing: 4) {
+                    Text("settings.fieldOrder")
+                        .font(.headline)
+                    // 項目説明はタイトルの右に置く
+                    BeginnerHelpBanner("help.fieldOrder", storageKey: "helpDismissed.fieldOrder", compact: true)
+                }
+            }
+        }
     }
 }
 
@@ -2240,7 +2276,11 @@ struct HealthKitSettingsView: View {
 
                 ViewThatFits(in: .horizontal) {
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
-                        Text("health.writableFields")
+                        SettingsHelpTitle(
+                            titleKey: "health.writableFields",
+                            helpKey: "health.readableFieldsPrivacyHelp",
+                            storageKey: "helpDismissed.health.readableFields"
+                        )
                         Spacer()
                         Text(hkService.authorizedShareFieldsText)
                             .foregroundStyle(.secondary)
@@ -2248,23 +2288,19 @@ struct HealthKitSettingsView: View {
                     }
 
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("health.writableFields")
+                        SettingsHelpTitle(
+                            titleKey: "health.writableFields",
+                            helpKey: "health.readableFieldsPrivacyHelp",
+                            storageKey: "helpDismissed.health.readableFields"
+                        )
                         Text(hkService.authorizedShareFieldsText)
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
-
-                if settings.userLevel == .beginner {
-                    // 読み込み対象は HealthKit のプライバシー制限で個別取得できない
-                    Text("health.readableFieldsPrivacyHelp")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
             }
 
-            Section("health.syncDirection") {
+            Section {
                 // HealthKit連携方向はインラインの代わりにラジオPickerで選ぶ
                 AZRadioPicker(
                     options: HKSyncDirection.allCases,
@@ -2279,20 +2315,22 @@ struct HealthKitSettingsView: View {
                 ) { direction in
                     Text(LocalizedStringKey(direction.titleKey))
                 }
-
-                if settings.userLevel == .beginner {
-                    // 選択した連携方向ごとの動作を初心者向けに補足する
-                    Text(LocalizedStringKey(directionHelpKey))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+            } header: {
+                SettingsHelpTitle(
+                    titleKey: "health.syncDirection",
+                    helpKey: LocalizedStringKey(directionHelpKey),
+                    storageKey: "helpDismissed.health.direction"
+                )
             }
 
             Section("health.syncDetails") {
                 ViewThatFits(in: .horizontal) {
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
-                        Text("health.importStartDate")
+                        SettingsHelpTitle(
+                            titleKey: "health.importStartDate",
+                            helpKey: "health.importStartDateHelp",
+                            storageKey: "helpDismissed.health.importStartDate"
+                        )
                         Spacer()
                         Text(importStartDate, format: .dateTime.year().month().day())
                             .foregroundStyle(.secondary)
@@ -2301,7 +2339,11 @@ struct HealthKitSettingsView: View {
                     }
 
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("health.importStartDate")
+                        SettingsHelpTitle(
+                            titleKey: "health.importStartDate",
+                            helpKey: "health.importStartDateHelp",
+                            storageKey: "helpDismissed.health.importStartDate"
+                        )
                         HStack(alignment: .firstTextBaseline, spacing: 10) {
                             Text(importStartDate, format: .dateTime.year().month().day())
                                 .foregroundStyle(.secondary)
@@ -2310,14 +2352,6 @@ struct HealthKitSettingsView: View {
                             resetImportDateButton
                         }
                     }
-                }
-
-                if settings.userLevel == .beginner {
-                    // 読み込み範囲の自動短縮と、必要時の再読み込み方法を説明する
-                    Text("health.importStartDateHelp")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
 

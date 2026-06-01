@@ -86,6 +86,8 @@ struct GraphView: View {
                 isWaitingForPrefetch: !didPrefetchFullRange
             )
                 .navigationTitle("tab.graph")
+                // 大きいタイトルを使わず、中央固定タイトルだけにする
+                .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .primaryAction) {
                         Button { showSettings = true } label: {
@@ -190,6 +192,10 @@ private struct GraphContentView: View {
                 }
                 .disabled(records.isEmpty || isExporting)
             }
+            ToolbarItem(placement: .principal) {
+                Text("tab.graph")
+                    .font(.headline)
+            }
         }
     }
 
@@ -212,7 +218,11 @@ private struct GraphContentView: View {
     private var scrollContent: some View {
         ScrollView(.vertical) {
             VStack(spacing: 0) {
-                BeginnerHelpBanner("help.graph", storageKey: "helpDismissed.graph")
+                BeginnerHelpBanner(
+                    hintKey: "help.graph.hint",
+                    messageKey: "help.graph",
+                    storageKey: "helpDismissed.graph"
+                )
                 LazyVStack(spacing: 16) {
                     // 対象期間はDynamic Typeで欠けにくいラジオPickerで選ぶ
                     AZRadioPicker(
@@ -1017,9 +1027,7 @@ struct BpChartView: View {
             }
             if settings.userLevel == .beginner {
                 // 初心者向けに、脈圧と心拍数も同じ描画条件を参照することを明示する
-                Text("graph.bpLineMode.appliesToPulse")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                BeginnerHelpBanner("graph.bpLineMode.appliesToPulse", storageKey: "helpDismissed.graph.bpLineMode", compact: true)
             }
         }
     }
@@ -1601,7 +1609,8 @@ private struct BMIChartView: View {
                         showBMIInfo = true
                     } label: {
                         HStack(spacing: 4) {
-                            Image(systemName: "info.circle").font(.title3)
+                            // ヘルプ系アイコンは？アイコンと同じサイズに揃える
+                            Image(systemName: "info.circle").font(.callout.weight(.semibold))
                             Text(isJapanese ? String(localized: "text.jassoStandard") : "WHO BMI")
                                 .font(.footnote)
                         }

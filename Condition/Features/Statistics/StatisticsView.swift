@@ -131,6 +131,8 @@ private struct StatisticsContentView: View {
             }
             .overlay { if isExporting { exportingOverlay } }
             .navigationTitle("tab.statistics")
+            // 大きいタイトルを使わず、中央固定タイトルだけにする
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
@@ -144,6 +146,10 @@ private struct StatisticsContentView: View {
                         Image(systemName: "square.and.arrow.up")
                     }
                     .disabled(targetRecords.isEmpty || isExporting)
+                }
+                ToolbarItem(placement: .principal) {
+                    Text("tab.statistics")
+                        .font(.headline)
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button { showSettings = true } label: {
@@ -177,7 +183,11 @@ private struct StatisticsContentView: View {
     private var scrollContent: some View {
         ScrollView {
             VStack(spacing: 0) {
-                BeginnerHelpBanner("help.statistics", storageKey: "helpDismissed.statistics")
+                BeginnerHelpBanner(
+                    hintKey: "help.statistics.hint",
+                    messageKey: "help.statistics",
+                    storageKey: "helpDismissed.statistics"
+                )
                 LazyVStack(spacing: 16) {
                     // 対象期間はグラフ画面と同じラジオPickerで揃える
                     AZRadioPicker(
@@ -346,7 +356,8 @@ struct BpJshView: View {
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: "info.circle")
-                                .font(.footnote)
+                                // ヘルプ系アイコンは？アイコンと同じサイズに揃える
+                                .font(.callout.weight(.semibold))
                             Text(isJapanese ? String(localized: "text.jshStandard") : "ESC/ESH 2018")
                                 .font(.footnote)
                         }
@@ -874,7 +885,8 @@ struct BpDateOptCorrView: View {
                         showInfo = true
                     } label: {
                         Image(systemName: "info.circle")
-                            .font(.title3).foregroundStyle(.secondary)
+                            // ヘルプ系アイコンは？アイコンと同じサイズに揃える
+                            .font(.callout.weight(.semibold)).foregroundStyle(.secondary)
                             .padding(.vertical, 6).padding(.horizontal, 4)
                             .contentShape(Rectangle())
                     }
@@ -889,7 +901,8 @@ struct BpDateOptCorrView: View {
                             showInfo = true
                         } label: {
                             Image(systemName: "info.circle")
-                                .font(.title3).foregroundStyle(.secondary)
+                                // ヘルプ系アイコンは？アイコンと同じサイズに揃える
+                                .font(.callout.weight(.semibold)).foregroundStyle(.secondary)
                                 .padding(.vertical, 6).padding(.horizontal, 4)
                                 .contentShape(Rectangle())
                         }

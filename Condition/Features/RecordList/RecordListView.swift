@@ -71,6 +71,8 @@ struct RecordListView: View {
                 }
             }
             .navigationTitle("tab.records")
+            // タブ画面のタイトルは中央固定表示に揃える
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button { showExportSheet = true } label: {
@@ -180,7 +182,11 @@ struct RecordListView: View {
 
     private var listContent: some View {
         VStack(spacing: 0) {
-            BeginnerHelpBanner("help.record", storageKey: "helpDismissed.record")
+            BeginnerHelpBanner(
+                hintKey: "help.record.hint",
+                messageKey: "help.record",
+                storageKey: "helpDismissed.record"
+            )
             RecordColumnHeader(visibleKinds: visibleRecordKinds)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 3)
