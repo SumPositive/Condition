@@ -1611,7 +1611,7 @@ private struct BMIChartView: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .popover(isPresented: $showBMIInfo, arrowEdge: .bottom) {
+                    .sheet(isPresented: $showBMIInfo) {
                         BMIStandardsPopover(isJapanese: isJapanese)
                     }
                     Spacer()
@@ -1852,10 +1852,17 @@ struct WeightChangeChartView: View {
     }
 }
 
-// MARK: - BMI基準ポップアップ
+// MARK: - BMI基準シート
+
+private func graphInfoSheetHeight(_ contentHeight: CGFloat) -> CGFloat {
+    // 内容実測値にドラッグ領域と下部余白を足し、シートを必要最小に寄せる
+    return contentHeight + 44
+}
 
 private struct BMIStandardsPopover: View {
     let isJapanese: Bool
+    @State private var contentHeight: CGFloat = 300
+
     private struct Row {
         let zone: BMIZone
         var rangeText: String {
@@ -1867,36 +1874,48 @@ private struct BMIStandardsPopover: View {
     private let rows = bmiZones.reversed().map { Row(zone: $0) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(isJapanese ? String(localized: "text.jassoObesityClassification") : "WHO BMI Classification")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 16)
-                .padding(.top, 14)
-                .padding(.bottom, 8)
-            Divider()
-            ForEach(rows, id: \.zone.label) { row in
-                HStack(spacing: 10) {
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(row.zone.swatch.opacity(0.75))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 3)
-                                .strokeBorder(.secondary.opacity(0.3), lineWidth: 0.5)
-                        )
-                        .frame(width: 18, height: 18)
-                    Text(LocalizedStringKey(row.zone.label))
-                        .font(.callout)
-                    Spacer()
-                    Text(row.rangeText)
-                        .font(.callout.monospacedDigit())
-                        .foregroundStyle(.secondary)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                Color.clear.frame(height: 20)
+                Text(isJapanese ? String(localized: "text.jassoObesityClassification") : "WHO BMI Classification")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 14)
+                    .padding(.bottom, 8)
+                Divider()
+                ForEach(rows, id: \.zone.label) { row in
+                    HStack(spacing: 10) {
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(row.zone.swatch.opacity(0.75))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 3)
+                                    .strokeBorder(.secondary.opacity(0.3), lineWidth: 0.5)
+                            )
+                            .frame(width: 18, height: 18)
+                        Text(LocalizedStringKey(row.zone.label))
+                            .font(.callout)
+                        Spacer()
+                        Text(row.rangeText)
+                            .font(.callout.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    Divider().padding(.leading, 44)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                Divider().padding(.leading, 44)
+                Spacer(minLength: 14)
+            }
+            .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { h in
+                contentHeight = h
             }
         }
+        // グラフ内の説明シートもスクロール表示を隠す
+        .scrollIndicators(.hidden)
         .frame(minWidth: 260)
-        .presentationCompactAdaptation(.popover)
+        .presentationCompactAdaptation(.sheet)
+        .presentationDetents([.height(graphInfoSheetHeight(contentHeight)), .large])
+        .presentationDragIndicator(.visible)
+        .presentationBackground(Color(.systemBackground))
     }
 }

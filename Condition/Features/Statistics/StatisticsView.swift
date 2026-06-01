@@ -356,7 +356,7 @@ struct BpJshView: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .popover(isPresented: $showJSHInfo, arrowEdge: .bottom) {
+                    .sheet(isPresented: $showJSHInfo) {
                         if isJapanese {
                             JSHStandardsPopover()
                         } else {
@@ -546,7 +546,12 @@ struct BpJshView: View {
     }
 }
 
-// MARK: - JSH基準ポップアップ
+// MARK: - JSH基準シート
+
+private func statisticsInfoSheetHeight(_ contentHeight: CGFloat) -> CGFloat {
+    // 内容実測値にドラッグ領域と下部余白を足し、シートを必要最小に寄せる
+    return contentHeight + 44
+}
 
 private struct JSHStandardsPopover: View {
     private struct Row {
@@ -562,10 +567,12 @@ private struct JSHStandardsPopover: View {
         Row(name: "text.elevated",    color: Color(red: 0.25, green: 0.72, blue: 0.35), criteria: "jsh.criteria.elevated"),
         Row(name: "metric.normal",    color: Color(red: 0.20, green: 0.50, blue: 0.90), criteria: "jsh.criteria.normal"),
     ]
+    @State private var contentHeight: CGFloat = 360
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
+                Color.clear.frame(height: 20)
                 Text("metric.jshBpClassification2019")
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(.secondary)
@@ -597,16 +604,21 @@ private struct JSHStandardsPopover: View {
                 }
                 Spacer(minLength: 14)
             }
+            .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { h in
+                contentHeight = h
+            }
         }
-        // 統計内の説明ポップアップもスクロール表示を隠す
+        // 統計内の説明シートもスクロール表示を隠す
         .scrollIndicators(.hidden)
         .frame(minWidth: 300)
         .presentationCompactAdaptation(.sheet)
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.height(statisticsInfoSheetHeight(contentHeight)), .large])
+        .presentationDragIndicator(.visible)
+        .presentationBackground(Color(.systemBackground))
     }
 }
 
-// MARK: - ESC/ESH 2018 基準ポップアップ（en 用）
+// MARK: - ESC/ESH 2018 基準シート（en 用）
 
 private struct ESHStandardsPopover: View {
     private struct Row {
@@ -622,10 +634,12 @@ private struct ESHStandardsPopover: View {
         Row(name: "Normal",      color: Color(red: 0.25, green: 0.72, blue: 0.35),  criteria: "Systolic 120–129 and Diastolic <80"),
         Row(name: "Optimal",     color: Color(red: 0.20, green: 0.50, blue: 0.90),  criteria: "Systolic <120 and Diastolic <80"),
     ]
+    @State private var contentHeight: CGFloat = 360
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
+                Color.clear.frame(height: 20)
                 Text("text.escEshHypertensionGuidelines2018")
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(.secondary)
@@ -657,12 +671,17 @@ private struct ESHStandardsPopover: View {
                 }
                 Spacer(minLength: 14)
             }
+            .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { h in
+                contentHeight = h
+            }
         }
-        // 統計内の説明ポップアップもスクロール表示を隠す
+        // 統計内の説明シートもスクロール表示を隠す
         .scrollIndicators(.hidden)
         .frame(minWidth: 300)
         .presentationCompactAdaptation(.sheet)
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.height(statisticsInfoSheetHeight(contentHeight)), .large])
+        .presentationDragIndicator(.visible)
+        .presentationBackground(Color(.systemBackground))
     }
 }
 
@@ -860,9 +879,6 @@ struct BpDateOptCorrView: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .popover(isPresented: $showInfo, arrowEdge: .bottom) {
-                        BpDateOptCorrInfoPopover()
-                    }
                     Spacer()
                     bpCorrLegend
                 }
@@ -878,12 +894,12 @@ struct BpDateOptCorrView: View {
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
-                        .popover(isPresented: $showInfo, arrowEdge: .bottom) {
-                            BpDateOptCorrInfoPopover()
-                        }
                     }
                     bpCorrLegend
                 }
+            }
+            .sheet(isPresented: $showInfo) {
+                BpDateOptCorrInfoPopover()
             }
             .padding(.horizontal)
 
@@ -968,9 +984,11 @@ struct BpDateOptCorrView: View {
     }
 }
 
-// MARK: - 血圧・区分 相関 説明ポップアップ
+// MARK: - 血圧・区分 相関 説明シート
 
 private struct BpDateOptCorrInfoPopover: View {
+    @State private var contentHeight: CGFloat = 300
+
     private var isJapanese: Bool {
         Locale.preferredLanguages.first?.hasPrefix("ja") ?? true
     }
@@ -978,6 +996,7 @@ private struct BpDateOptCorrInfoPopover: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
+                Color.clear.frame(height: 20)
                 Text(isJapanese ? String(localized: "chart.howToReadTheScatterPlot") : "How to Read This Chart")
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(.secondary)
@@ -1034,11 +1053,17 @@ private struct BpDateOptCorrInfoPopover: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
             }
+            .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { h in
+                contentHeight = h
+            }
         }
-        // 統計内の説明ポップアップもスクロール表示を隠す
+        // 統計内の説明シートもスクロール表示を隠す
         .scrollIndicators(.hidden)
         .frame(minWidth: 300)
-        .presentationCompactAdaptation(.popover)
+        .presentationCompactAdaptation(.sheet)
+        .presentationDetents([.height(statisticsInfoSheetHeight(contentHeight)), .large])
+        .presentationDragIndicator(.visible)
+        .presentationBackground(Color(.systemBackground))
     }
 }
 
