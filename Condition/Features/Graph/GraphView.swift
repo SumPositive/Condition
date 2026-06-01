@@ -239,6 +239,8 @@ private struct GraphContentView: View {
             }
             .onGeometryChange(for: CGFloat.self, of: { $0.size.width }) { chartWidth = $0 }
         }
+        // グラフ画面では右端のスクロール表示を出さず、チャート表示を優先する
+        .scrollIndicators(.hidden)
         .environment(\.chartAvailableWidth, chartWidth)
         .task(id: graphStageID) {
             await revealCharts(total: visibleGraphKinds.count)

@@ -204,6 +204,8 @@ private struct StatisticsContentView: View {
             }
             .onGeometryChange(for: CGFloat.self, of: { $0.size.width }) { chartWidth = $0 }
         }
+        // 統計画面では右端のスクロール表示を出さず、パネル表示を優先する
+        .scrollIndicators(.hidden)
         .environment(\.chartAvailableWidth, chartWidth)
         .task(id: statStageID) {
             await revealCharts(total: visibleStatSections.count)
@@ -596,6 +598,8 @@ private struct JSHStandardsPopover: View {
                 Spacer(minLength: 14)
             }
         }
+        // 統計内の説明ポップアップもスクロール表示を隠す
+        .scrollIndicators(.hidden)
         .frame(minWidth: 300)
         .presentationCompactAdaptation(.sheet)
         .presentationDetents([.medium, .large])
@@ -654,6 +658,8 @@ private struct ESHStandardsPopover: View {
                 Spacer(minLength: 14)
             }
         }
+        // 統計内の説明ポップアップもスクロール表示を隠す
+        .scrollIndicators(.hidden)
         .frame(minWidth: 300)
         .presentationCompactAdaptation(.sheet)
         .presentationDetents([.medium, .large])
@@ -1029,6 +1035,8 @@ private struct BpDateOptCorrInfoPopover: View {
                 .padding(.vertical, 12)
             }
         }
+        // 統計内の説明ポップアップもスクロール表示を隠す
+        .scrollIndicators(.hidden)
         .frame(minWidth: 300)
         .presentationCompactAdaptation(.popover)
     }

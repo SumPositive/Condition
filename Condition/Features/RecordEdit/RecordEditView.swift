@@ -33,6 +33,7 @@ struct RecordEditView: View {
     @State private var conflictData: RecentConflict? = nil
     @State private var isDateOptExpanded = false
     @State private var measurementSamples: [MeasurementAverageField: [Int]] = [:]
+    @State private var showsFloatingAverageAddButton = false
     @FocusState private var focusNote1: Bool
     @FocusState private var focusNote2: Bool
     @FocusState private var focusEquipment: Bool
@@ -128,22 +129,13 @@ struct RecordEditView: View {
                             fieldRow(for: kind)
                         }
                     } header: {
-                        HStack(alignment: .center, spacing: 16) {
+                        ZStack(alignment: .leading) {
                             Text("record.measurements")
-                            Button("record.average.add") {
-                                addAverageSamples()
+                            if !showsFloatingAverageAddButton {
+                                // 元ボタンは画面幅の中央に置き、フローティング表示後は重複しないよう非表示にする
+                                averageAddButton(font: .caption.weight(.semibold))
+                                    .frame(maxWidth: .infinity, alignment: .center)
                             }
-                            .font(.caption.weight(.semibold))
-                            .padding(.horizontal, 18)
-                            .padding(.vertical, 5)
-                            .background {
-                                // 小さなヘッダーボタンでも押しやすいようカプセル状の面を持たせる
-                                Capsule()
-                                    .fill(canAddAverageSample ? Color.accentColor.opacity(0.12) : Color(.systemFill))
-                            }
-                            .contentShape(Capsule())
-                            .disabled(!canAddAverageSample)
-                            Spacer()
                         }
                     }
                     healthKitSection
@@ -290,6 +282,11 @@ struct RecordEditView: View {
             }
             // isModified は ViewModel の didSet で管理（View 側 onChange 不要）
             .onChange(of: vm.isModified) { _, newValue in onModifiedChanged?(newValue) }
+        }
+        .overlay(alignment: .top) {
+            if showsFloatingAverageAddButton {
+                floatingAverageAddButton
+            }
         }
         // .sheet で提示されるため、AppのdynamicTypeSize環境値が引き継がれないことがある
         // AppSettings から直接フォントスケールを適用して確実に連動させる
@@ -618,6 +615,37 @@ struct RecordEditView: View {
 
     // MARK: - 測定の追加（複数回測定の平均）
 
+    private func averageAddButton(font: Font) -> some View {
+        Button("record.average.add") {
+            addAverageSamples()
+        }
+        .font(font)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 5)
+        .background {
+            // 小さなボタンでも押しやすいようカプセル状の面を持たせる
+            Capsule()
+                .fill(canAddAverageSample ? Color.accentColor.opacity(0.12) : Color(.systemFill))
+        }
+        .contentShape(Capsule())
+        .disabled(!canAddAverageSample)
+    }
+
+    private var floatingAverageAddButton: some View {
+        averageAddButton(font: .callout.weight(.semibold))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background {
+                // スクロール上の入力欄と重なっても押しやすく見えるよう浮かせる
+                Capsule()
+                    .fill(.regularMaterial)
+                    .shadow(color: .black.opacity(0.14), radius: 10, y: 4)
+            }
+            // NavigationStack全体を基準にして、インラインタイトル直下へ寄せる
+            .padding(.top, 74)
+            .opacity(canAddAverageSample ? 1 : 0.55)
+    }
+
     private var averageInputFields: [MeasurementAverageField] {
         if vm.valuesLocked {
             return []
@@ -654,6 +682,7 @@ struct RecordEditView: View {
     }
 
     private func addAverageSamples() {
+        showsFloatingAverageAddButton = true
         for field in averageInputFields {
             var samples = measurementSamples[field] ?? []
             if 5 <= samples.count {
