@@ -488,12 +488,25 @@ struct AZRadioPicker<Option: Hashable & Identifiable, Label: View>: View {
     /// 折り返さない時に各候補を均等幅で横いっぱいに広げる
     var fillsWidth: Bool = false
     var style: AZPickerStyle = .form
+    /// ピルアニメ完了直後に呼ばれるコールバック（selection 確定前にプログレスを描画したい用途向け）
+    var onTap: ((Option) -> Void)? = nil
     @ViewBuilder let label: (Option) -> Label
+
+    /// 選択ピルを option 間で滑らかに移動させるための名前空間
+    @Namespace private var pillNamespace
+    /// ピル位置の即時更新用（重い親処理に巻き込まれず、タップと同じフレームで動き出す）
+    @State private var pendingSelection: Option?
+
+    /// 表示用：保留中があればそれ、なければバインディング値
+    private var effectiveSelection: Option {
+        pendingSelection ?? selection
+    }
 
     var body: some View {
         optionLayout
             .padding(groupPadding)
             .background(
+                // コンテナ：選択肢群を1つのグループとして見せる
                 RoundedRectangle(cornerRadius: style.cornerRadius, style: .continuous)
                     .fill(style.radioPanelBackground)
             )
@@ -506,6 +519,14 @@ struct AZRadioPicker<Option: Hashable & Identifiable, Label: View>: View {
             )
             .shadow(color: Color.black.opacity(max(style.shadowOpacity, 0.025)), radius: max(style.shadowRadius, 1.5), x: 0, y: max(style.shadowY, 0.8))
             .frame(maxWidth: wrapsOptions || fillsWidth ? .infinity : nil, alignment: .trailing)
+            // 選択時に微かな触覚フィードバック（タップ直後に発火させたいので pendingSelection をトリガ）
+            .sensoryFeedback(.selection, trigger: pendingSelection)
+            // 親が selection を反映し終えたら保留状態を解除
+            .onChange(of: selection) { _, newValue in
+                if pendingSelection == newValue {
+                    pendingSelection = nil
+                }
+            }
     }
 
     @ViewBuilder
@@ -530,9 +551,31 @@ struct AZRadioPicker<Option: Hashable & Identifiable, Label: View>: View {
     }
 
     private func optionButton(_ option: Option) -> some View {
-        let isSelected = selection == option
+        let isSelected = effectiveSelection == option
         return Button {
-            selection = option
+            guard effectiveSelection != option else { return }
+            // ピルはスプリングで動くが、視覚的な到着タイミング（≒ response 時間）で
+            // 即 selection を更新する。withAnimation completion は spring の settle まで
+            // 待つため遅延が大きい
+            withAnimation(.spring(response: 0.22, dampingFraction: 0.82)) {
+                pendingSelection = option
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
+                // 連続タップ時は最新の保留選択だけを確定する
+                if pendingSelection == option {
+                    if let onTap {
+                        // プログレスを先に開始し、数フレーム描画してから重い親処理へ進める
+                        onTap(option)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                            if pendingSelection == option {
+                                selection = option
+                            }
+                        }
+                    } else {
+                        selection = option
+                    }
+                }
+            }
         } label: {
             label(option)
                 .font(.subheadline.weight(isSelected ? .semibold : .regular))
@@ -550,34 +593,23 @@ struct AZRadioPicker<Option: Hashable & Identifiable, Label: View>: View {
                     minHeight: minHeight,
                     alignment: .center
                 )
-                .background(
-                    // ラジオ項目は白いカプセル面でボタンらしさを出す
-                    Capsule(style: .continuous)
-                        .fill(isSelected ? Color.accentColor.opacity(style.selectedBackgroundOpacity) : style.radioOptionBackground)
-                )
-                .overlay(
-                    Capsule(style: .continuous)
-                        .strokeBorder(
-                            isSelected
-                                ? Color.accentColor.opacity(max(style.selectedBorderOpacity, 0.66))
-                                : Color.secondary.opacity(style.radioOptionShowsBorder ? 0.08 : 0),
-                            lineWidth: isSelected ? 1.25 : (style.radioOptionShowsBorder ? 1 : 0)
-                        )
-                )
-                .shadow(
-                    // 未選択も少し浮かせて、文字だけに見えないようにする
-                    color: Color.black.opacity(isSelected ? 0.025 : 0.065),
-                    radius: isSelected ? 0.6 : 1.4,
-                    x: 0,
-                    y: isSelected ? 0.2 : 0.9
-                )
-                .overlay(alignment: .top) {
+                .background {
+                    // 選択中の項目だけにピルを置き、matchedGeometryEffect で滑らかに移動させる
                     if isSelected {
-                        // 選択中は薄い内側線で押し込み感を抑える
                         Capsule(style: .continuous)
-                            .strokeBorder(Color.black.opacity(0.04), lineWidth: 1)
+                            .fill(Color.accentColor.opacity(style.selectedBackgroundOpacity))
+                            .overlay(
+                                Capsule(style: .continuous)
+                                    .strokeBorder(
+                                        Color.accentColor.opacity(max(style.selectedBorderOpacity, 0.4)),
+                                        lineWidth: 1
+                                    )
+                            )
+                            .shadow(color: Color.accentColor.opacity(0.18), radius: 3, x: 0, y: 1)
+                            .matchedGeometryEffect(id: "azRadioPill", in: pillNamespace)
                     }
                 }
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
