@@ -768,6 +768,7 @@ private struct ExportSheetView: View {
     @State private var format: ExportFormat = .pdf
     @State private var ascending: Bool = false
     @State private var isGenerating = false
+    @State private var showExportCompletedAlert = false
 
     init(records: [BodyRecord], visibleKinds: [GraphKind]) {
         self.records = records
@@ -869,6 +870,12 @@ private struct ExportSheetView: View {
                 }
             }
             .overlay { if isGenerating { exportingOverlay } }
+            .alert(
+                "export.completed.file",
+                isPresented: $showExportCompletedAlert
+            ) {
+                Button("action.ok", role: .cancel) { }
+            }
         }
         if settings.fontScale.followsSystem {
             content
@@ -910,6 +917,14 @@ private struct ExportSheetView: View {
         while let presented = topVC.presentedViewController { topVC = presented }
 
         let activityVC = UIActivityViewController(activityItems: items, applicationActivities: nil)
+        activityVC.completionWithItemsHandler = { _, completed, _, _ in
+            guard completed else { return }
+            Task { @MainActor in
+                // 共有シートから条件シートへ戻ってから完了を知らせる
+                try? await Task.sleep(for: .milliseconds(350))
+                showExportCompletedAlert = true
+            }
+        }
         isGenerating = false
         topVC.present(activityVC, animated: true)
     }
@@ -1114,11 +1129,10 @@ private enum PDFLayout {
     static let pageH:     CGFloat = 842
     static let margin:    CGFloat = 16
     static let contentW:  CGFloat = pageW - margin * 2   // 563
-    static let dateColW:  CGFloat = 138
-    static var optColW:   CGFloat {
-        Locale.current.language.languageCode?.identifier == "ja" ? 44 : 82
-    }
-    static let notesW:    CGFloat = contentW - dateColW  // 425
+    static let dateColW:  CGFloat = 128
+    // 区分名は全角4文字または半角8文字まで欠けない幅を確保する
+    static let optColW:   CGFloat = 64
+    static let notesW:    CGFloat = contentW - dateColW  // 435
     static let rowH:      CGFloat = 22
     static let memoLineH: CGFloat = 14
     static let divH:      CGFloat = 1
@@ -1133,11 +1147,22 @@ private enum PDFLayout {
     }
 
     static func estimatedRowH(_ r: BodyRecord) -> CGFloat {
-        let notes = [r.sNote1, r.sNote2].filter { !$0.isEmpty }.joined(separator: "  ")
-        guard !notes.isEmpty else { return rowH + divH }
-        let charsPerLine = 38
-        let lines = max(1, (notes.count + charsPerLine - 1) / charsPerLine)
-        return rowH + CGFloat(lines) * memoLineH + 3 + divH
+        // 測定場所・メモは記録セルと同じく1行だけ表示する
+        let memoLine = PDFMemoLineBuilder.line(for: r)
+        guard !memoLine.isEmpty else { return rowH + divH }
+        return rowH + memoLineH + 3 + divH
+    }
+}
+
+private enum PDFMemoLineBuilder {
+    static func line(for record: BodyRecord) -> String {
+        [record.sEquipment, record.sNote1, record.sNote2]
+            .compactMap(firstNonEmptyLine)
+            .joined(separator: "  ")
+    }
+
+    private static func firstNonEmptyLine(_ text: String) -> String? {
+        text.components(separatedBy: .newlines).first { !$0.isEmpty }
     }
 }
 
@@ -1223,7 +1248,7 @@ private struct ExportPDFPageView: View {
     }
 
     private func pdfDataRow(_ r: BodyRecord) -> some View {
-        let notes = [r.sNote1, r.sNote2].filter { !$0.isEmpty }.joined(separator: "  ")
+        let memoLine = PDFMemoLineBuilder.line(for: r)
         return VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 0) {
                 Text(Self.dtdf.string(from: r.dateTime))
@@ -1231,6 +1256,8 @@ private struct ExportPDFPageView: View {
                     .frame(width: PDFLayout.dateColW, alignment: .leading).padding(3)
                 Text(r.dateOpt.displayName)
                     .lineLimit(1)
+                    .allowsTightening(true)
+                    .minimumScaleFactor(0.6)
                     .frame(width: PDFLayout.optColW, alignment: .center).padding(3)
                 ForEach(visibleKinds, id: \.rawValue) { kind in
                     ForEach(Array(pdfCellValues(r, kind).enumerated()), id: \.offset) { _, value in
@@ -1241,11 +1268,13 @@ private struct ExportPDFPageView: View {
                     }
                 }
             }
-            if !notes.isEmpty {
-                // 明示的な幅指定でメモ列を固定し列ズレを防ぐ
-                Text(notes)
+            if !memoLine.isEmpty {
+                // 測定場所・メモ1・メモ2は記録セルと同じ順序で1行表示する
+                Text(memoLine)
+                    .lineLimit(1)
                     .foregroundStyle(.secondary)
                     .frame(width: PDFLayout.notesW - 6, alignment: .leading)
+                    .clipped()
                     .padding(.leading, PDFLayout.dateColW + 3)
                     .padding(.trailing, 3)
                     .padding(.bottom, 3)

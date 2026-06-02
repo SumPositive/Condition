@@ -85,7 +85,7 @@ Condition/
 
 基本方針:
 
-- 対象履歴は推定基準日時から過去30日以内の通常記録
+- 対象履歴は推定基準日時から過去90日以内の通常記録
 - 時間帯と区分の初期値マトリックスは、履歴が少ない時の土台として使う
 - 過去記録は、曜日・時刻差・新しさを掛け合わせて、その記録の区分へ加点する
 - 最大スコアと次点が僅差なら、説明しやすく安定した初期値マトリックスへ戻す
@@ -95,7 +95,7 @@ Condition/
 ```text
 score[matrixDefault] += 1.5
 
-for record in recordsWithin30Days:
+for record in recordsWithin90Days:
     score[record.dateOpt] += weekdayWeight * timeWeight * recencyWeight
 ```
 
@@ -111,8 +111,8 @@ timeWeight:
   0時前後の記録にも合うように、時刻差は24時間の循環距離で計算する
 
 recencyWeight:
-  max(0.5, 1.0 - daysAgo / 60.0)
-  直近ほど強く、30日前でも0.5倍は残す
+  max(0.5, 1.0 - daysAgo / 180.0)
+  直近ほど強く、90日前でも0.5倍は残す
 ```
 
 決定ルール:

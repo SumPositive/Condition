@@ -1023,11 +1023,9 @@ struct BpChartView: View {
                     Text(LocalizedStringKey(mode.titleKey))
                 }
                 .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-                Spacer(minLength: 0)
-            }
-            if settings.userLevel == .beginner {
-                // 初心者向けに、脈圧と心拍数も同じ描画条件を参照することを明示する
+                // グラフ線の補足は、対象コントロールの右に置く
                 BeginnerHelpBanner("graph.bpLineMode.appliesToPulse", storageKey: "helpDismissed.graph.bpLineMode", compact: true)
+                Spacer(minLength: 0)
             }
         }
     }

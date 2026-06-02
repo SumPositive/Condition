@@ -142,7 +142,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "書き出し"
+            "value" : "書き出す"
           }
         }
       }
@@ -1510,6 +1510,23 @@
         }
       }
     },
+    "export.completed.file" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exported to file"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ファイルへ書き出しました"
+          }
+        }
+      }
+    },
     "export.created" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1635,13 +1652,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Export"
+            "value" : "Records"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "エクスポート"
+            "value" : "記録"
           }
         }
       }
@@ -2570,13 +2587,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Toggle the switch to show or hide each item in the record screen. Drag the handle on the right to change the order."
+            "value" : "Set the layout of the record screen\n\nSwitch ON: Show on the record screen\n       OFF: Hide\n\nLong-press or drag the handle on the right up or down to change the display order"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "スイッチで記録画面への表示・非表示を切り替えられます。右端のハンドルをドラッグすると表示順を変えられます。"
+            "value" : "記録画面の配置を設定します\n\nスイッチON：記録画面に表示する\n　　　　OFF：表示しない\n\n長押しまたは右端のハンドルを押して上下に移動して表示順序を変えます"
           }
         }
       }
@@ -4593,13 +4610,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Suggests a category by weighing records from the last month by weekday, time proximity, recency, and the time-of-day defaults. When off, only the time-of-day map below is used."
+            "value" : "How the category shown when opening a new record is decided\n\nOn: Estimates the category by weighting records from the last 3 months by weekday, time proximity, recency, and the time-of-day map\n\nOff: Uses only the time-of-day map"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "過去1ヶ月の記録を曜日・時刻の近さ・新しさ・時間帯マップで重み付けして区分を提示します。OFFのときは下の時間帯マップだけを使います。"
+            "value" : "新しい決済を開いた時に表示される区分の決め方\n\nON：過去3ヶ月の記録から曜日・時刻の近さ・新しさ・時間帯マップで重み付けして区分を推定します\n\nOFF：時間帯マップだけを使います"
           }
         }
       }
@@ -4814,13 +4831,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Category Estimation Time Map"
+            "value" : "Time Map"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "区分推定の時間帯マップ"
+            "value" : "時間帯マップ"
           }
         }
       }
@@ -4831,13 +4848,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Used when history is sparse or category estimation is off"
+            "value" : "Set the category to show for each time period when opening a new record\n\nThis map is used when category estimation is off or there are not enough records"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "履歴が少ない時や区分推定がOFFの時に使います"
+            "value" : "新しい記録を開いた時に表示したい区分を時間帯毎に設定します\n\n区分推定機能がOFFまたは記録が少ないとき、このマップで決定します"
           }
         }
       }
@@ -5154,13 +5171,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Auto: Supports the system Larger Text setting. If the size reaches the equivalent of Extra Large, layouts may break in the same way.\n\nStandard: The app's own standard size\n\nLarge: About 1.5x the standard size\n\nExtra Large: About 2x the standard size. Depending on the screen size or amount of text, layouts may exceed their limits and break. If this causes a serious problem, please report it and I will do my best to support it."
+            "value" : "Aiming to be presbyopia-friendly\n\nAuto: Supports the system Larger Text setting\n\nStandard: The app's own standard size\n\nLarge: About 1.5x the standard size\n\nExtra Large: About 2x the standard size\n\nAt around Extra Large, some layouts may still break. If this causes a serious problem, please report it and I will do my best to support it."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "自動：システム設定のさらに大きな文字に対応します。特大相当になれば同様に崩れる場合があります。\n\n標準：アプリ独自の標準サイズ\n\n　大：標準の1.5倍くらいになります\n\n特大：標準の2倍くらいになります。画面サイズや文字数などで限界を超えて崩れる場合があります。どうしても困る場合は報告して頂ければ、できる限り対応したいと思っています。"
+            "value" : "ローガンフリーを目指します\n\n自動：システム設定のさらに大きな文字に対応します\n\n標準：アプリ独自の標準サイズ\n\n　大：標準の1.5倍くらいになります\n\n特大：標準の2倍くらいになります\n\n特大サイズくらいになると一部崩れるケースが残っています。どうしても困る場合は報告して頂ければ、できる限り対応したいと思っています。"
           }
         }
       }

@@ -290,8 +290,8 @@ enum DateOptEstimator {
     private static let sameWeekdayMultiplier = 1.25
     /// 時刻差がこの分数に近いほど、スコアが自然に弱くなる
     private static let timeScaleMinutes = 90.0
-    /// 推定対象にする履歴期間
-    private static let historyDays = 30
+    /// 推定対象にする履歴期間（3ヶ月相当）
+    private static let historyDays = 90
     /// 最大区分と次点がこの差未満なら、時間帯マトリックスを優先する
     private static let decisionMargin = 0.3
 
@@ -377,8 +377,8 @@ enum DateOptEstimator {
 
     private static func recencyWeight(recordDate: Date, referenceDate: Date) -> Double {
         let daysAgo = max(0, referenceDate.timeIntervalSince(recordDate) / 86_400)
-        // 30日以内の履歴は最低0.5倍まで残し、直近ほど強くする
-        return max(0.5, 1.0 - daysAgo / 60.0)
+        // 90日以内の履歴は最低0.5倍まで残し、直近ほど強くする
+        return max(0.5, 1.0 - daysAgo / 180.0)
     }
 
     private static func selectedDateOpt(scores: [DateOpt: Double], fallback: DateOpt) -> DateOpt {
