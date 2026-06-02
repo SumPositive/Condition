@@ -39,6 +39,8 @@ struct BeginnerHelpBanner: View {
                         horizontalContent
                         verticalContent
                     }
+                    // グラフ・統計の本体上限に引きずられず、ヒント自身で文字サイズを決める
+                    .dynamicTypeSize(helpDynamicTypeSize)
                     .padding(.horizontal, compact ? 0 : 16)
                     .padding(.vertical, compact ? 0 : 4)
                 }
@@ -102,6 +104,10 @@ struct BeginnerHelpBanner: View {
     }
 
     private var helpSheetDynamicTypeSize: DynamicTypeSize {
+        helpDynamicTypeSize
+    }
+
+    private var helpDynamicTypeSize: DynamicTypeSize {
         let baseSize = settings.fontScale.followsSystem
             ? systemDynamicTypeSize
             : settings.fontScale.dynamicTypeSize

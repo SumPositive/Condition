@@ -51,6 +51,16 @@ enum GraphPeriod: Int, CaseIterable, Identifiable {
         }
     }
 
+    var shortLabel: String {
+        switch self {
+        case .week:        return "period.week.short"
+        case .month:       return "period.month.short"
+        case .threeMonths: return "period.threeMonths.short"
+        case .sixMonths:   return "period.sixMonths.short"
+        case .year:        return "period.year.short"
+        }
+    }
+
     var domainSeconds: Int { rawValue * 24 * 3600 }
 
     var xAxisCount: Int {
@@ -204,6 +214,8 @@ private struct GraphContentView: View {
         }
         // 区分のアイコン・名称・色を変更したらグラフ表示も再生成する
         .id(settings.dateOptAppearanceRevision)
+        // グラフ図表は特大以上で凡例や軸が崩れるため、大相当を上限にする
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
         .environment(\.scrollCapture, scrollCapture)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
@@ -285,7 +297,8 @@ private struct GraphContentView: View {
                             isUpdatingPeriod = true
                         }
                     ) { p in
-                        Text(LocalizedStringKey(p.label))
+                        // 期間ラジオはLargeでも1行に収めるため短縮表記を使う
+                        Text(LocalizedStringKey(p.shortLabel))
                     }
                     .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
 

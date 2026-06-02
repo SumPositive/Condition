@@ -169,6 +169,8 @@ private struct StatisticsContentView: View {
             }
             // 区分のアイコン・名称・色を変更したら統計チャートを再生成する
             .id(settings.dateOptAppearanceRevision)
+            // 統計図表は特大以上で凡例や軸が崩れるため、大相当を上限にする
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
         }
     }
 
@@ -201,7 +203,8 @@ private struct StatisticsContentView: View {
                         wrapsOptions: false,
                         fillsWidth: true
                     ) { p in
-                        Text(LocalizedStringKey(p.label))
+                        // 期間ラジオはLargeでも1行に収めるため短縮表記を使う
+                        Text(LocalizedStringKey(p.shortLabel))
                     }
                     .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                     .padding(.horizontal)

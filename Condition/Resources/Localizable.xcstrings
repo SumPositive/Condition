@@ -4030,6 +4030,23 @@
         }
       }
     },
+    "period.month.short" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1M"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1月"
+          }
+        }
+      }
+    },
     "period.sixMonths" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4043,6 +4060,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "6ヶ月"
+          }
+        }
+      }
+    },
+    "period.sixMonths.short" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "6M"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "6月"
           }
         }
       }
@@ -4064,6 +4098,23 @@
         }
       }
     },
+    "period.threeMonths.short" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "3M"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "3月"
+          }
+        }
+      }
+    },
     "period.week" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4081,6 +4132,23 @@
         }
       }
     },
+    "period.week.short" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1W"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1週"
+          }
+        }
+      }
+    },
     "period.year" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4088,6 +4156,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "1 Year"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1年"
+          }
+        }
+      }
+    },
+    "period.year.short" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1Y"
           }
         },
         "ja" : {

@@ -334,21 +334,29 @@ struct SettingsView: View {
                             }
                         }
                         .zIndex(isMergeWindowExpanded ? 61 : 0)
-                        AZAdaptiveControlRow {
-                            Text("settings.merge.defaultAction")
-                                .font(.subheadline)
-                        } control: {
-                            // 衝突時の初期選択も同じドロップダウンPickerで選ぶ
-                            AZDropdownPicker(
-                                options: ConflictAction.allCases,
-                                selection: mergeDefaultActionBinding,
-                                isExpanded: $isMergeDefaultActionExpanded,
-                                minWidth: 170
-                            ) { action in
-                                Text(action.labelKey)
+                        if settings.mergeWindowMinutes != 0 {
+                            AZAdaptiveControlRow {
+                                Text("settings.merge.defaultAction")
+                                    .font(.subheadline)
+                            } control: {
+                                // 衝突時の初期選択も同じドロップダウンPickerで選ぶ
+                                AZDropdownPicker(
+                                    options: ConflictAction.allCases,
+                                    selection: mergeDefaultActionBinding,
+                                    isExpanded: $isMergeDefaultActionExpanded,
+                                    minWidth: 170
+                                ) { action in
+                                    Text(action.labelKey)
+                                }
                             }
+                            .zIndex(isMergeDefaultActionExpanded ? 60 : 0)
                         }
-                        .zIndex(isMergeDefaultActionExpanded ? 60 : 0)
+                    }
+                }
+                .onChange(of: settings.mergeWindowMinutes) { _, newValue in
+                    // 「しない」の時は非表示行のドロップダウンを閉じる
+                    if newValue == 0 {
+                        isMergeDefaultActionExpanded = false
                     }
                 }
                 .onAppear { if healthKit.isAvailable { healthKit.checkAuthorization() } }

@@ -487,7 +487,7 @@ Localizable.xcstrings のjaを直接修正したのでenに翻訳してほしい
 3.グラフ再描画処理を開始する
 4.グラフ再描画処理が完了すればプログレスを止める
 
-
+設定：記録をまとめる：しない の場合、初期選択の行を非表示にしたい
 
 -----------
 2.5.0 新機能
@@ -498,4 +498,14 @@ Localizable.xcstrings のjaを直接修正したのでenに翻訳してほしい
 - グラフ：血圧/心拍数/脈圧：区分を選択して表示できるようになりました
 - 統計：血圧分布：区分を選択して表示できるようになりました
 - 初心者ヘルプを改善、見やすくしました
+enにして
+Version 2.5.0
+- Category Estimation: new records now suggest a category based on the day of week and time of day.
+- Customize the icon, name, and color of each category to suit your style.
+- Added two new categories (7 and 8) — use them however you like.
+- Add Reading: you can now undo the most recent measurement.
+- Graph: filter Blood Pressure / Heart Rate / Pulse Pressure by category.
+- Statistics: filter Blood Pressure Distribution by category.
+- Beginner hints have been refined and made easier to read.
 --------------------------------
+
