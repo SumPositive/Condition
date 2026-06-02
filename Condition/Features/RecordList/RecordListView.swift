@@ -811,9 +811,9 @@ private struct ExportSheetView: View {
                         selection: $format,
                         minOptionWidth: 0,
                         maxOptionWidth: 120,
-                        horizontalPadding: 4,
+                        horizontalPadding: 12,
                         optionSpacing: 4,
-                        groupPadding: 5,
+                        groupPadding: 2,
                         wrapsOptions: false,
                         fillsWidth: true
                     ) { f in
@@ -825,9 +825,9 @@ private struct ExportSheetView: View {
                         selection: sortSelectionBinding,
                         minOptionWidth: 0,
                         maxOptionWidth: 180,
-                        horizontalPadding: 4,
+                        horizontalPadding: 12,
                         optionSpacing: 4,
-                        groupPadding: 5
+                        groupPadding: 2,
                     ) {
                         Text("sort.title")
                             .font(.subheadline)

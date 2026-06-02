@@ -194,9 +194,9 @@ struct SettingsView: View {
                                 selection: $settings.userLevel,
                                 minOptionWidth: 0,
                                 maxOptionWidth: 120,
-                                horizontalPadding: 4,
+                                horizontalPadding: 12,
                                 optionSpacing: 4,
-                                groupPadding: 5,
+                                groupPadding: 2,
                                 wrapsOptions: false,
                                 fillsWidth: true
                             ) { level in
@@ -215,9 +215,9 @@ struct SettingsView: View {
                             selection: $settings.appearanceMode,
                             minOptionWidth: 0,
                             maxOptionWidth: 120,
-                            horizontalPadding: 4,
+                            horizontalPadding: 12,
                             optionSpacing: 4,
-                            groupPadding: 5,
+                            groupPadding: 2,
                             wrapsOptions: false,
                             fillsWidth: true
                         ) { mode in
@@ -240,9 +240,9 @@ struct SettingsView: View {
                                 selection: $settings.fontScale,
                                 minOptionWidth: 0,
                                 maxOptionWidth: 120,
-                                horizontalPadding: 4,
+                                horizontalPadding: 12,
                                 optionSpacing: 4,
-                                groupPadding: 5,
+                                groupPadding: 2,
                                 wrapsOptions: false,
                                 fillsWidth: true
                             ) { scale in
@@ -389,9 +389,9 @@ struct SettingsView: View {
                                     selection: exportFormatBinding,
                                     minOptionWidth: 0,
                                     maxOptionWidth: 120,
-                                    horizontalPadding: 4,
+                                    horizontalPadding: 12,
                                     optionSpacing: 4,
-                                    groupPadding: 5,
+                                    groupPadding: 2,
                                     wrapsOptions: false,
                                     fillsWidth: true
                                 ) { style in
@@ -2307,9 +2307,9 @@ struct HealthKitSettingsView: View {
                     selection: directionBinding,
                     minOptionWidth: 0,
                     maxOptionWidth: 180,
-                    horizontalPadding: 4,
+                    horizontalPadding: 12,
                     optionSpacing: 4,
-                    groupPadding: 5,
+                    groupPadding: 2,
                     wrapsOptions: true,
                     fillsWidth: true
                 ) { direction in

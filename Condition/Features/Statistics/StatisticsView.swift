@@ -195,9 +195,9 @@ private struct StatisticsContentView: View {
                         selection: periodBinding,
                         minOptionWidth: 0,
                         maxOptionWidth: 120,
-                        horizontalPadding: 4,
+                        horizontalPadding: 12,
                         optionSpacing: 4,
-                        groupPadding: 5,
+                        groupPadding: 2,
                         wrapsOptions: false,
                         fillsWidth: true
                     ) { p in

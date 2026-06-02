@@ -88,12 +88,28 @@ struct AZPickerStyle {
     var selectedBorderOpacity: Double = 0.55
     /// ドロップダウン候補一覧とラジオ全体パネルの外枠線の濃さ
     var panelBorderOpacity: Double = 0.28
+    /// ラジオ全体パネルだけ外枠線を表示するか
+    var radioPanelShowsBorder: Bool = true
+    /// ラジオ未選択項目の枠線を表示するか
+    var radioOptionShowsBorder: Bool = true
     /// 選択ボタン・ラジオパネル・ラジオ項目の影の濃さ
     var shadowOpacity: Double = 0
     /// 選択ボタン・ラジオパネル・ラジオ項目の影のぼかし
     var shadowRadius: CGFloat = 0
     /// 選択ボタン・ラジオパネル・ラジオ項目の影の縦方向位置
     var shadowY: CGFloat = 0
+    /// ラジオ全体パネル専用の薄い背景色
+    var radioPanelBackground: Color = Color(UIColor { trait in
+        trait.userInterfaceStyle == .dark
+            ? UIColor.secondarySystemFill
+            : UIColor.systemGray6.withAlphaComponent(0.96)
+    })
+    /// ラジオ未選択項目も薄く塗り、文字だけに見えないようにする
+    var radioOptionBackground: Color = Color(UIColor { trait in
+        trait.userInterfaceStyle == .dark
+            ? UIColor.tertiarySystemFill
+            : UIColor.systemBackground.withAlphaComponent(0.98)
+    })
     /// ドロップダウン候補一覧パネルの角丸
     var popoverCornerRadius: CGFloat = 10
     /// ドロップダウン候補一覧パネルの影の濃さ
@@ -462,9 +478,12 @@ struct AZRadioPicker<Option: Hashable & Identifiable, Label: View>: View {
     @Binding var selection: Option
     var minOptionWidth: CGFloat = 96
     var maxOptionWidth: CGFloat = 240
-    var horizontalPadding: CGFloat = 10
-    var optionSpacing: CGFloat = 6
-    var groupPadding: CGFloat = 6
+    var horizontalPadding: CGFloat = 12
+    var verticalPadding: CGFloat = 4
+    /// 標準時は低めのセグメント相当、文字が大きい時は自然に高くする
+    var minHeight: CGFloat = 28
+    var optionSpacing: CGFloat = 4
+    var groupPadding: CGFloat = 2
     var wrapsOptions: Bool = true
     /// 折り返さない時に各候補を均等幅で横いっぱいに広げる
     var fillsWidth: Bool = false
@@ -476,13 +495,16 @@ struct AZRadioPicker<Option: Hashable & Identifiable, Label: View>: View {
             .padding(groupPadding)
             .background(
                 RoundedRectangle(cornerRadius: style.cornerRadius, style: .continuous)
-                    .fill(style.panelBackground)
+                    .fill(style.radioPanelBackground)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: style.cornerRadius, style: .continuous)
-                    .strokeBorder(Color.secondary.opacity(style.panelBorderOpacity), lineWidth: 1)
+                    .strokeBorder(
+                        Color.secondary.opacity(style.radioPanelShowsBorder ? 0.12 : 0),
+                        lineWidth: style.radioPanelShowsBorder ? 1 : 0
+                    )
             )
-            .shadow(color: Color.black.opacity(style.shadowOpacity), radius: style.shadowRadius, x: 0, y: style.shadowY)
+            .shadow(color: Color.black.opacity(max(style.shadowOpacity, 0.025)), radius: max(style.shadowRadius, 1.5), x: 0, y: max(style.shadowY, 0.8))
             .frame(maxWidth: wrapsOptions || fillsWidth ? .infinity : nil, alignment: .trailing)
     }
 
@@ -521,29 +543,41 @@ struct AZRadioPicker<Option: Hashable & Identifiable, Label: View>: View {
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: !fillsWidth)
                 .padding(.horizontal, horizontalPadding)
-                .padding(.vertical, 8)
+                .padding(.vertical, verticalPadding)
                 .frame(
                     minWidth: minOptionWidth,
                     maxWidth: fillsWidth ? .infinity : maxOptionWidth,
+                    minHeight: minHeight,
                     alignment: .center
                 )
                 .background(
-                    RoundedRectangle(cornerRadius: style.cornerRadius, style: .continuous)
-                        .fill(isSelected ? Color.accentColor.opacity(style.selectedBackgroundOpacity) : style.optionBackground)
+                    // ラジオ項目は白いカプセル面でボタンらしさを出す
+                    Capsule(style: .continuous)
+                        .fill(isSelected ? Color.accentColor.opacity(style.selectedBackgroundOpacity) : style.radioOptionBackground)
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: style.cornerRadius, style: .continuous)
+                    Capsule(style: .continuous)
                         .strokeBorder(
-                            isSelected ? Color.accentColor.opacity(style.selectedBorderOpacity) : Color.secondary.opacity(style.borderOpacity),
-                            lineWidth: isSelected ? 1.25 : 1
+                            isSelected
+                                ? Color.accentColor.opacity(max(style.selectedBorderOpacity, 0.66))
+                                : Color.secondary.opacity(style.radioOptionShowsBorder ? 0.08 : 0),
+                            lineWidth: isSelected ? 1.25 : (style.radioOptionShowsBorder ? 1 : 0)
                         )
                 )
                 .shadow(
-                    color: Color.black.opacity(style.shadowOpacity),
-                    radius: style.shadowRadius,
+                    // 未選択も少し浮かせて、文字だけに見えないようにする
+                    color: Color.black.opacity(isSelected ? 0.025 : 0.065),
+                    radius: isSelected ? 0.6 : 1.4,
                     x: 0,
-                    y: style.shadowY
+                    y: isSelected ? 0.2 : 0.9
                 )
+                .overlay(alignment: .top) {
+                    if isSelected {
+                        // 選択中は薄い内側線で押し込み感を抑える
+                        Capsule(style: .continuous)
+                            .strokeBorder(Color.black.opacity(0.04), lineWidth: 1)
+                    }
+                }
         }
         .buttonStyle(.plain)
     }
@@ -578,9 +612,9 @@ struct AZAdaptiveRadioRow<Option: Hashable & Identifiable, Title: View, Label: V
     @Binding var selection: Option
     var minOptionWidth: CGFloat = 96
     var maxOptionWidth: CGFloat = 240
-    var horizontalPadding: CGFloat = 10
-    var optionSpacing: CGFloat = 6
-    var groupPadding: CGFloat = 6
+    var horizontalPadding: CGFloat = 12
+    var optionSpacing: CGFloat = 4
+    var groupPadding: CGFloat = 2
     var style: AZPickerStyle = .form
     @ViewBuilder let title: () -> Title
     @ViewBuilder let label: (Option) -> Label
