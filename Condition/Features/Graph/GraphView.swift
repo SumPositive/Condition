@@ -107,9 +107,12 @@ struct GraphView: View {
                 }
                 // フェーズ2: 初期表示後にプリフェッチ範囲まで拡張（横スクロール対応）
                 .task { await prefetchFullRange() }
-                // 期間変更がプリフェッチ完了前の場合も即時対応
                 .onChange(of: period) { _, newPeriod in
-                    expandCutoffIfNeeded(days: newPeriod.rawValue)
+                    Task { @MainActor in
+                        // 子ビューのプログレス描画を先に済ませてから@Query範囲を広げる
+                        try? await Task.sleep(for: .milliseconds(80))
+                        expandCutoffIfNeeded(days: newPeriod.rawValue)
+                    }
                 }
         }
     }
@@ -147,15 +150,23 @@ private struct GraphContentView: View {
     private var settings: AppSettings { AppSettings.shared }
     @State private var chartWidth: CGFloat = 390
     @State private var isExporting = false
+    @State private var isUpdatingPeriod = false
+    /// チャートに渡す実表示用 period。period @Binding 変更後、overlay 描画フレームを挟んでから更新する
+    @State private var displayedPeriod: GraphPeriod
     @State private var scrollCapture = ScrollCapture()
     @State private var stagedChartCount = GraphContentView.initialChartCount
 
-    init(cutoffDate: Date, period: Binding<GraphPeriod>, isWaitingForPrefetch: Bool) {
+    init(
+        cutoffDate: Date,
+        period: Binding<GraphPeriod>,
+        isWaitingForPrefetch: Bool
+    ) {
         let predicate = #Predicate<BodyRecord> {
             cutoffDate <= $0.dateTime && $0.dateTime < bodyRecordGoalDate
         }
         _records = Query(filter: predicate, sort: \BodyRecord.dateTime, order: .reverse)
         _period = period
+        _displayedPeriod = State(initialValue: period.wrappedValue)
         self.isWaitingForPrefetch = isWaitingForPrefetch
     }
 
@@ -175,6 +186,22 @@ private struct GraphContentView: View {
             }
         }
         .overlay { if isExporting { exportingOverlay } }
+        .overlay {
+            // フェードアニメを使わずスナップ表示。フェード中にメイン占有で
+            // 中途半端な半透明で凍結する問題を避ける
+            if isUpdatingPeriod { periodUpdatingOverlay.transition(.identity) }
+        }
+        // ピルアニメ完了後、AZRadioPicker側でプログレス描画時間を確保してから再描画する
+        .onChange(of: period) { _, newPeriod in
+            // 重い再描画開始
+            displayedPeriod = newPeriod
+            // 描画完了後に overlay を解除
+            Task { @MainActor in
+                await Task.yield()
+                try? await Task.sleep(for: .milliseconds(30))
+                isUpdatingPeriod = false
+            }
+        }
         // 区分のアイコン・名称・色を変更したらグラフ表示も再生成する
         .id(settings.dateOptAppearanceRevision)
         .environment(\.scrollCapture, scrollCapture)
@@ -215,6 +242,24 @@ private struct GraphContentView: View {
         }
     }
 
+    /// 期間切替中のプログレス
+    private var periodUpdatingOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.25).ignoresSafeArea()
+            VStack(spacing: 12) {
+                ProgressView()
+                    .progressViewStyle(.circular)
+                    .scaleEffect(1.4)
+                Text("loading.updating")
+                    .font(.subheadline.weight(.medium))
+            }
+            .padding(.horizontal, 28)
+            .padding(.vertical, 22)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+        }
+        .allowsHitTesting(false)
+    }
+
     private var scrollContent: some View {
         ScrollView(.vertical) {
             VStack(spacing: 0) {
@@ -234,7 +279,11 @@ private struct GraphContentView: View {
                         optionSpacing: 4,
                         groupPadding: 2,
                         wrapsOptions: false,
-                        fillsWidth: true
+                        fillsWidth: true,
+                        onTap: { _ in
+                            // ピル完了直後にプログレスを出し、再描画開始までの空白をなくす
+                            isUpdatingPeriod = true
+                        }
                     ) { p in
                         Text(LocalizedStringKey(p.label))
                     }
@@ -287,39 +336,39 @@ private struct GraphContentView: View {
     private func graphPanel(kind: GraphKind) -> some View {
         switch kind {
         case .bp:
-            BpChartView(records: records, period: period)
+            BpChartView(records: records, period: displayedPeriod)
         case .bpAvg:
-            BpPpChartView(records: records, period: period, goalValue: settings.goalBpPp)
+            BpPpChartView(records: records, period: displayedPeriod, goalValue: settings.goalBpPp)
         case .pulse:
             LineChartView(records: records, keyPath: \.nPulse_bpm,
                           title: kind.title, unit: "unit.bpm", color: .orange,
-                          goalValue: settings.goalPulse, period: period,
+                          goalValue: settings.goalPulse, period: displayedPeriod,
                           tightDomain: true, usesDateOptFilterAndLineMode: true, kind: kind)
         case .temp:
             LineChartView(records: records, keyPath: \.nTemp_10c,
                           title: kind.title, unit: "unit.celsius", color: .pink,
-                          goalValue: settings.goalTemp, decimals: 1, period: period,
+                          goalValue: settings.goalTemp, decimals: 1, period: displayedPeriod,
                           tightDomain: true, kind: kind)
         case .weight:
             LineChartView(records: records, keyPath: \.nWeight_10Kg,
                           title: kind.title, unit: "unit.kg", color: .indigo,
-                          goalValue: settings.goalWeight, decimals: 1, period: period,
+                          goalValue: settings.goalWeight, decimals: 1, period: displayedPeriod,
                           tightDomain: true, showMovingAverage: settings.graphWeightMA, kind: kind)
         case .bmi:
             if settings.graphBMITall > 0 {
-                BMIChartView(records: records, heightCm: settings.graphBMITall, period: period, goalValue: settings.goalBMI)
+                BMIChartView(records: records, heightCm: settings.graphBMITall, period: displayedPeriod, goalValue: settings.goalBMI)
             }
         case .weightChange:
-            WeightChangeChartView(records: records, period: period)
+            WeightChangeChartView(records: records, period: displayedPeriod)
         case .bodyFat:
             LineChartView(records: records, keyPath: \.nBodyFat_10p,
                           title: kind.title, unit: "%", color: .purple,
-                          goalValue: settings.goalBodyFat, decimals: 1, period: period,
+                          goalValue: settings.goalBodyFat, decimals: 1, period: displayedPeriod,
                           tightDomain: true, kind: kind)
         case .skMuscle:
             LineChartView(records: records, keyPath: \.nSkMuscle_10p,
                           title: kind.title, unit: "%", color: .teal,
-                          goalValue: settings.goalSkMuscle, decimals: 1, period: period,
+                          goalValue: settings.goalSkMuscle, decimals: 1, period: displayedPeriod,
                           tightDomain: true, kind: kind)
         }
     }
