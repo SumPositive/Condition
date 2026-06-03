@@ -508,4 +508,11 @@ Version 2.5.0
 - Statistics: filter Blood Pressure Distribution by category.
 - Beginner hints have been refined and made easier to read.
 --------------------------------
+2.6.0
+
+グラフと統計の期間ラジオキャプションを「1週/1ヶ月/3ヶ月/半年/1年」に変更
+
+区分推定と同時に「測定場所・機器」を推定してプリセットしたい。曜日と時間帯が近い記録を集計して上位の測定場所・機器を採用する
+
+
 

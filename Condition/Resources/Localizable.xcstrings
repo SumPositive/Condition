@@ -4042,7 +4042,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "1月"
+            "value" : "1ヶ月"
           }
         }
       }
@@ -4076,7 +4076,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "6月"
+            "value" : "半年"
           }
         }
       }
@@ -4110,7 +4110,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "3月"
+            "value" : "3ヶ月"
           }
         }
       }
