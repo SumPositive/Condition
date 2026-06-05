@@ -1,3 +1,7 @@
+//
+//  AZ選択コントロール群
+//  ドロップダウン、ポップオーバー、ラジオ形式の共通Pickerをまとめる
+//
 import SwiftUI
 import UIKit
 

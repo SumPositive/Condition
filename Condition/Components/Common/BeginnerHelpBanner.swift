@@ -1,7 +1,7 @@
-// BeginnerHelpBanner.swift
-// 初心者向けヘルプアイコンと詳細シート
-// ユーザレベルが「初心者」の時のみ表示
-
+//
+//  初心者ヘルプ表示
+//  初心者向けヒント、ヘルプアイコン、詳細シートをまとめる
+//
 import SwiftUI
 
 struct BeginnerHelpBanner: View {

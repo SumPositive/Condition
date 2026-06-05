@@ -1,6 +1,7 @@
-// StatisticsView.swift
-// 統計画面（旧 StatisticsVC 相当）
-
+//
+//  統計画面
+//  指定期間の統計図表表示、PDF出力、統計設定導線をまとめる
+//
 import SwiftUI
 import SwiftData
 import Charts

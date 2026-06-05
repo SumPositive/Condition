@@ -1,6 +1,7 @@
-// SettingsView.swift
-// 設定メイン画面（旧 SettingTVC 相当）
-
+//
+//  設定画面
+//  表示、記録、分析、共有、ヘルスケア連携の設定をまとめる
+//
 import SwiftUI
 import SwiftData
 import AZDial

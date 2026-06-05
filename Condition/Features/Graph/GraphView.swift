@@ -1,6 +1,7 @@
-// GraphView.swift
-// グラフ画面（刷新版）
-
+//
+//  グラフ画面
+//  指定期間の時系列チャート表示、PDF出力、グラフ設定導線をまとめる
+//
 import SwiftUI
 import SwiftData
 import Charts
