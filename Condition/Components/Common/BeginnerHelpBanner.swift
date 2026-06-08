@@ -16,6 +16,11 @@ struct BeginnerHelpBanner: View {
     /// ユーザレベル（@Observable なので body で参照すると自動追跡）
     private var settings: AppSettings { AppSettings.shared }
 
+    private var showsIconOnlyInExpert: Bool {
+        // 達人でも詳細だけ確認できるよう、ヒント文なしのアイコンは残す
+        hintKey == nil
+    }
+
     init(_ messageKey: LocalizedStringKey, storageKey: String, compact: Bool = false) {
         self.hintKey = nil
         self.messageKey = messageKey
@@ -29,9 +34,9 @@ struct BeginnerHelpBanner: View {
     }
 
     var body: some View {
-        if settings.userLevel == .beginner {
+        if settings.userLevel == .beginner || showsIconOnlyInExpert {
             Group {
-                if compact && hintKey == nil {
+                if (compact || settings.userLevel == .expert) && hintKey == nil {
                     // ヒント文がない場合は、見出し行やセル行に収まりやすいアイコンだけにする
                     helpButton
                 } else {
@@ -89,13 +94,23 @@ struct BeginnerHelpBanner: View {
         } label: {
             // クレメモと同じく、ヘルプ導線は疑問符アイコンで示す
             Image(systemName: "questionmark.circle")
-                .font(.callout.weight(.semibold))
+                .font(helpButtonFont)
                 .foregroundStyle(Color.accentColor)
-                .padding(8)
+                .opacity(settings.userLevel == .expert ? 0.72 : 1)
+                .padding(helpButtonPadding)
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(Text("button.help"))
+    }
+
+    private var helpButtonFont: Font {
+        // 達人モードのアイコン単独表示は少し控えめにする
+        settings.userLevel == .expert ? .footnote.weight(.semibold) : .callout.weight(.semibold)
+    }
+
+    private var helpButtonPadding: CGFloat {
+        settings.userLevel == .expert ? 5 : 8
     }
 
     private var helpSheetHeight: CGFloat {
