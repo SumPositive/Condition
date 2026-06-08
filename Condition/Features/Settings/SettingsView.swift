@@ -710,6 +710,12 @@ struct SettingsView: View {
         NSDecimalNumber(value: value).dividing(by: NSDecimalNumber(mantissa: 1, exponent: Int16(scale), isNegative: false))
     }
 
+    /// ISO8601 ⇄ Date のラウンドトリップで発生する subsecond 精度のズレを吸収するため、
+    /// 重複判定は秒単位に丸めた日時で行う
+    private static func normalizedSecond(_ date: Date) -> Date {
+        Date(timeIntervalSince1970: floor(date.timeIntervalSince1970))
+    }
+
     private func mergeImportedRecords(_ importedRecords: [RecordImportRecord]) throws -> (inserted: Int, updated: Int) {
         let descriptor = FetchDescriptor<BodyRecord>(
             predicate: #Predicate { $0.dateTime < bodyRecordGoalDate }
@@ -717,21 +723,22 @@ struct SettingsView: View {
         let existingRecords = try context.fetch(descriptor)
         var existingByDate: [Date: BodyRecord] = [:]
         for record in existingRecords {
-            existingByDate[record.dateTime] = record
+            existingByDate[Self.normalizedSecond(record.dateTime)] = record
         }
 
         var inserted = 0
         var updated = 0
         for imported in importedRecords {
             guard let date = imported.parsedDate else { continue }
+            let key = Self.normalizedSecond(date)
             let record: BodyRecord
-            if let existing = existingByDate[date] {
+            if let existing = existingByDate[key] {
                 record = existing
                 updated += 1
             } else {
                 record = BodyRecord(dateTime: date, dateOpt: imported.dateOpt ?? .cat02)
                 context.insert(record)
-                existingByDate[date] = record
+                existingByDate[key] = record
                 inserted += 1
             }
 

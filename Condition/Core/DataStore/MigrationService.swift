@@ -304,11 +304,17 @@ final class MigrationService {
 
     // MARK: - SwiftData への挿入（CoreData / SQLite 両パス共通）
 
+    /// CoreData→SQLite フォールバック等で発生する subsecond 精度のズレを吸収するため、
+    /// 重複判定は秒単位に丸めた日時で行う
+    private static func normalizedSecond(_ date: Date) -> Date {
+        Date(timeIntervalSince1970: floor(date.timeIntervalSince1970))
+    }
+
     private func insertRows(_ rows: [[String: Any]], context: ModelContext) throws {
-        // 再試行時の重複防止：既存レコードの dateTime を収集
+        // 再試行時の重複防止：既存レコードの dateTime（秒単位に正規化）を収集
         // スキップ後に新規入力したデータは別の dateTime を持つため消えない
         let existing = try context.fetch(FetchDescriptor<BodyRecord>())
-        let existingDates = Set(existing.map { $0.dateTime })
+        let existingDates = Set(existing.map { Self.normalizedSecond($0.dateTime) })
         if !existingDates.isEmpty {
             logger.info("既存レコード \(existingDates.count) 件を重複チェック対象に追加")
         }
@@ -326,8 +332,8 @@ final class MigrationService {
                 continue
             }
 
-            // 同じ dateTime が既にあればスキップ（重複挿入防止）
-            guard !existingDates.contains(dateTime) else {
+            // 同じ dateTime（秒単位）が既にあればスキップ（重複挿入防止）
+            guard !existingDates.contains(Self.normalizedSecond(dateTime)) else {
                 skipped += 1
                 continue
             }
