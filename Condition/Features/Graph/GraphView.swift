@@ -119,6 +119,10 @@ struct GraphView: View {
                 // フェーズ2: 初期表示後にプリフェッチ範囲まで拡張（横スクロール対応）
                 .task { await prefetchFullRange() }
                 .onChange(of: period) { _, newPeriod in
+                    AppAnalytics.shared.logFeature(
+                        "graph_period_select",
+                        parameters: ["period_days": newPeriod.rawValue]
+                    )
                     Task { @MainActor in
                         // 子ビューのプログレス描画を先に済ませてから@Query範囲を広げる
                         try? await Task.sleep(for: .milliseconds(80))

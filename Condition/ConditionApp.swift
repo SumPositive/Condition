@@ -3,15 +3,21 @@
 
 import SwiftUI
 import SwiftData
+import FirebaseCore
 @preconcurrency import GoogleMobileAds
 
 @main
+@MainActor
 struct ConditionApp: App {
 
     @State private var migrationService = MigrationService()
     @State private var settings = AppSettings.shared
 
     init() {
+        // FirebaseはAnalytics/Crashlyticsの利用前に初期化する
+        FirebaseApp.configure()
+        AppAnalytics.shared.configure()
+
         // 改善案2: ModelContainer.shared を初期化する前に
         // SwiftData ストアファイルを "AzBodyNote" → "Condition" へリネーム
         // （CoreData 移行完了済みユーザーのみ対象。未移行ユーザーの旧ファイルは触らない）

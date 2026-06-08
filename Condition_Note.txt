@@ -508,6 +508,20 @@ Version 2.5.0
 - Statistics: filter Blood Pressure Distribution by category.
 - Beginner hints have been refined and made easier to read.
 --------------------------------
+2.5.1
+
+Firebase Analytics を導入して
+- GoogleService-Info.plist Add済み
+- tryエラーなどを収集して対策に役立つように送信したい
+- 次のことを知るために匿名情報を収集したい
+　- どのような設定にして使っているのか
+　- よく使われる機能
+　- ほとんど、全く使われていない機能（機能削減のため）
+　- よく使われる操作パターン（操作手間を減らす改善のため）
+　- 今後の改善に役立つおすすsめの情報
+
+
+--------------------------------
 2.6.0
 
 グラフと統計の期間ラジオキャプションを「1週/1ヶ月/3ヶ月/半年/1年」に変更

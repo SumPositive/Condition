@@ -61,6 +61,7 @@ enum PDFPanelExporter {
             try data.write(to: url)
             return url
         } catch {
+            AppAnalytics.shared.record(error: error, name: "pdf_temp_write_failed")
             return nil
         }
     }

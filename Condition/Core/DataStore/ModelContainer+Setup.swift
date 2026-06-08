@@ -28,6 +28,7 @@ extension ModelContainer {
         do {
             return try ModelContainer(for: BodyRecord.self, configurations: config)
         } catch {
+            AppAnalytics.shared.record(error: error, name: "model_container_create_failed")
             fatalError("ModelContainer の作成に失敗しました: \(error)")
         }
     }()

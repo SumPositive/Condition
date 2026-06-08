@@ -750,6 +750,7 @@ struct RecordEditView: View {
     }
 
     private func addAverageSamples() {
+        let currentMaxCount = measurementSamples.values.map(\.count).max() ?? 0
         showsFloatingAverageAddButton = true
         for field in averageInputFields {
             var samples = measurementSamples[field] ?? []
@@ -760,6 +761,10 @@ struct RecordEditView: View {
             measurementSamples[field] = samples
             setMeasurementValue(averageValue(samples), for: field)
         }
+        AppAnalytics.shared.logOperation(
+            "measurement_average_add",
+            parameters: ["field_count": averageInputFields.count, "next_count": currentMaxCount + 1]
+        )
     }
 
     private func removeLastAverageSample(for field: MeasurementAverageField) {
@@ -767,6 +772,10 @@ struct RecordEditView: View {
               let removed = samples.popLast()
         else { return }
 
+        AppAnalytics.shared.logOperation(
+            "measurement_average_undo",
+            parameters: ["field": field.analyticsName, "remaining_count": samples.count]
+        )
         if samples.isEmpty {
             measurementSamples[field] = nil
             setMeasurementValue(removed, for: field)
@@ -906,8 +915,10 @@ struct RecordEditView: View {
         }
         do {
             try vm.save(context: context)
+            AppAnalytics.shared.logOperation("record_save", parameters: ["mode": vm.mode.analyticsName])
             dismiss()
         } catch {
+            AppAnalytics.shared.record(error: error, name: "record_save_failed", parameters: ["mode": vm.mode.analyticsName])
             vm.errorMessage = error.localizedDescription
         }
     }
@@ -915,14 +926,47 @@ struct RecordEditView: View {
     private func handleConflictAction(_ action: ConflictAction, previous: BodyRecord) {
         do {
             try vm.resolveConflict(action, previous: previous, context: context)
+            AppAnalytics.shared.logOperation(
+                "record_conflict_resolve",
+                parameters: ["action": action.rawValue]
+            )
             // RecordEditView を閉じれば上の衝突シートも SwiftUI が自動で閉じる
             // 手動で conflictData = nil と dismiss() を併用すると二重 dismiss となり、
             // 親シートの isPresented バインディングが false に戻らず再表示できなくなる
             dismiss()
         } catch {
+            AppAnalytics.shared.record(
+                error: error,
+                name: "record_conflict_resolve_failed",
+                parameters: ["action": action.rawValue]
+            )
             vm.errorMessage = error.localizedDescription
             // エラー時のみ衝突シートを閉じてエラーメッセージを見せる
             conflictData = nil
+        }
+    }
+}
+
+private extension EditMode {
+    var analyticsName: String {
+        switch self {
+        case .addNew: return "add_new"
+        case .edit: return "edit"
+        case .goalEdit: return "goal_edit"
+        }
+    }
+}
+
+private extension MeasurementAverageField {
+    var analyticsName: String {
+        switch self {
+        case .bpHi: return "bp_systolic"
+        case .bpLo: return "bp_diastolic"
+        case .pulse: return "pulse"
+        case .weight: return "weight"
+        case .temp: return "temperature"
+        case .bodyFat: return "body_fat"
+        case .skMuscle: return "skeletal_muscle"
         }
     }
 }

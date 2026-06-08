@@ -6,10 +6,11 @@ import SwiftUI
 struct ContentView: View {
 
     @Environment(\.scenePhase) private var scenePhase
+    @State private var selectedTab: RootTab = .records
     private var settings: AppSettings { AppSettings.shared }
 
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             RecordListView()
                 .tabItem {
                     Label(
@@ -17,6 +18,7 @@ struct ContentView: View {
                         systemImage: "list.bullet.clipboard"
                     )
                 }
+                .tag(RootTab.records)
 
             GraphView()
                 .tabItem {
@@ -25,6 +27,7 @@ struct ContentView: View {
                         systemImage: "chart.line.uptrend.xyaxis"
                     )
                 }
+                .tag(RootTab.graph)
 
             StatisticsView()
                 .tabItem {
@@ -33,6 +36,7 @@ struct ContentView: View {
                         systemImage: "chart.dots.scatter"
                     )
                 }
+                .tag(RootTab.statistics)
 
             SettingsView()
                 .tabItem {
@@ -41,8 +45,20 @@ struct ContentView: View {
                         systemImage: "gear"
                     )
                 }
+                .tag(RootTab.settings)
+        }
+        .onAppear {
+            AppAnalytics.shared.logScreen(selectedTab.analyticsName)
+        }
+        .onChange(of: selectedTab) { _, tab in
+            // タブ切り替えから、よく使われる機能を把握する
+            AppAnalytics.shared.logScreen(tab.analyticsName)
+            AppAnalytics.shared.logFeature("tab_select", parameters: ["tab": tab.analyticsName])
         }
         .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                AppAnalytics.shared.logSettingsSnapshot(settings: settings, reason: "foreground")
+            }
             guard phase == .active, settings.openNewRecordOnForeground else { return }
             // 未保存の変更あり・すでに開いている → 何もしない
             guard !settings.newRecordSheetModified, !settings.showNewRecordSheet else { return }
@@ -50,8 +66,25 @@ struct ContentView: View {
             Task { @MainActor in
                 try? await Task.sleep(for: .milliseconds(300))
                 guard !settings.showNewRecordSheet else { return }
+                AppAnalytics.shared.logOperation("open_new_record_on_foreground")
                 settings.showNewRecordSheet = true
             }
+        }
+    }
+}
+
+private enum RootTab: Hashable {
+    case records
+    case graph
+    case statistics
+    case settings
+
+    var analyticsName: String {
+        switch self {
+        case .records: return "records"
+        case .graph: return "graph"
+        case .statistics: return "statistics"
+        case .settings: return "settings"
         }
     }
 }

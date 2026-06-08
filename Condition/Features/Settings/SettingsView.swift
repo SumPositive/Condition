@@ -501,8 +501,13 @@ struct SettingsView: View {
                 guard let url = urls.first else { return }
                 importRecordsJSON(from: url)
             case .failure(let error):
+                AppAnalytics.shared.record(error: error, name: "records_json_import_picker_failed")
                 alertItem = .raw(title: String(localized: "settings.share.errorTitle"), message: error.localizedDescription)
             }
+        }
+        .onDisappear {
+            // 設定変更は個別送信せず、画面離脱時に匿名スナップショットで送る
+            AppAnalytics.shared.logSettingsSnapshot(settings: settings, reason: "settings_disappear")
         }
         .alert(item: $alertItem) { item in
             Alert(
@@ -553,10 +558,12 @@ struct SettingsView: View {
 
             do {
                 try data.write(to: url, options: Data.WritingOptions.atomic)
+                AppAnalytics.shared.logOperation("records_json_export", parameters: ["record_count": records.count])
                 progressMessage = String(localized: "settings.share.exportOpening")
                 await Task.yield()
                 presentShareSheet(url: url)
             } catch {
+                AppAnalytics.shared.record(error: error, name: "records_json_export_failed")
                 alertItem = .raw(title: String(localized: "settings.share.errorTitle"), message: error.localizedDescription)
             }
         }
@@ -586,6 +593,10 @@ struct SettingsView: View {
                     settings.dateOptAppearances = normalizedDateOptAppearances(categoryAppearances)
                 }
                 let result = try mergeImportedRecords(envelope.records)
+                AppAnalytics.shared.logOperation(
+                    "records_json_import",
+                    parameters: ["inserted": result.inserted, "updated": result.updated]
+                )
                 alertItem = .raw(
                     title: String(localized: "settings.share.importDoneTitle"),
                     message: String(
@@ -595,6 +606,7 @@ struct SettingsView: View {
                     )
                 )
             } catch {
+                AppAnalytics.shared.record(error: error, name: "records_json_import_failed")
                 alertItem = .raw(title: String(localized: "settings.share.errorTitle"), message: error.localizedDescription)
             }
         }
@@ -620,11 +632,13 @@ struct SettingsView: View {
 
             do {
                 try context.save()
+                AppAnalytics.shared.logOperation("old_records_prune", parameters: ["record_count": targets.count])
                 alertItem = .raw(
                     title: String(localized: "settings.share.pruneDoneTitle"),
                     message: String(format: String(localized: "settings.share.pruneDoneMessage"), targets.count)
                 )
             } catch {
+                AppAnalytics.shared.record(error: error, name: "old_records_prune_failed")
                 alertItem = .raw(title: String(localized: "settings.share.errorTitle"), message: error.localizedDescription)
             }
         }

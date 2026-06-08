@@ -96,6 +96,7 @@ final class MigrationService {
                 logger.info("CoreData 経由で取得: \(rows.count) 件")
             } catch {
                 logger.warning("CoreData open 失敗、SQLite 直接読み取りへフォールバック: \(error)")
+                AppAnalytics.shared.record(error: error, name: "migration_coredata_open_failed")
                 rows = try fetchViaSQLite(from: oldStoreURL)
                 logger.info("SQLite 直接読み取りで取得: \(rows.count) 件")
             }
@@ -110,6 +111,7 @@ final class MigrationService {
 
         } catch {
             logger.error("移行失敗: \(error.localizedDescription)")
+            AppAnalytics.shared.record(error: error, name: "migration_failed")
             // 旧ファイルはそのまま残す → 次回アップデートで自動再試行
             phase = .failed(error.localizedDescription)
         }

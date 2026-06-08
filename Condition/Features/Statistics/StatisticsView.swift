@@ -100,6 +100,10 @@ private struct StatisticsContentView: View {
             get: { GraphPeriod(rawValue: settings.statDays) ?? .threeMonths },
             set: { newPeriod in
                 settings.statDays = newPeriod.rawValue
+                AppAnalytics.shared.logFeature(
+                    "statistics_period_select",
+                    parameters: ["period_days": newPeriod.rawValue]
+                )
                 expandCutoffIfNeeded(newPeriod.rawValue)
             }
         )

@@ -117,6 +117,7 @@ final class HealthKitService {
             logger.info("HealthKit 権限リクエスト完了")
         } catch {
             logger.error("HealthKit 権限エラー: \(error.localizedDescription)")
+            AppAnalytics.shared.record(error: error, name: "healthkit_authorization_failed")
         }
     }
 
@@ -203,6 +204,7 @@ final class HealthKitService {
             logger.info("HealthKit 書き込み完了: \(samples.count) サンプル")
         } catch {
             logger.error("HealthKit 書き込み失敗: \(error.localizedDescription)")
+            AppAnalytics.shared.record(error: error, name: "healthkit_write_failed")
         }
     }
 
@@ -496,6 +498,11 @@ final class HealthKitService {
             return samples.map { ($0.endDate, $0.quantity.doubleValue(for: unit)) }
         } catch {
             logger.error("allQtySamples[\(id.rawValue, privacy: .public)] エラー: \(error.localizedDescription, privacy: .public)")
+            AppAnalytics.shared.record(
+                error: error,
+                name: "healthkit_read_failed",
+                parameters: ["sample_type": id.rawValue]
+            )
             return []
         }
     }
