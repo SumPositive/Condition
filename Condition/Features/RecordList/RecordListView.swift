@@ -285,6 +285,12 @@ struct RecordListView: View {
             let record = sectionRecords[index]
             context.delete(record)
         }
+        // auto-save に頼らず明示的に保存（クラッシュ・バックグラウンド遷移前の取りこぼし防止）
+        do {
+            try context.save()
+        } catch {
+            AppAnalytics.shared.record(error: error, name: "record_delete_save_failed")
+        }
     }
 }
 
