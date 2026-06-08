@@ -286,7 +286,8 @@ final class RecordEditViewModel {
         let s = AppSettings.shared
         guard s.hkEnabled,
               HKSyncDirection(rawValue: s.hkDirection)?.canWrite == true else { return }
-        Task { await HealthKitService.shared.write(currentHealthKitValues()) }
+        // 連続編集での多重書込を防ぐため scheduleWrite を使う
+        HealthKitService.shared.scheduleWrite(currentHealthKitValues())
     }
 
     // MARK: - 直近の衝突検出と解決
@@ -499,9 +500,7 @@ final class RecordEditViewModel {
            record.dataSource == .hkImport || record.dataSource == .hkModified { return }
         let s = AppSettings.shared
         guard s.hkEnabled, HKSyncDirection(rawValue: s.hkDirection)?.canWrite == true else { return }
-        Task {
-            await HealthKitService.shared.write(currentHealthKitValues())
-        }
+        HealthKitService.shared.scheduleWrite(currentHealthKitValues())
     }
 
     private func currentHealthKitValues() -> HealthKitValues {

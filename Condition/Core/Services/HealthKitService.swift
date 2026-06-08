@@ -50,6 +50,10 @@ final class HealthKitService {
 
     private let store = HKHealthStore()
 
+    /// 同一日時に対する書込タスクを集約するためのキャッシュ。
+    /// 連続編集で多重キューイングされないよう、新しい書込を予約する前に既存タスクを cancel する
+    private var pendingWriteTasks: [Date: Task<Void, Never>] = [:]
+
     var isAuthorized = false
     /// HealthKit へ書き込み許可済みの項目名一覧
     var authorizedShareFieldsText: String = ""
@@ -139,11 +143,27 @@ final class HealthKitService {
 
     // MARK: - 書き込み
 
+    /// 同一日時の書込を集約する safe な書込予約。
+    /// 直前の同日時タスクが未完了なら cancel して、最新の値で書き直す。
+    /// 呼び出し側で `Task { await write(...) }` するより、こちらを使うと多重キューを防げる。
+    func scheduleWrite(_ values: HealthKitValues) {
+        let key = Date(timeIntervalSince1970: floor(values.date.timeIntervalSince1970))
+        pendingWriteTasks[key]?.cancel()
+        let task = Task { @MainActor [weak self] in
+            await self?.write(values)
+            self?.pendingWriteTasks[key] = nil
+        }
+        pendingWriteTasks[key] = task
+    }
+
     func write(_ values: HealthKitValues) async {
         guard isAvailable, !AppSettings.shared.hkDisabledByDemo else { return }
+        // cancel 済みなら即抜ける（後発の書込に処理を譲る）
+        if Task.isCancelled { return }
 
         // 同日時の既存サンプルを削除してから追加（上書き相当）
         await deleteSamples(at: values.date)
+        if Task.isCancelled { return }
 
         var samples: [HKSample] = []
         let date = values.date
