@@ -716,6 +716,20 @@ struct SettingsView: View {
         Date(timeIntervalSince1970: floor(date.timeIntervalSince1970))
     }
 
+    /// インポート測定値（整数）を 0=未入力 または許容範囲内に丸める。
+    /// nil / 0以下 → 0（未入力扱い）、範囲外 → min..max に clamp
+    private static func clampedIntMeasure(_ raw: Int?, spec: MeasureSpec) -> Int {
+        guard let v = raw, v > 0 else { return 0 }
+        return min(max(v, spec.min), spec.max)
+    }
+
+    /// インポート測定値（小数）を ×10 整数化のうえ、許容範囲内に clamp
+    private static func clampedDecMeasure(_ raw: Double?, spec: MeasureSpec) -> Int {
+        guard let v = raw, v > 0 else { return 0 }
+        let scaled = Int((v * 10).rounded())
+        return min(max(scaled, spec.min), spec.max)
+    }
+
     private func mergeImportedRecords(_ importedRecords: [RecordImportRecord]) throws -> (inserted: Int, updated: Int) {
         let descriptor = FetchDescriptor<BodyRecord>(
             predicate: #Predicate { $0.dateTime < bodyRecordGoalDate }
@@ -746,16 +760,18 @@ struct SettingsView: View {
             record.dateOpt = imported.dateOpt ?? .cat02
             record.dataSource = imported.dataSource ?? .appInput
             record.bCaution = imported.cautionFlag ?? false
-            record.sNote1 = imported.memo1 ?? ""
-            record.sNote2 = imported.memo2 ?? ""
-            record.sEquipment = imported.device ?? ""
-            record.nBpHi_mmHg = imported.bpSystolic ?? 0
-            record.nBpLo_mmHg = imported.bpDiastolic ?? 0
-            record.nPulse_bpm = imported.heartRate ?? 0
-            record.nTemp_10c = imported.bodyTemp.map { Int(($0 * 10).rounded()) } ?? 0
-            record.nWeight_10Kg = imported.weight.map { Int(($0 * 10).rounded()) } ?? 0
-            record.nBodyFat_10p = imported.bodyFat.map { Int(($0 * 10).rounded()) } ?? 0
-            record.nSkMuscle_10p = imported.skeletalMuscle.map { Int(($0 * 10).rounded()) } ?? 0
+            // 文字列は末尾改行・余分な空白を除去（ローカル保存と整合）
+            record.sNote1     = (imported.memo1  ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            record.sNote2     = (imported.memo2  ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            record.sEquipment = (imported.device ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            // 測定値は 0（=未入力）または各項目の許容範囲内に clamp
+            record.nBpHi_mmHg    = Self.clampedIntMeasure(imported.bpSystolic,   spec: MeasureRange.bpHi)
+            record.nBpLo_mmHg    = Self.clampedIntMeasure(imported.bpDiastolic,  spec: MeasureRange.bpLo)
+            record.nPulse_bpm    = Self.clampedIntMeasure(imported.heartRate,    spec: MeasureRange.pulse)
+            record.nTemp_10c     = Self.clampedDecMeasure(imported.bodyTemp,     spec: MeasureRange.temp)
+            record.nWeight_10Kg  = Self.clampedDecMeasure(imported.weight,       spec: MeasureRange.weight)
+            record.nBodyFat_10p  = Self.clampedDecMeasure(imported.bodyFat,      spec: MeasureRange.bodyFat)
+            record.nSkMuscle_10p = Self.clampedDecMeasure(imported.skeletalMuscle, spec: MeasureRange.skMuscle)
         }
 
         try context.save()
