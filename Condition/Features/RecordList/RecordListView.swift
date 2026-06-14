@@ -18,6 +18,7 @@ struct RecordListView: View {
 
     @State private var editTarget: BodyRecord? = nil
     @State private var showExportSheet = false
+    @State private var showMeasurementAvgSheet = false
     /// 編集シートに未保存の変更がある場合 true
     @State private var editHasUnsavedChanges = false
 
@@ -98,6 +99,11 @@ struct RecordListView: View {
                     }
                     #endif // targetEnvironment(simulator)
                     Button {
+                        showMeasurementAvgSheet = true
+                    } label: {
+                        Image(systemName: "text.badge.plus")
+                    }
+                    Button {
                         // 状態が true のまま戻っていない異常時はリセットしてから再セット
                         if settings.showNewRecordSheet {
                             settings.showNewRecordSheet = false
@@ -129,6 +135,9 @@ struct RecordListView: View {
             }
             .sheet(isPresented: $showExportSheet) {
                 ExportSheetView(records: records, visibleKinds: visibleRecordKinds)
+            }
+            .sheet(isPresented: $showMeasurementAvgSheet) {
+                MeasurementAverageView()
             }
             .overlay(alignment: .bottom) {
                 if let msg = toastMessage {
