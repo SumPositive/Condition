@@ -18,6 +18,7 @@ struct RecordListView: View {
 
     @State private var editTarget: BodyRecord? = nil
     @State private var showExportSheet = false
+    @State private var showCameraRecordSheet = false
     /// 編集シートに未保存の変更がある場合 true
     @State private var editHasUnsavedChanges = false
 
@@ -98,6 +99,12 @@ struct RecordListView: View {
                     }
                     #endif // targetEnvironment(simulator)
                     Button {
+                        showCameraRecordSheet = true
+                    } label: {
+                        Image(systemName: "camera")
+                    }
+                    .disabled(cameraRecordFields.isEmpty)
+                    Button {
                         // 状態が true のまま戻っていない異常時はリセットしてから再セット
                         if settings.showNewRecordSheet {
                             settings.showNewRecordSheet = false
@@ -129,6 +136,12 @@ struct RecordListView: View {
             }
             .sheet(isPresented: $showExportSheet) {
                 ExportSheetView(records: records, visibleKinds: visibleRecordKinds)
+            }
+            .sheet(isPresented: $showCameraRecordSheet) {
+                CameraRecordSheet(fields: cameraRecordFields) { averages in
+                    insertCameraRecord(averages)
+                    showCameraRecordSheet = false
+                }
             }
             .overlay(alignment: .bottom) {
                 if let msg = toastMessage {
@@ -178,6 +191,21 @@ struct RecordListView: View {
         return settings.graphPanelOrder
             .compactMap { GraphKind(rawValue: $0) }
             .filter { $0.isRecordField && !hidden.contains($0.rawValue) }
+    }
+
+    private var cameraRecordFields: [MeasurementAverageField] {
+        // カメラ入力は現在表示中の測定項目だけを新規記録の対象にする
+        visibleRecordKinds.flatMap { kind -> [MeasurementAverageField] in
+            switch kind {
+            case .bp: return [.bpHi, .bpLo]
+            case .pulse: return [.pulse]
+            case .weight: return [.weight]
+            case .temp: return [.temp]
+            case .bodyFat: return [.bodyFat]
+            case .skMuscle: return [.skMuscle]
+            case .bpAvg, .bmi, .weightChange: return []
+            }
+        }
     }
 
     private var listContent: some View {
@@ -275,6 +303,38 @@ struct RecordListView: View {
         Task {
             try? await Task.sleep(for: .seconds(3))
             toastMessage = nil
+        }
+    }
+
+    private func insertCameraRecord(_ averages: [MeasurementAverageField: Int]) {
+        guard !averages.isEmpty else { return }
+        let now = Date()
+        let record = BodyRecord(dateTime: now, dateOpt: settings.autoDateOpt(for: now))
+        for (field, value) in averages {
+            // 保存時に平均値だけを新規記録へ反映する
+            setCameraValue(value, for: field, record: record)
+        }
+        context.insert(record)
+        do {
+            try context.save()
+            AppAnalytics.shared.logOperation(
+                "camera_record_insert",
+                parameters: ["field_count": averages.count]
+            )
+        } catch {
+            AppAnalytics.shared.record(error: error, name: "camera_record_insert_failed")
+        }
+    }
+
+    private func setCameraValue(_ value: Int, for field: MeasurementAverageField, record: BodyRecord) {
+        switch field {
+        case .bpHi: record.nBpHi_mmHg = value
+        case .bpLo: record.nBpLo_mmHg = value
+        case .pulse: record.nPulse_bpm = value
+        case .weight: record.nWeight_10Kg = value
+        case .temp: record.nTemp_10c = value
+        case .bodyFat: record.nBodyFat_10p = value
+        case .skMuscle: record.nSkMuscle_10p = value
         }
     }
 

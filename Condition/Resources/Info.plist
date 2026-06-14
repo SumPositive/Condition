@@ -24,6 +24,8 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-7576639777972199~8822933495</string>
+	<key>NSCameraUsageDescription</key>
+	<string>体重計や血圧計の表示を読み取り、記録画面に入力するために使用します。</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>ヘルスケアの記録を読み取り、記録画面に自動入力するために使用します。</string>
 	<key>NSHealthUpdateUsageDescription</key>

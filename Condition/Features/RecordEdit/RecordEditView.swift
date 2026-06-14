@@ -6,7 +6,7 @@ import SwiftData
 import AZDial
 import HealthKit
 
-private enum MeasurementAverageField: Hashable {
+enum MeasurementAverageField: Hashable, Sendable {
     case bpHi
     case bpLo
     case pulse
@@ -29,6 +29,7 @@ struct RecordEditView: View {
 
     @State private var vm: RecordEditViewModel
     @State private var showDatePicker = false
+    @State private var showCameraRecordSheet = false
     @State private var showDeleteAlert = false
     @State private var conflictData: RecentConflict? = nil
     @State private var isDateOptExpanded = false
@@ -138,6 +139,18 @@ struct RecordEditView: View {
                     } header: {
                         HStack(alignment: .center, spacing: 8) {
                             Text("record.measurements")
+                            Button("record.camera.title") {
+                                showCameraRecordSheet = true
+                            }
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 5)
+                            .background {
+                                // カメラ入力は測定追加と同じく小さなカプセルで配置する
+                                Capsule()
+                                    .fill(Color.accentColor.opacity(0.12))
+                            }
+                            .contentShape(Capsule())
                             if !showsFloatingAverageAddButton {
                                 Spacer(minLength: 8)
                                 // 英語表示などで見出しと重ならないよう、通常ボタンは右寄せにする
@@ -289,6 +302,12 @@ struct RecordEditView: View {
             .sheet(isPresented: $showDatePicker) {
                 DatePickerSheet(date: $vm.dateTime) {
                     vm.onDateChanged()
+                }
+            }
+            .sheet(isPresented: $showCameraRecordSheet) {
+                CameraRecordSheet(fields: cameraRecordFields) { averages in
+                    applyCameraAverages(averages)
+                    showCameraRecordSheet = false
                 }
             }
             .sheet(item: $conflictData) { conflict in
@@ -743,6 +762,33 @@ struct RecordEditView: View {
         return fields
     }
 
+    private var cameraRecordFields: [MeasurementAverageField] {
+        // カメラ入力は表示中の測定項目を対象にし、保存時に該当項目をONにする
+        orderedRecordFields.flatMap { kind -> [MeasurementAverageField] in
+            switch kind {
+            case .bp: return [.bpHi, .bpLo]
+            case .pulse: return [.pulse]
+            case .weight: return [.weight]
+            case .temp: return [.temp]
+            case .bodyFat: return [.bodyFat]
+            case .skMuscle: return [.skMuscle]
+            case .bpAvg, .bmi, .weightChange: return []
+            }
+        }
+    }
+
+    private func applyCameraAverages(_ averages: [MeasurementAverageField: Int]) {
+        // 読み取った平均値だけを有効化して記録値へ反映する
+        for (field, value) in averages {
+            setMeasurementValue(value, for: field)
+            setMeasurementEnabled(true, for: field)
+        }
+        AppAnalytics.shared.logOperation(
+            "camera_record_apply",
+            parameters: ["field_count": averages.count]
+        )
+    }
+
     private var canAddAverageSample: Bool {
         averageInputFields.contains { field in
             (measurementSamples[field]?.count ?? 0) < 5
@@ -806,6 +852,18 @@ struct RecordEditView: View {
         case .temp: vm.nTemp_10c = value
         case .bodyFat: vm.nBodyFat_10p = value
         case .skMuscle: vm.nSkMuscle_10p = value
+        }
+    }
+
+    private func setMeasurementEnabled(_ enabled: Bool, for field: MeasurementAverageField) {
+        switch field {
+        case .bpHi: vm.bpHiEnabled = enabled
+        case .bpLo: vm.bpLoEnabled = enabled
+        case .pulse: vm.pulseEnabled = enabled
+        case .weight: vm.weightEnabled = enabled
+        case .temp: vm.tempEnabled = enabled
+        case .bodyFat: vm.bodyFatEnabled = enabled
+        case .skMuscle: vm.skMuscleEnabled = enabled
         }
     }
 

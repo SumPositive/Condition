@@ -73,7 +73,7 @@ private enum NumpadKey {
 
 // MARK: - 入力シート（内部）
 
-private struct NumpadInputSheet: View {
+struct NumpadInputSheet: View {
     @Binding var value: Int
     let min: Int
     let max: Int
