@@ -256,6 +256,7 @@ struct MeasurementAverageView: View {
                         storageKey: "helpDismissed.record.measurementAvg",
                         compact: true
                     )
+                    .padding(.leading, 40)
                     .padding(.bottom, 2)
                     headerRow
                     ForEach(0..<trialCount, id: \.self) { trial in
@@ -476,23 +477,28 @@ struct MeasurementAverageView: View {
             case .average:
                 if let avg = averageValue(values) {
                     Text(ValueFormatter.format(avg, decimals: column.spec.decimals))
-                        .foregroundStyle(.primary)
+                        .font(.title3.bold().monospacedDigit())
+                        .foregroundStyle(.blue)
                 } else {
-                    Text("–").foregroundStyle(Color(.tertiaryLabel))
+                    Text("–")
+                        .font(.title3.bold().monospacedDigit())
+                        .foregroundStyle(Color(.tertiaryLabel))
                 }
             case .standardDeviation:
                 if values.count >= 2, let sd = standardDeviation(values) {
                     Text(ValueFormatter.format(sd, decimals: column.spec.decimals))
+                        .font(.callout.monospacedDigit())
                         .foregroundStyle(sdColor(sd, column: column))
                 } else {
-                    Text(" ").foregroundStyle(Color(.tertiaryLabel))
+                    Text(" ")
+                        .font(.callout.monospacedDigit())
+                        .foregroundStyle(Color(.tertiaryLabel))
                 }
             }
         }
-        .font(.callout.monospacedDigit().weight(metric == .average ? .semibold : .regular))
         .lineLimit(1)
         .minimumScaleFactor(0.5)
-        .frame(width: cellWidth, height: 24)
+        .frame(width: cellWidth, height: metric == .average ? 30 : 24)
     }
 
     private func enteredValues(for column: AvgColumn) -> [Int] {
@@ -526,7 +532,7 @@ struct MeasurementAverageView: View {
     // MARK: テンキー
 
     private var keypadArea: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 16) {
             dialRow
             keypad
         }
