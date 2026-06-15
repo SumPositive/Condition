@@ -958,23 +958,6 @@
         }
       }
     },
-    "chart.correlationR.help" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "How strongly weight and blood pressure move together is measured by the correlation coefficient (r).\n\nThe closer |r| is to 1, the stronger the relationship. Close to 0 means little or no relationship.\n\nGuide (absolute value):\n  0.0 – 0.4: weak\n  0.4 – 0.7: moderate\n  0.7 – 1.0: strong\n\nPositive r: when weight goes up, BP tends to go up\nNegative r: when weight goes up, BP tends to go down"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "体重と血圧がどれくらい一緒に動くかを「相関係数（r）」という数値で表しています\n\n|r| が 1 に近いほど関連が強く、0 に近いほど関連が弱いことを意味します\n\n目安（絶対値）\n  0.0〜0.4: 関連は弱い\n  0.4〜0.7: 中程度の関連\n  0.7〜1.0: 強い関連\n\nプラスのr: 体重が増えると血圧も上がる傾向\nマイナスのr: 体重が増えると血圧が下がる傾向"
-          }
-        }
-      }
-    },
     "chart.correlationCoefficientRGuideAbsoluteValue" : {
       "comment" : "A heading describing the correlation coefficient (r) as a guideline.",
       "extractionState" : "manual",
@@ -990,6 +973,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "体重と血圧の関連の強さ"
+          }
+        }
+      }
+    },
+    "chart.correlationR.help" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How strongly weight and blood pressure move together is measured by the correlation coefficient (r).\n\nThe closer |r| is to 1, the stronger the relationship. Close to 0 means little or no relationship.\n\nGuide (absolute value):\n  0.0 – 0.4: weak\n  0.4 – 0.7: moderate\n  0.7 – 1.0: strong\n\nPositive r: when weight goes up, BP tends to go up\nNegative r: when weight goes up, BP tends to go down"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "体重と血圧がどれくらい一緒に動くかを「相関係数（r）」という数値で表しています\n\n|r| が 1 に近いほど関連が強く、0 に近いほど関連が弱いことを意味します\n\n目安（絶対値）\n  0.0〜0.4: 関連は弱い\n  0.4〜0.7: 中程度の関連\n  0.7〜1.0: 強い関連\n\nプラスのr: 体重が増えると血圧も上がる傾向\nマイナスのr: 体重が増えると血圧が下がる傾向"
           }
         }
       }
@@ -1978,6 +1978,23 @@
         }
       }
     },
+    "graph.resizeHandle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resize chart"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "グラフの高さを変更"
+          }
+        }
+      }
+    },
     "graph.settings" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2624,23 +2641,6 @@
         }
       }
     },
-    "graph.resizeHandle" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Resize chart"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "グラフの高さを変更"
-          }
-        }
-      }
-    },
     "help.graph" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2654,23 +2654,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "選択された期間を横軸にした時系列グラフを表示します\n\nグラフを横スクロールして期日を移動します\n\nデバイスを横向けにしてグラフを拡大します"
-          }
-        }
-      }
-    },
-    "help.graph.settings" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Change which charts are shown and their order"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "各グラフの表示や順序を変更します"
           }
         }
       }
@@ -2709,19 +2692,19 @@
         }
       }
     },
-    "help.record" : {
+    "help.graph.settings" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Tap + in the top right to add a new record\n\nTap a record row to edit it\n\nIf the right side of the screen is cut off, scroll or rotate the device to landscape\n\nUse the share button in the top left to choose a period and format, then export a file"
+            "state" : "translated",
+            "value" : "Change which charts are shown and their order"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "右上の＋をタップして新しい記録を追加します\n（左隣は測定を繰り返して平均を記録する専用シートが開きます）\n\n記録明細をタップして編集します\n\n画面の右側が欠けるとき、スクロールまたはデバイスを横向きにします\n\n左上の共有ボタンで期間と形式を指定してファイル出力します"
+            "value" : "各グラフの表示や順序を変更します"
           }
         }
       }
@@ -2760,6 +2743,23 @@
         }
       }
     },
+    "help.record.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use + in the top right to add a new record."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "右上の＋で新しい記録を追加します"
+          }
+        }
+      }
+    },
     "help.record.rest" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2794,23 +2794,6 @@
         }
       }
     },
-    "help.record.hint" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Use + in the top right to add a new record."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "右上の＋で新しい記録を追加します"
-          }
-        }
-      }
-    },
     "help.statistics" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2824,23 +2807,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "選択された期間の統計図表を表示します\n\nデバイスを横向けにして図表を拡大します"
-          }
-        }
-      }
-    },
-    "help.statistics.settings" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Change which charts are shown and their order"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "各図表の表示や順序を変更します"
           }
         }
       }
@@ -2875,6 +2841,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "指定期間で分析した統計図表を表示します"
+          }
+        }
+      }
+    },
+    "help.statistics.settings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change which charts are shown and their order"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "各図表の表示や順序を変更します"
           }
         }
       }

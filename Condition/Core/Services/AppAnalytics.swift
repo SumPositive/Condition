@@ -98,7 +98,24 @@ final class AppAnalytics {
     }
 
     private func settingsSnapshot(_ settings: AppSettings) -> [String: Any] {
-        [
+        // 計測項目 / グラフ / 統計の表示と並び順をカンマ区切りで送る。
+        // 集計時に「どの項目がよく表示されるか」「デフォルト並び順の参考」が分かるようにする。
+        let hiddenFields = Set(settings.hiddenFields)
+        let recordFieldsOrder = settings.graphPanelOrder
+            .compactMap { GraphKind(rawValue: $0) }
+            .filter(\.isRecordField)
+            .map(\.rawValue)
+        let visibleRecordFields = recordFieldsOrder.filter { !hiddenFields.contains($0) }
+
+        let hiddenGraphs = Set(settings.graphHiddenPanels)
+        let graphsOrder = settings.graphDisplayOrder
+        let visibleGraphs = graphsOrder.filter { !hiddenGraphs.contains($0) }
+
+        let hiddenStats = Set(settings.statHiddenSections)
+        let statsOrder = settings.statSectionOrder
+        let visibleStats = statsOrder.filter { !hiddenStats.contains($0) }
+
+        return [
             "user_level": settings.userLevel.rawValue,
             "appearance_mode": settings.appearanceMode.rawValue,
             "font_scale": settings.fontScale.rawValue,
@@ -115,6 +132,14 @@ final class AppAnalytics {
             "stat_days": settings.statDays,
             "hidden_stat_sections": settings.statHiddenSections.count,
             "unused_categories": settings.dateOptAppearances.filter { !$0.isDefined }.count,
+            // 表示中の項目 ID をカンマ区切り（多く表示される項目の集計用）
+            "visible_record_fields": visibleRecordFields.map(String.init).joined(separator: ","),
+            "visible_graphs": visibleGraphs.map(String.init).joined(separator: ","),
+            "visible_stats": visibleStats.map(String.init).joined(separator: ","),
+            // ユーザーが並べた順序（デフォルト順の参考用）
+            "order_record_fields": recordFieldsOrder.map(String.init).joined(separator: ","),
+            "order_graphs": graphsOrder.map(String.init).joined(separator: ","),
+            "order_stats": statsOrder.map(String.init).joined(separator: ","),
         ]
     }
 
