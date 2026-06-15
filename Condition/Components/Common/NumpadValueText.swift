@@ -227,16 +227,25 @@ private struct ConditionNumpad: View {
                     }
                 }
             }
-            // 下段：[.または空] [0] [⌫]
-            HStack(spacing: spacing) {
-                if hasDecimal {
-                    NumpadDigitButton(label: ".", minH: buttonH) { onKey(.decimal) }
-                } else {
-                    Spacer()
+            // 下段：[0] [. または広い 0] [⌫]
+            GeometryReader { proxy in
+                let cellW = (proxy.size.width - 2 * spacing) / 3
+                HStack(spacing: spacing) {
+                    if hasDecimal {
+                        NumpadDigitButton(label: "0", minH: buttonH) { onKey(.digit(0)) }
+                            .frame(width: cellW)
+                        NumpadDigitButton(label: ".", minH: buttonH) { onKey(.decimal) }
+                            .frame(width: cellW)
+                    } else {
+                        // 整数項目では「0」を「.」の位置まで広げて押しやすくする
+                        NumpadDigitButton(label: "0", minH: buttonH) { onKey(.digit(0)) }
+                            .frame(width: cellW * 2 + spacing)
+                    }
+                    NumpadDeleteButton(minH: buttonH) { onKey(.delete) }
+                        .frame(width: cellW)
                 }
-                NumpadDigitButton(label: "0", minH: buttonH) { onKey(.digit(0)) }
-                NumpadDeleteButton(minH: buttonH) { onKey(.delete) }
             }
+            .frame(height: buttonH)
         }
         .padding(.horizontal, hPadding)
     }

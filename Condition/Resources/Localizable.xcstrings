@@ -2646,14 +2646,14 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "translated",
+            "state" : "needs_review",
             "value" : "Tap + in the top right to add a new record\n\nTap a record row to edit it\n\nIf the right side of the screen is cut off, scroll or rotate the device to landscape\n\nUse the share button in the top left to choose a period and format, then export a file"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "右上の＋をタップして新しい記録を追加します\n\n記録明細をタップして編集します\n\n画面の右側が欠けるとき、スクロールまたはデバイスを横向きにします\n\n左上の共有ボタンで期間と形式を指定してファイル出力します"
+            "value" : "右上の＋をタップして新しい記録を追加します\n（左隣は測定を繰り返して平均を記録する専用シートが開きます）\n\n記録明細をタップして編集します\n\n画面の右側が欠けるとき、スクロールまたはデバイスを横向きにします\n\n左上の共有ボタンで期間と形式を指定してファイル出力します"
           }
         }
       }
@@ -4523,7 +4523,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "最大5回まで測定を追加して平均を記録します\n\n標準偏差(±SD)は小さいほど測定値のばらつきが少なく、平均値の信頼度が高い目安です\n　青：ばらつき少\n　赤：ばらつき大（測り直しを検討）"
+            "value" : "測定値を入れて「次へ」で軽快に入力\n最後に「保存」で平均値を記録\n\n最大5回まで測定を追加できます\n各値を修正し、行単位で取消ができます\n\n標準偏差(±SD)は小さいほど測定値のばらつきが少なく、平均値の信頼度が高い目安です\n　青：ばらつき少\n　赤：ばらつき大（測り直しを検討）"
           }
         }
       }
@@ -4540,7 +4540,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "保存により平均値を記録します"
+            "value" : "複数測定して平均値を保存します"
           }
         }
       }

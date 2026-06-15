@@ -4,6 +4,7 @@
 
 import SwiftUI
 import SwiftData
+import AZDial
 
 // MARK: - 列モデル
 
@@ -141,9 +142,14 @@ struct MeasurementAverageView: View {
                 Divider()
                 keypadArea
             }
-            .navigationTitle("record.measurementAvg.title")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Image(systemName: "text.badge.plus")
+                        .font(.headline)
+                        .foregroundStyle(Color.accentColor)
+                        .accessibilityLabel(Text("record.measurementAvg.title"))
+                }
                 ToolbarItem(placement: .cancellationAction) {
                     Button {
                         handleCancelTapped()
@@ -244,6 +250,13 @@ struct MeasurementAverageView: View {
         ScrollViewReader { proxy in
             ScrollView([.vertical, .horizontal]) {
                 VStack(alignment: .leading, spacing: 4) {
+                    BeginnerHelpBanner(
+                        hintKey: "record.measurementAvg.hint",
+                        messageKey: "record.measurementAvg.help",
+                        storageKey: "helpDismissed.record.measurementAvg",
+                        compact: true
+                    )
+                    .padding(.bottom, 2)
                     headerRow
                     ForEach(0..<trialCount, id: \.self) { trial in
                         trialRow(trial: trial)
@@ -256,17 +269,11 @@ struct MeasurementAverageView: View {
                     Divider().padding(.vertical, 4)
                     summaryRow(metric: .average)
                     summaryRow(metric: .standardDeviation)
-                    BeginnerHelpBanner(
-                        hintKey: "record.measurementAvg.hint",
-                        messageKey: "record.measurementAvg.help",
-                        storageKey: "helpDismissed.record.measurementAvg"
-                    )
-                    .padding(.leading, 40)
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
             }
-            .scrollIndicators(.hidden, axes: .horizontal)
+            .scrollIndicators(.hidden)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .onChange(of: focused) { _, newValue in
                 // フォーカス移動先が見切れているときだけ最小限の横スクロールで寄せる
@@ -285,7 +292,19 @@ struct MeasurementAverageView: View {
 
     private var headerRow: some View {
         HStack(spacing: 6) {
-            Color.clear.frame(width: trialLabelWidth, height: 24)
+            Group {
+                if settings.userLevel == .expert {
+                    // 達人モードでは、ヒント文の代わりに左上セルへ (?) アイコンだけ置く
+                    BeginnerHelpBanner(
+                        "record.measurementAvg.help",
+                        storageKey: "helpDismissed.record.measurementAvg",
+                        compact: true
+                    )
+                } else {
+                    Color.clear
+                }
+            }
+            .frame(width: trialLabelWidth, height: 24)
             ForEach(columns, id: \.self) { col in
                 Text(col.title)
                     .font(.caption.weight(.semibold))
@@ -353,10 +372,53 @@ struct MeasurementAverageView: View {
         if let v = samples[column]?[trial] {
             return ValueFormatter.format(v, decimals: column.spec.decimals)
         }
-        if trial == 0, let placeholder = firstTrialPlaceholders[column] {
+        if let placeholder = effectivePlaceholder(for: column, trial: trial) {
             return ValueFormatter.format(placeholder, decimals: column.spec.decimals)
         }
         return "–"
+    }
+
+    /// 直近で参照できるプレースホルダーを返す。
+    /// 1回目: 同区分1ヶ月以内の直近記録
+    /// 2回目以降: 前行の値、なければ前行のプレースホルダー（再帰）
+    private func effectivePlaceholder(for column: AvgColumn, trial: Int) -> Int? {
+        if trial == 0 { return firstTrialPlaceholders[column] }
+        if let prev = samples[column]?[trial - 1] { return prev }
+        return effectivePlaceholder(for: column, trial: trial - 1)
+    }
+
+    /// inputText / 確定値 / プレースホルダー / spec.initVal の順でダイアル初期値を決める
+    private func dialBinding(for cell: AvgCell) -> Binding<Int> {
+        Binding(
+            get: {
+                if !inputText.isEmpty, let parsed = parsedInputText(for: cell.column) {
+                    return parsed
+                }
+                if let v = samples[cell.column]?[cell.trial] { return v }
+                if let p = effectivePlaceholder(for: cell.column, trial: cell.trial) { return p }
+                return cell.column.spec.initVal
+            },
+            set: { newValue in
+                // ダイアル操作は入力バッファをクリアして直接セルへ書く
+                inputText = ""
+                var arr = samples[cell.column] ?? Array(repeating: nil, count: trialCount)
+                if arr.isEmpty { arr = Array(repeating: nil, count: trialCount) }
+                arr[cell.trial] = min(max(newValue, cell.column.spec.min), cell.column.spec.max)
+                samples[cell.column] = arr
+            }
+        )
+    }
+
+    private func parsedInputText(for column: AvgColumn) -> Int? {
+        guard !inputText.isEmpty else { return nil }
+        let normalized = inputText.hasSuffix(".") ? inputText + "0" : inputText
+        let decimals = column.spec.decimals
+        if decimals == 0 {
+            return Int(normalized)
+        }
+        return Double(normalized).map {
+            Int(($0 * pow(10.0, Double(decimals))).rounded())
+        }
     }
 
     private func cellDisplayColor(column: AvgColumn, trial: Int, focused: Bool) -> Color {
@@ -465,22 +527,71 @@ struct MeasurementAverageView: View {
 
     private var keypadArea: some View {
         VStack(spacing: 8) {
+            dialRow
             keypad
-            HStack(spacing: 10) {
-                Button {
-                    advanceFocus()
-                } label: {
-                    Label("record.measurementAvg.next", systemImage: "arrow.right.circle")
-                        .font(.callout.weight(.semibold))
-                        .frame(maxWidth: .infinity, minHeight: 38)
-                }
-                .buttonStyle(.bordered)
-            }
-            .padding(.horizontal, 16)
         }
         .padding(.top, 8)
         .padding(.bottom, 8)
         .background(Color(.systemBackground))
+    }
+
+    @ViewBuilder
+    private var dialRow: some View {
+        if let cell = focused {
+            // ステッパー（94pt）と「次へ」ボタン（94pt）でダイアルを中央に挟む
+            GeometryReader { proxy in
+                let buttonW: CGFloat = 94
+                let outerSpacing: CGFloat = 8
+                let azWidth = max(120, proxy.size.width - buttonW - outerSpacing)
+                let dialW = max(80, min(220, azWidth - 94 - 12))
+                HStack(spacing: outerSpacing) {
+                    AZDialView(
+                        value: dialBinding(for: cell),
+                        min: cell.column.spec.min,
+                        max: cell.column.spec.max,
+                        step: 1,
+                        stepperStep: 1,
+                        decimals: cell.column.spec.decimals,
+                        style: DialStyle.builtin(id: settings.dialStyle) ?? .shape,
+                        dialWidth: dialW,
+                        tuning: settings.dialTuning
+                    )
+                    .id(cell)
+                    .frame(width: azWidth)
+                    Button {
+                        advanceFocus()
+                    } label: {
+                        Label("record.measurementAvg.next", systemImage: "arrow.right.circle.fill")
+                            .font(.callout.weight(.semibold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                            .frame(width: buttonW, height: 44)
+                            .foregroundStyle(Color.accentColor)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(Color.accentColor.opacity(0.12))
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .frame(height: 44)
+            .padding(.horizontal, 16)
+        } else {
+            HStack {
+                Spacer()
+                Button {
+                    advanceFocus()
+                } label: {
+                    Image(systemName: "arrow.right.circle.fill")
+                        .font(.title)
+                        .foregroundStyle(Color(.tertiaryLabel))
+                }
+                .buttonStyle(.plain)
+                .disabled(true)
+            }
+            .padding(.horizontal, 16)
+        }
     }
 
     private var keypad: some View {
@@ -496,15 +607,24 @@ struct MeasurementAverageView: View {
                     }
                 }
             }
-            HStack(spacing: spacing) {
-                if hasDecimal {
-                    digitKey(label: ".", height: buttonH) { tapDecimal() }
-                } else {
-                    Color.clear.frame(height: buttonH).frame(maxWidth: .infinity)
+            GeometryReader { proxy in
+                let cellW = (proxy.size.width - 2 * spacing) / 3
+                HStack(spacing: spacing) {
+                    if hasDecimal {
+                        digitKey(label: "0", height: buttonH) { tapDigit(0) }
+                            .frame(width: cellW)
+                        digitKey(label: ".", height: buttonH) { tapDecimal() }
+                            .frame(width: cellW)
+                    } else {
+                        // 整数項目では「0」を「.」の位置まで広げて押しやすくする
+                        digitKey(label: "0", height: buttonH) { tapDigit(0) }
+                            .frame(width: cellW * 2 + spacing)
+                    }
+                    deleteKey(height: buttonH) { tapDelete() }
+                        .frame(width: cellW)
                 }
-                digitKey(label: "0", height: buttonH) { tapDigit(0) }
-                deleteKey(height: buttonH) { tapDelete() }
             }
+            .frame(height: buttonH)
         }
         .padding(.horizontal, 16)
         .disabled(focused == nil)
