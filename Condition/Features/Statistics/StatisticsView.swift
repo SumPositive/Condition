@@ -187,12 +187,26 @@ private struct StatisticsContentView: View {
         }
     }
 
+    /// 統計画面の詳細ヘルプ本文。ツールバーボタンの説明には SF Symbol を青で挿入する
+    private var statisticsHelpMessage: Text {
+        let blue: (String) -> Text = { name in
+            Text(Image(systemName: name)).foregroundColor(.blue)
+        }
+        return Text(LocalizedStringKey("help.statistics"))
+            + Text(verbatim: "\n\n")
+            + blue("slider.horizontal.3") + Text(verbatim: " ")
+            + Text(LocalizedStringKey("help.statistics.settings"))
+            + Text(verbatim: "\n\n")
+            + blue("square.and.arrow.up") + Text(verbatim: " ")
+            + Text(LocalizedStringKey("help.statistics.export"))
+    }
+
     private var scrollContent: some View {
         ScrollView {
             VStack(spacing: 0) {
                 BeginnerHelpBanner(
                     hintKey: "help.statistics.hint",
-                    messageKey: "help.statistics",
+                    messageText: statisticsHelpMessage,
                     storageKey: "helpDismissed.statistics"
                 )
                 LazyVStack(spacing: 16) {

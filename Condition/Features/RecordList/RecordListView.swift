@@ -102,6 +102,7 @@ struct RecordListView: View {
                         showMeasurementAvgSheet = true
                     } label: {
                         Image(systemName: "text.badge.plus")
+                            .foregroundStyle(Color.blue)
                     }
                     Button {
                         // 状態が true のまま戻っていない異常時はリセットしてから再セット
@@ -114,7 +115,8 @@ struct RecordListView: View {
                             settings.showNewRecordSheet = true
                         }
                     } label: {
-                        Image(systemName: "plus")
+                        Image(systemName: "plus.circle.fill")
+                            .foregroundStyle(Color.blue)
                     }
                 }
             }
@@ -182,6 +184,23 @@ struct RecordListView: View {
 
     // MARK: - リスト
 
+    /// 詳細ヘルプ用の本文。SF Symbol アイコン付きで操作を案内する
+    private var recordHelpMessage: Text {
+        let blue: (String) -> Text = { name in
+            Text(Image(systemName: name)).foregroundColor(.blue)
+        }
+        return blue("plus.circle.fill") + Text(verbatim: " ")
+            + Text(LocalizedStringKey("help.record.add"))
+            + Text(verbatim: "\n\n")
+            + blue("text.badge.plus") + Text(verbatim: " ")
+            + Text(LocalizedStringKey("help.record.avg"))
+            + Text(verbatim: "\n\n")
+            + Text(LocalizedStringKey("help.record.rest"))
+            + Text(verbatim: "\n\n")
+            + blue("square.and.arrow.up") + Text(verbatim: " ")
+            + Text(LocalizedStringKey("help.record.share"))
+    }
+
     private var visibleRecordKinds: [GraphKind] {
         let hidden = Set(settings.hiddenFields)
         return settings.graphPanelOrder
@@ -193,7 +212,7 @@ struct RecordListView: View {
         VStack(spacing: 0) {
             BeginnerHelpBanner(
                 hintKey: "help.record.hint",
-                messageKey: "help.record",
+                messageText: recordHelpMessage,
                 storageKey: "helpDismissed.record"
             )
             RecordColumnHeader(visibleKinds: visibleRecordKinds)

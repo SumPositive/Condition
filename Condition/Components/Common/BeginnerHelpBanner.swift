@@ -9,6 +9,8 @@ struct BeginnerHelpBanner: View {
 
     let hintKey: LocalizedStringKey?
     let messageKey: LocalizedStringKey
+    /// 詳細シートで messageKey の代わりに使う Text（SF Symbol を含めるなどの用途）
+    let messageText: Text?
     let compact: Bool
     @State private var showsHelpSheet = false
     @State private var sheetContentHeight: CGFloat = 220
@@ -24,12 +26,21 @@ struct BeginnerHelpBanner: View {
     init(_ messageKey: LocalizedStringKey, storageKey: String, compact: Bool = false) {
         self.hintKey = nil
         self.messageKey = messageKey
+        self.messageText = nil
         self.compact = compact
     }
 
     init(hintKey: LocalizedStringKey, messageKey: LocalizedStringKey, storageKey: String, compact: Bool = false) {
         self.hintKey = hintKey
         self.messageKey = messageKey
+        self.messageText = nil
+        self.compact = compact
+    }
+
+    init(hintKey: LocalizedStringKey, messageText: Text, storageKey: String, compact: Bool = false) {
+        self.hintKey = hintKey
+        self.messageKey = ""
+        self.messageText = messageText
         self.compact = compact
     }
 
@@ -153,7 +164,7 @@ struct BeginnerHelpBanner: View {
                     Spacer()
                 }
 
-                Text(messageKey)
+                (messageText ?? Text(messageKey))
                     .font(.body)
                     .foregroundStyle(Color.primary)
                     .lineLimit(nil)

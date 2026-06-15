@@ -277,12 +277,26 @@ private struct GraphContentView: View {
         .allowsHitTesting(false)
     }
 
+    /// グラフ画面の詳細ヘルプ本文。ツールバーボタンの説明には SF Symbol を青で挿入する
+    private var graphHelpMessage: Text {
+        let blue: (String) -> Text = { name in
+            Text(Image(systemName: name)).foregroundColor(.blue)
+        }
+        return Text(LocalizedStringKey("help.graph"))
+            + Text(verbatim: "\n\n")
+            + blue("slider.horizontal.3") + Text(verbatim: " ")
+            + Text(LocalizedStringKey("help.graph.settings"))
+            + Text(verbatim: "\n\n")
+            + blue("square.and.arrow.up") + Text(verbatim: " ")
+            + Text(LocalizedStringKey("help.graph.export"))
+    }
+
     private var scrollContent: some View {
         ScrollView(.vertical) {
             VStack(spacing: 0) {
                 BeginnerHelpBanner(
                     hintKey: "help.graph.hint",
-                    messageKey: "help.graph",
+                    messageText: graphHelpMessage,
                     storageKey: "helpDismissed.graph"
                 )
                 LazyVStack(spacing: 16) {

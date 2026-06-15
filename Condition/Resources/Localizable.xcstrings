@@ -2613,13 +2613,47 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Shows time-series charts with the selected period on the horizontal axis\n\nScroll horizontally on a chart to move through dates\n\nRotate the device to landscape to enlarge charts\n\nUse the settings button in the top right to change which charts are shown and their order\n\nUse the share button in the top left to export a PDF"
+            "value" : "Shows time-series charts with the selected period on the horizontal axis\n\nScroll horizontally on a chart to move through dates\n\nRotate the device to landscape to enlarge charts"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "選択された期間を横軸にした時系列グラフを表示します\n\nグラフを横スクロールして期日を移動します\n\nデバイスを横向けにしてグラフを拡大します\n\n右上の設定ボタンで各グラフの表示や順序を変更します\n\n左上の共有ボタンでPDF出力します"
+            "value" : "選択された期間を横軸にした時系列グラフを表示します\n\nグラフを横スクロールして期日を移動します\n\nデバイスを横向けにしてグラフを拡大します"
+          }
+        }
+      }
+    },
+    "help.graph.settings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change which charts are shown and their order"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "各グラフの表示や順序を変更します"
+          }
+        }
+      }
+    },
+    "help.graph.export" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export as PDF"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PDF出力します"
           }
         }
       }
@@ -2658,6 +2692,74 @@
         }
       }
     },
+    "help.record.add" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add a new record"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新しい記録を追加します"
+          }
+        }
+      }
+    },
+    "help.record.avg" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record the average of multiple measurements"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "測定を繰り返して平均を記録します"
+          }
+        }
+      }
+    },
+    "help.record.rest" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap a record row to edit it\n\nIf the right side of the screen is cut off, scroll or rotate the device to landscape"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "記録明細をタップして編集します\n\n画面の右側が欠けるとき、スクロールまたはデバイスを横向きにします"
+          }
+        }
+      }
+    },
+    "help.record.share" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export records to a file"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "記録をファイルへ書き出します"
+          }
+        }
+      }
+    },
     "help.record.hint" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2681,13 +2783,47 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Shows statistical charts for the selected period\n\nRotate the device to landscape to enlarge charts\n\nUse the settings button in the top right to change which charts are shown and their order\n\nUse the share button in the top left to export a PDF"
+            "value" : "Shows statistical charts for the selected period\n\nRotate the device to landscape to enlarge charts"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "選択された期間の統計図表を表示します\n\nデバイスを横向けにして図表を拡大します\n\n右上の設定ボタンで各図表の表示や順序を変更します\n\n左上の共有ボタンでPDF出力します"
+            "value" : "選択された期間の統計図表を表示します\n\nデバイスを横向けにして図表を拡大します"
+          }
+        }
+      }
+    },
+    "help.statistics.settings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change which charts are shown and their order"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "各図表の表示や順序を変更します"
+          }
+        }
+      }
+    },
+    "help.statistics.export" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export as PDF"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PDF出力します"
           }
         }
       }
@@ -4516,8 +4652,8 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Add up to 5 measurements to record their average. Standard deviation (±SD) is shown once you have 3 or more.\n\nA smaller ±SD means readings are more consistent. Blue: low variation / Red: high variation — consider remeasuring."
+            "state" : "translated",
+            "value" : "Enter a reading and tap Next to move quickly through cells.\nTap Save to record the average.\n\nAdd up to 5 measurements.\nYou can edit any value or remove a row.\n\nA smaller standard deviation (±SD) means the readings vary less and the average is more reliable.\n  Blue: low variation\n  Red: high variation (consider remeasuring)"
           }
         },
         "ja" : {
@@ -4533,8 +4669,8 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Only the average will be saved."
+            "state" : "translated",
+            "value" : "Save the average of multiple measurements."
           }
         },
         "ja" : {
