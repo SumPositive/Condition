@@ -94,6 +94,8 @@ private struct StatisticsContentView: View {
     @State private var chartWidth: CGFloat = 390
     @State private var isExporting = false
     @State private var stagedChartCount = StatisticsContentView.initialChartCount
+    /// ドラッグ中のみ使う一時的な追加高さ
+    @State private var draftExtraHeights: [Int: CGFloat] = [:]
 
     init(cutoffDate: Date, expandCutoffIfNeeded: @escaping (Int) -> Void) {
         let predicate = #Predicate<BodyRecord> {
@@ -217,7 +219,7 @@ private struct StatisticsContentView: View {
                     messageText: statisticsHelpMessage,
                     storageKey: "helpDismissed.statistics"
                 )
-                LazyVStack(spacing: 16) {
+                LazyVStack(spacing: 0) {
                     // 対象期間はグラフ画面と同じラジオPickerで揃える
                     AZRadioPicker(
                         options: GraphPeriod.allCases,
@@ -235,9 +237,10 @@ private struct StatisticsContentView: View {
                     }
                     .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                     .padding(.horizontal)
+                    .padding(.bottom, 8)
 
                     ForEach(stagedStatSections) { section in
-                        statSectionView(section)
+                        statSectionPanel(section)
                     }
                 }
                 .padding()
@@ -267,6 +270,85 @@ private struct StatisticsContentView: View {
         while stagedChartCount < total {
             try? await Task.sleep(for: .milliseconds(Self.chartBatchDelayMS))
             stagedChartCount = min(stagedChartCount + Self.chartBatchCount, total)
+        }
+    }
+
+    /// リサイズハンドル対応セクション（ユーザー指定の6種）
+    private static let resizableStatSections: Set<StatSection> = [
+        .bpJsh, .bpDateOptCorr, .bp24h, .temp24h, .tempHist, .weightBpScatter
+    ]
+
+    @ViewBuilder
+    private func statSectionPanel(_ section: StatSection) -> some View {
+        if Self.resizableStatSections.contains(section) {
+            let stored = CGFloat(settings.statHeightOverrides[section.rawValue] ?? 0)
+            let effective = draftExtraHeights[section.rawValue] ?? stored
+            VStack(spacing: 0) {
+                statSectionView(section)
+                    .environment(\.chartExtraHeight, effective)
+                StatResizeHandle(
+                    current: effective,
+                    onDrag: { value in
+                        draftExtraHeights[section.rawValue] = value
+                    },
+                    onCommit: { value in
+                        draftExtraHeights[section.rawValue] = nil
+                        settings.statHeightOverrides[section.rawValue] = Double(value)
+                    }
+                )
+            }
+        } else {
+            // ハンドルが無いセクションは、近接しすぎないよう下に少しだけ余白を入れる
+            statSectionView(section)
+                .padding(.bottom, 16)
+        }
+    }
+
+    /// 統計図用のリサイズハンドル（GraphView の ChartResizeHandle と同形）
+    private struct StatResizeHandle: View {
+        let current: CGFloat
+        let onDrag: (CGFloat) -> Void
+        let onCommit: (CGFloat) -> Void
+
+        @State private var dragStartValue: CGFloat? = nil
+        private static let minExtra: CGFloat = -60
+        private static let maxExtra: CGFloat = 400
+
+        var body: some View {
+            Capsule()
+                .fill(Color(.tertiaryLabel))
+                .frame(width: 56, height: 5)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 2, coordinateSpace: .global)
+                        .onChanged { value in
+                            if dragStartValue == nil { dragStartValue = current }
+                            let next = min(max((dragStartValue ?? 0) + value.translation.height,
+                                               Self.minExtra), Self.maxExtra)
+                            var transaction = Transaction()
+                            transaction.disablesAnimations = true
+                            withTransaction(transaction) {
+                                onDrag(next)
+                            }
+                        }
+                        .onEnded { _ in
+                            onCommit(current)
+                            dragStartValue = nil
+                        }
+                )
+                .accessibilityLabel(Text("graph.resizeHandle"))
+                .accessibilityAdjustableAction { direction in
+                    let step: CGFloat = 24
+                    let next: CGFloat
+                    switch direction {
+                    case .increment: next = min(current + step, Self.maxExtra)
+                    case .decrement: next = max(current - step, Self.minExtra)
+                    @unknown default: return
+                    }
+                    onCommit(next)
+                }
         }
     }
 
@@ -348,6 +430,7 @@ struct BpJshView: View {
     let records: [BodyRecord]
 
     @Environment(\.chartAvailableWidth) private var chartWidth
+    @Environment(\.chartExtraHeight) private var chartExtraHeight
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var showJSHInfo = false
     @ScaledMetric(relativeTo: .caption) private var zoneLabelSize: CGFloat = 10
@@ -480,7 +563,7 @@ struct BpJshView: View {
                         }
                     }
                 }
-                .frame(height: adaptiveChartHeight(base: 330, width: chartWidth, dynamicTypeSize: dynamicTypeSize))
+                .frame(height: adaptiveChartHeight(base: 330, width: chartWidth, dynamicTypeSize: dynamicTypeSize) + chartExtraHeight)
                 .padding(.horizontal, 4)
                 .overlay {
                     if validRecords.isEmpty {
@@ -831,6 +914,7 @@ struct BpDateOptCorrView: View {
     let records: [BodyRecord]
 
     @Environment(\.chartAvailableWidth) private var chartWidth
+    @Environment(\.chartExtraHeight) private var chartExtraHeight
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private struct BpPoint: Identifiable {
@@ -1022,7 +1106,7 @@ struct BpDateOptCorrView: View {
                 }
             }
         }
-        .frame(height: adaptiveChartHeight(base: 240, width: chartWidth, dynamicTypeSize: dynamicTypeSize))
+        .frame(height: adaptiveChartHeight(base: 240, width: chartWidth, dynamicTypeSize: dynamicTypeSize) + chartExtraHeight)
         .padding(.horizontal)
     }
 }
@@ -1116,6 +1200,7 @@ struct Bp24HChartView: View {
     let records: [BodyRecord]
 
     @Environment(\.chartAvailableWidth) private var chartWidth
+    @Environment(\.chartExtraHeight) private var chartExtraHeight
     private var settings: AppSettings { AppSettings.shared }
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -1175,7 +1260,7 @@ struct Bp24HChartView: View {
             .chartYScale(domain: yDomain)
             .chartXAxisLabel("text.time")
             .chartYAxisLabel("unit.mmHg")
-            .frame(height: adaptiveChartHeight(base: 220, width: chartWidth, dynamicTypeSize: dynamicTypeSize))
+            .frame(height: adaptiveChartHeight(base: 220, width: chartWidth, dynamicTypeSize: dynamicTypeSize) + chartExtraHeight)
             .padding(.horizontal)
         }
         .padding(.vertical, 8)
@@ -1438,6 +1523,7 @@ struct Temp24HChartView: View {
     let records: [BodyRecord]
 
     @Environment(\.chartAvailableWidth) private var chartWidth
+    @Environment(\.chartExtraHeight) private var chartExtraHeight
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private var validRecords: [(hour: Int, temp: Double)] {
@@ -1481,7 +1567,7 @@ struct Temp24HChartView: View {
             .chartYScale(domain: yDomain)
             .chartXAxisLabel("text.time")
             .chartYAxisLabel("unit.celsiusSymbol")
-            .frame(height: adaptiveChartHeight(base: 220, width: chartWidth, dynamicTypeSize: dynamicTypeSize))
+            .frame(height: adaptiveChartHeight(base: 220, width: chartWidth, dynamicTypeSize: dynamicTypeSize) + chartExtraHeight)
             .padding(.horizontal)
             .overlay {
                 if validRecords.isEmpty {
@@ -1503,6 +1589,7 @@ struct TempHistogramView: View {
     let records: [BodyRecord]
 
     @Environment(\.chartAvailableWidth) private var chartWidth
+    @Environment(\.chartExtraHeight) private var chartExtraHeight
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .caption) private var legendMinW: CGFloat = 130
 
@@ -1581,7 +1668,7 @@ struct TempHistogramView: View {
             }
             .chartXAxisLabel("unit.celsiusSymbol")
             .chartYAxisLabel("text.count")
-            .frame(height: adaptiveChartHeight(base: 180, width: chartWidth, dynamicTypeSize: dynamicTypeSize))
+            .frame(height: adaptiveChartHeight(base: 180, width: chartWidth, dynamicTypeSize: dynamicTypeSize) + chartExtraHeight)
             .padding(.horizontal)
 
             LazyVGrid(columns: [GridItem(.adaptive(minimum: legendMinW))], alignment: .center) {
@@ -1614,6 +1701,7 @@ struct WeightBpScatterView: View {
     let records: [BodyRecord]
 
     @Environment(\.chartAvailableWidth) private var chartWidth
+    @Environment(\.chartExtraHeight) private var chartExtraHeight
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private struct Point: Identifiable {
@@ -1705,7 +1793,7 @@ struct WeightBpScatterView: View {
                 .chartYScale(domain: yDomain)
                 .chartXAxisLabel("unit.kg")
                 .chartYAxisLabel("unit.mmHg")
-                .frame(height: adaptiveChartHeight(base: 240, width: chartWidth, dynamicTypeSize: dynamicTypeSize))
+                .frame(height: adaptiveChartHeight(base: 240, width: chartWidth, dynamicTypeSize: dynamicTypeSize) + chartExtraHeight)
                 .padding(.horizontal)
 
                 // 凡例
