@@ -381,31 +381,35 @@ private struct GraphContentView: View {
         private static let maxExtra: CGFloat = 400
 
         var body: some View {
-            Capsule()
-                .fill(Color(.tertiaryLabel))
-                .frame(width: 56, height: 5)
-                .padding(.vertical, 8)
-                .frame(maxWidth: .infinity)
-                .contentShape(Rectangle())
-                .gesture(
-                    // .global にすることで、グラフ伸縮によりハンドル位置が動いても
-                    // ドラッグの基準位置がズレず、揺れ戻りが発生しなくなる
-                    DragGesture(minimumDistance: 2, coordinateSpace: .global)
-                        .onChanged { value in
-                            if dragStartValue == nil { dragStartValue = current }
-                            let next = min(max((dragStartValue ?? 0) + value.translation.height,
-                                               Self.minExtra), Self.maxExtra)
-                            var transaction = Transaction()
-                            transaction.disablesAnimations = true
-                            withTransaction(transaction) {
-                                onDrag(next)
+            // ハンドルの中心付近だけタップ・ドラッグ判定。両端は反応しない。
+            HStack(spacing: 0) {
+                Spacer(minLength: 0)
+                Capsule()
+                    .fill(Color(.tertiaryLabel))
+                    .frame(width: 56, height: 5)
+                    .padding(.vertical, 8)          // 高さは従来通り（5+8+8 = 21pt の当たり判定）
+                    .contentShape(Rectangle())
+                    .gesture(
+                        // .global にすることで、グラフ伸縮によりハンドル位置が動いても
+                        // ドラッグの基準位置がズレず、揺れ戻りが発生しなくなる
+                        DragGesture(minimumDistance: 2, coordinateSpace: .global)
+                            .onChanged { value in
+                                if dragStartValue == nil { dragStartValue = current }
+                                let next = min(max((dragStartValue ?? 0) + value.translation.height,
+                                                   Self.minExtra), Self.maxExtra)
+                                var transaction = Transaction()
+                                transaction.disablesAnimations = true
+                                withTransaction(transaction) {
+                                    onDrag(next)
+                                }
                             }
-                        }
-                        .onEnded { _ in
-                            onCommit(current)
-                            dragStartValue = nil
-                        }
-                )
+                            .onEnded { _ in
+                                onCommit(current)
+                                dragStartValue = nil
+                            }
+                    )
+                Spacer(minLength: 0)
+            }
                 .accessibilityLabel(Text("graph.resizeHandle"))
                 .accessibilityAdjustableAction { direction in
                     let step: CGFloat = 24

@@ -958,6 +958,23 @@
         }
       }
     },
+    "chart.correlationR.help" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How strongly weight and blood pressure move together is measured by the correlation coefficient (r).\n\nThe closer |r| is to 1, the stronger the relationship. Close to 0 means little or no relationship.\n\nGuide (absolute value):\n  0.0 – 0.4: weak\n  0.4 – 0.7: moderate\n  0.7 – 1.0: strong\n\nPositive r: when weight goes up, BP tends to go up\nNegative r: when weight goes up, BP tends to go down"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "体重と血圧がどれくらい一緒に動くかを「相関係数（r）」という数値で表しています\n\n|r| が 1 に近いほど関連が強く、0 に近いほど関連が弱いことを意味します\n\n目安（絶対値）\n  0.0〜0.4: 関連は弱い\n  0.4〜0.7: 中程度の関連\n  0.7〜1.0: 強い関連\n\nプラスのr: 体重が増えると血圧も上がる傾向\nマイナスのr: 体重が増えると血圧が下がる傾向"
+          }
+        }
+      }
+    },
     "chart.correlationCoefficientRGuideAbsoluteValue" : {
       "comment" : "A heading describing the correlation coefficient (r) as a guideline.",
       "extractionState" : "manual",
@@ -966,13 +983,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Correlation r guide (absolute)"
+            "value" : "Relationship between weight and BP"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "相関係数 r の目安（絶対値）"
+            "value" : "体重と血圧の関連の強さ"
           }
         }
       }

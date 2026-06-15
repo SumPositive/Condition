@@ -315,29 +315,33 @@ private struct StatisticsContentView: View {
         private static let maxExtra: CGFloat = 400
 
         var body: some View {
-            Capsule()
-                .fill(Color(.tertiaryLabel))
-                .frame(width: 56, height: 5)
-                .padding(.vertical, 8)
-                .frame(maxWidth: .infinity)
-                .contentShape(Rectangle())
-                .gesture(
-                    DragGesture(minimumDistance: 2, coordinateSpace: .global)
-                        .onChanged { value in
-                            if dragStartValue == nil { dragStartValue = current }
-                            let next = min(max((dragStartValue ?? 0) + value.translation.height,
-                                               Self.minExtra), Self.maxExtra)
-                            var transaction = Transaction()
-                            transaction.disablesAnimations = true
-                            withTransaction(transaction) {
-                                onDrag(next)
+            // ハンドルの中心付近だけタップ・ドラッグ判定にし、両端では反応しない
+            HStack(spacing: 0) {
+                Spacer(minLength: 0)
+                Capsule()
+                    .fill(Color(.tertiaryLabel))
+                    .frame(width: 56, height: 5)
+                    .padding(.vertical, 8)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 2, coordinateSpace: .global)
+                            .onChanged { value in
+                                if dragStartValue == nil { dragStartValue = current }
+                                let next = min(max((dragStartValue ?? 0) + value.translation.height,
+                                                   Self.minExtra), Self.maxExtra)
+                                var transaction = Transaction()
+                                transaction.disablesAnimations = true
+                                withTransaction(transaction) {
+                                    onDrag(next)
+                                }
                             }
-                        }
-                        .onEnded { _ in
-                            onCommit(current)
-                            dragStartValue = nil
-                        }
-                )
+                            .onEnded { _ in
+                                onCommit(current)
+                                dragStartValue = nil
+                            }
+                    )
+                Spacer(minLength: 0)
+            }
                 .accessibilityLabel(Text("graph.resizeHandle"))
                 .accessibilityAdjustableAction { direction in
                     let step: CGFloat = 24
@@ -1704,6 +1708,8 @@ struct WeightBpScatterView: View {
     @Environment(\.chartExtraHeight) private var chartExtraHeight
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
+    @State private var showCorrelationInfo = false
+
     private struct Point: Identifiable {
         let id: Int
         let weight: Double  // kg
@@ -1759,20 +1765,9 @@ struct WeightBpScatterView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text("metric.weightBpCorrelation")
-                    .font(.title3)
-                if let r = correlation {
-                    Spacer()
-                    Text(String(format: "r = %.2f", r))
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(correlationColor(r))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(correlationColor(r).opacity(0.12), in: Capsule())
-                }
-            }
-            .padding(.horizontal)
+            Text("metric.weightBpCorrelation")
+                .font(.title3)
+                .padding(.horizontal)
 
             if validRecords.isEmpty {
                 Text("empty.noDataInPeriod")
@@ -1781,6 +1776,34 @@ struct WeightBpScatterView: View {
                     .frame(maxWidth: .infinity)
                     .padding()
             } else {
+                // r 値とラベル、詳細ヘルプボタンを横一列で表示（チャートの上に配置）
+                if let r = correlation {
+                    HStack(spacing: 4) {
+                        Spacer(minLength: 0)
+                        (
+                            Text("chart.correlationCoefficientRGuideAbsoluteValue")
+                                .foregroundColor(.secondary)
+                            + Text(verbatim: " ")
+                            + Text(String(format: "r=%.2f", r))
+                                .foregroundColor(correlationColor(r))
+                        )
+                        .font(.caption.monospacedDigit())
+                        Button {
+                            showCorrelationInfo = true
+                        } label: {
+                            Image(systemName: "questionmark.circle")
+                                .font(.callout.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                                .padding(.vertical, 2).padding(.horizontal, 2)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(Text("button.help"))
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal)
+                }
+
                 Chart(points) { pt in
                     PointMark(
                         x: .value("metric.weight", pt.weight),
@@ -1809,20 +1832,50 @@ struct WeightBpScatterView: View {
                     }
                     Spacer()
                 }
-
-                // r 値の解説
-                if correlation != nil {
-                    Text("chart.correlationCoefficientRGuideAbsoluteValue")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.horizontal)
-                }
             }
         }
         .padding(.vertical, 8)
         .background(.background.secondary)
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        .sheet(isPresented: $showCorrelationInfo) {
+            CorrelationRInfoPopover()
+        }
+    }
+
+    /// 相関係数の意味を説明する詳細シート
+    private struct CorrelationRInfoPopover: View {
+        @State private var contentHeight: CGFloat = 280
+
+        var body: some View {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack {
+                        Spacer()
+                        Image(systemName: "questionmark.circle")
+                            .foregroundStyle(Color.accentColor)
+                        Spacer()
+                    }
+                    .padding(.top, 16)
+
+                    Text("chart.correlationR.help")
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                        .lineLimit(nil)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 20)
+                }
+                .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { h in
+                    contentHeight = h
+                }
+            }
+            .scrollIndicators(.hidden)
+            .presentationDetents([.height(statisticsInfoSheetHeight(contentHeight)), .large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(Color(.systemBackground))
+        }
     }
 
     private func correlationColor(_ r: Double) -> Color {
