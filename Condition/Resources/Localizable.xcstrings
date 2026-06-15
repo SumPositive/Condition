@@ -2607,6 +2607,23 @@
         }
       }
     },
+    "graph.resizeHandle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resize chart"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "グラフの高さを変更"
+          }
+        }
+      }
+    },
     "help.graph" : {
       "extractionState" : "manual",
       "localizations" : {

@@ -11,10 +11,18 @@ import Charts
 struct ChartAvailableWidthKey: EnvironmentKey {
     static let defaultValue: CGFloat = 390
 }
+struct ChartExtraHeightKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 0
+}
 extension EnvironmentValues {
     var chartAvailableWidth: CGFloat {
         get { self[ChartAvailableWidthKey.self] }
         set { self[ChartAvailableWidthKey.self] = newValue }
+    }
+    /// 個別グラフ用の追加高さ。ユーザーがハンドルでリサイズした分が入る
+    var chartExtraHeight: CGFloat {
+        get { self[ChartExtraHeightKey.self] }
+        set { self[ChartExtraHeightKey.self] = newValue }
     }
 }
 

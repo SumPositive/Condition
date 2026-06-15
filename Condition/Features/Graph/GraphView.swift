@@ -170,6 +170,8 @@ private struct GraphContentView: View {
     @State private var displayedPeriod: GraphPeriod
     @State private var scrollCapture = ScrollCapture()
     @State private var stagedChartCount = GraphContentView.initialChartCount
+    /// ドラッグ中だけ使う一時的な追加高さ（リサイズ中に @Observable 更新が連鎖して描画がブレるのを避ける）
+    @State private var draftExtraHeights: [Int: CGFloat] = [:]
 
     init(
         cutoffDate: Date,
@@ -299,7 +301,7 @@ private struct GraphContentView: View {
                     messageText: graphHelpMessage,
                     storageKey: "helpDismissed.graph"
                 )
-                LazyVStack(spacing: 16) {
+                LazyVStack(spacing: 0) {
                     // 対象期間はDynamic Typeで欠けにくいラジオPickerで選ぶ
                     AZRadioPicker(
                         options: GraphPeriod.allCases,
@@ -320,6 +322,7 @@ private struct GraphContentView: View {
                         Text(LocalizedStringKey(p.shortLabel))
                     }
                     .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+                    .padding(.bottom, 8)
 
                     ForEach(stagedGraphKinds, id: \.self) { kind in
                         graphPanel(kind: kind)
@@ -364,8 +367,81 @@ private struct GraphContentView: View {
         }
     }
 
+    // MARK: - グラフ高さ可変ハンドル
+
+    /// グラフ下端にあるリサイズハンドル。
+    /// ドラッグ中はローカル `current` を更新し、確定時にだけ AppSettings へ反映する。
+    private struct ChartResizeHandle: View {
+        let current: CGFloat
+        let onDrag: (CGFloat) -> Void
+        let onCommit: (CGFloat) -> Void
+
+        @State private var dragStartValue: CGFloat? = nil
+        private static let minExtra: CGFloat = -60
+        private static let maxExtra: CGFloat = 400
+
+        var body: some View {
+            Capsule()
+                .fill(Color(.tertiaryLabel))
+                .frame(width: 56, height: 5)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
+                .gesture(
+                    // .global にすることで、グラフ伸縮によりハンドル位置が動いても
+                    // ドラッグの基準位置がズレず、揺れ戻りが発生しなくなる
+                    DragGesture(minimumDistance: 2, coordinateSpace: .global)
+                        .onChanged { value in
+                            if dragStartValue == nil { dragStartValue = current }
+                            let next = min(max((dragStartValue ?? 0) + value.translation.height,
+                                               Self.minExtra), Self.maxExtra)
+                            var transaction = Transaction()
+                            transaction.disablesAnimations = true
+                            withTransaction(transaction) {
+                                onDrag(next)
+                            }
+                        }
+                        .onEnded { _ in
+                            onCommit(current)
+                            dragStartValue = nil
+                        }
+                )
+                .accessibilityLabel(Text("graph.resizeHandle"))
+                .accessibilityAdjustableAction { direction in
+                    let step: CGFloat = 24
+                    let next: CGFloat
+                    switch direction {
+                    case .increment: next = min(current + step, Self.maxExtra)
+                    case .decrement: next = max(current - step, Self.minExtra)
+                    @unknown default: return
+                    }
+                    onCommit(next)
+                }
+        }
+    }
+
     @ViewBuilder
     private func graphPanel(kind: GraphKind) -> some View {
+        let stored = CGFloat(settings.graphHeightOverrides[kind.rawValue] ?? 0)
+        let effective = draftExtraHeights[kind.rawValue] ?? stored
+        VStack(spacing: 0) {
+            graphContent(kind: kind)
+                .environment(\.chartExtraHeight, effective)
+            ChartResizeHandle(
+                current: effective,
+                onDrag: { value in
+                    draftExtraHeights[kind.rawValue] = value
+                },
+                onCommit: { value in
+                    draftExtraHeights[kind.rawValue] = nil
+                    settings.graphHeightOverrides[kind.rawValue] = Double(value)
+                }
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func graphContent(kind: GraphKind) -> some View {
         switch kind {
         case .bp:
             BpChartView(records: records, period: displayedPeriod)
@@ -789,6 +865,7 @@ struct BpChartView: View {
     @State private var selectedDate: Date?
     @State private var scrollPosition: Date = Date()
     @Environment(\.chartAvailableWidth) private var chartWidth
+    @Environment(\.chartExtraHeight) private var chartExtraHeight
     @ScaledMetric(relativeTo: .body) private var scaledBase: CGFloat = 150
 
     private var validRecords: [BodyRecord] {
@@ -1030,7 +1107,7 @@ struct BpChartView: View {
             }
             .tapToSelectDay($selectedDate, validDays: Set(visibleRecords.map { dayStart($0.dateTime) }))
             .standardXAxis(period: period, scrollPosition: $scrollPosition, kind: .bp, oldestDate: visibleRecords.first?.dateTime, newestDate: visibleRecords.last?.dateTime)
-            .frame(height: adaptiveChartHeight(base: scaledBase, width: chartWidth))
+            .frame(height: adaptiveChartHeight(base: scaledBase, width: chartWidth) + chartExtraHeight)
             .padding(.horizontal, 8)
             .padding(.bottom, 4)
 
@@ -1135,6 +1212,7 @@ struct BpPpChartView: View {
     @State private var selectedDate: Date?
     @State private var scrollPosition: Date = Date()
     @Environment(\.chartAvailableWidth) private var chartWidth
+    @Environment(\.chartExtraHeight) private var chartExtraHeight
     @ScaledMetric(relativeTo: .body) private var scaledBase: CGFloat = 120
 
     private func dayStart(_ date: Date) -> Date { cal.startOfDay(for: date) }
@@ -1303,7 +1381,7 @@ struct BpPpChartView: View {
             }
             .tapToSelectDay($selectedDate, validDays: Set(visibleRecords.map { dayStart($0.dateTime) }))
             .standardXAxis(period: period, scrollPosition: $scrollPosition, kind: .bpAvg, oldestDate: visibleRecords.first?.dateTime, newestDate: visibleRecords.last?.dateTime)
-            .frame(height: adaptiveChartHeight(base: scaledBase, width: chartWidth))
+            .frame(height: adaptiveChartHeight(base: scaledBase, width: chartWidth) + chartExtraHeight)
             .padding(.horizontal, 8)
             .padding(.bottom, 4)
 
@@ -1370,6 +1448,7 @@ struct LineChartView: View {
     @State private var selectedDate: Date?
     @State private var scrollPosition: Date = Date()
     @Environment(\.chartAvailableWidth) private var chartWidth
+    @Environment(\.chartExtraHeight) private var chartExtraHeight
     @ScaledMetric(relativeTo: .body) private var scaledBase: CGFloat = 120
 
     private func dayStart(_ date: Date) -> Date { cal.startOfDay(for: date) }
@@ -1589,7 +1668,7 @@ struct LineChartView: View {
             }
             .tapToSelectDay($selectedDate, validDays: Set(visibleRecords.map { dayStart($0.dateTime) }))
             .standardXAxis(period: period, scrollPosition: $scrollPosition, kind: kind, oldestDate: visibleRecords.first?.dateTime, newestDate: visibleRecords.last?.dateTime)
-            .frame(height: adaptiveChartHeight(base: scaledBase, width: chartWidth))
+            .frame(height: adaptiveChartHeight(base: scaledBase, width: chartWidth) + chartExtraHeight)
             .padding(.horizontal, 8)
             .padding(.bottom, 4)
 
@@ -1623,6 +1702,7 @@ private struct BMIChartView: View {
     @State private var showBMIInfo = false
     private var isJapanese: Bool { Locale.preferredLanguages.first?.hasPrefix("ja") ?? true }
     @Environment(\.chartAvailableWidth) private var chartWidth
+    @Environment(\.chartExtraHeight) private var chartExtraHeight
     @Environment(\.colorScheme) private var colorScheme
     @ScaledMetric(relativeTo: .body) private var scaledBase: CGFloat = 120
 
@@ -1802,7 +1882,7 @@ private struct BMIChartView: View {
             }
             .tapToSelectDay($selectedDate, validDays: Set(validRecords.map { dayStart($0.dateTime) }))
             .standardXAxis(period: period, scrollPosition: $scrollPosition, kind: .bmi, oldestDate: validRecords.first?.dateTime, newestDate: validRecords.last?.dateTime)
-            .frame(height: adaptiveChartHeight(base: scaledBase, width: chartWidth))
+            .frame(height: adaptiveChartHeight(base: scaledBase, width: chartWidth) + chartExtraHeight)
             .padding(.horizontal, 8)
             .padding(.bottom, 4)
 
@@ -1839,6 +1919,7 @@ struct WeightChangeChartView: View {
     @State private var selectedDate: Date?
     @State private var scrollPosition: Date = Date()
     @Environment(\.chartAvailableWidth) private var chartWidth
+    @Environment(\.chartExtraHeight) private var chartExtraHeight
     @ScaledMetric(relativeTo: .body) private var scaledBase: CGFloat = 100
 
     private func dayStart(_ date: Date) -> Date { cal.startOfDay(for: date) }
@@ -1918,7 +1999,7 @@ struct WeightChangeChartView: View {
             }
             .tapToSelectDay($selectedDate, validDays: validDays)
             .standardXAxis(period: period, scrollPosition: $scrollPosition, kind: .weightChange, oldestDate: changeValues.first?.date, newestDate: changeValues.last?.date)
-            .frame(height: adaptiveChartHeight(base: scaledBase, width: chartWidth))
+            .frame(height: adaptiveChartHeight(base: scaledBase, width: chartWidth) + chartExtraHeight)
             .padding(.horizontal, 8)
             .padding(.bottom, 4)
 

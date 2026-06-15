@@ -33,6 +33,7 @@ enum SettingsKeys {
     static let settStatBpDistributionHiddenDateOpts = "KVS_SettStatBpDistributionHiddenDateOpts" // 血圧分布で非表示にする区分 ([Int])
     static let settGraphDisplayOrder   = "KVS_SettGraphDisplayOrder"  // グラフ専用パネル順序 ([Int])
     static let settGraphHiddenPanels   = "KVS_SettGraphHiddenPanels"  // グラフ専用非表示パネル ([Int])
+    static let settGraphHeightOverrides = "KVS_SettGraphHeightOverrides" // グラフ別追加高さ (JSON {kindRaw: extraHeight CGFloat})
 
     // MARK: - 機能切替
     static let bGoal            = "KVS_bGoal"           // 目標値機能

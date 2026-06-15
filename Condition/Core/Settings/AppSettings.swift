@@ -114,6 +114,27 @@ final class AppSettings {
     ] {
         didSet { ud.set(graphHiddenPanels, forKey: SettingsKeys.settGraphHiddenPanels) }
     }
+    /// グラフ種別ごとの追加高さ（ユーザーがハンドル操作でリサイズした分）
+    var graphHeightOverrides: [Int: Double] = [:] {
+        didSet { saveGraphHeightOverrides() }
+    }
+
+    private func saveGraphHeightOverrides() {
+        let stringKeyed = Dictionary(uniqueKeysWithValues: graphHeightOverrides.map { (String($0.key), $0.value) })
+        if let data = try? JSONSerialization.data(withJSONObject: stringKeyed) {
+            ud.set(data, forKey: SettingsKeys.settGraphHeightOverrides)
+        }
+    }
+
+    private func loadGraphHeightOverrides() {
+        guard let data = ud.data(forKey: SettingsKeys.settGraphHeightOverrides),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Double] else { return }
+        var result: [Int: Double] = [:]
+        for (k, v) in obj {
+            if let key = Int(k) { result[key] = v }
+        }
+        graphHeightOverrides = result
+    }
 
     // MARK: - グラフ設定（記録入力共通）
     var graphPanelOrder: [Int] = [
@@ -451,6 +472,7 @@ final class AppSettings {
             ud.set(dialStyleForceVersion, forKey: SettingsKeys.settDialStyleForcedVersion)
         }
         loadDialTuning()
+        loadGraphHeightOverrides()
 
         let sd = ud.integer(forKey: SettingsKeys.settStatDays)
         if 0 < sd { statDays = sd }
