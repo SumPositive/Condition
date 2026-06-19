@@ -98,6 +98,9 @@ struct MeasurementAverageView: View {
     @State private var isCancelArmed = false
     @State private var cancelArmTask: Task<Void, Never>? = nil
 
+    /// 「次へ」ボタンを左右どちらに置くか（trueで左、falseで右、デフォルト右）
+    @AppStorage("measurementAvg.nextOnLeft") private var nextOnLeft: Bool = false
+
     private static let dateTimeFormatter: DateFormatter = {
         let f = DateFormatter()
         f.setLocalizedDateFormatFromTemplate("yMdEjmm")
@@ -532,25 +535,91 @@ struct MeasurementAverageView: View {
     // MARK: テンキー
 
     private var keypadArea: some View {
-        VStack(spacing: 16) {
-            dialRow
-            keypad
+        GeometryReader { proxy in
+            // 全幅を4列等分（テンキー3列＋次へ1列）、間隔は keypadSpacing × 3
+            let cellW = max(40, (proxy.size.width - 3 * keypadSpacing) / 4)
+            VStack(spacing: 16) {
+                // ダイアル行：テンキーと同じ横幅範囲に配置（サイド列ぶんの空白を反対側に）
+                HStack(spacing: keypadSpacing) {
+                    if nextOnLeft { Color.clear.frame(width: cellW) }
+                    dialRow
+                        .frame(maxWidth: .infinity)
+                    if !nextOnLeft { Color.clear.frame(width: cellW) }
+                }
+                // テンキー行：テンキー＋「次へ」（トグルは「次へ」の真上に overlay）
+                HStack(spacing: keypadSpacing) {
+                    if nextOnLeft { sideNextButtonWithToggle(width: cellW) }
+                    keypad
+                    if !nextOnLeft { sideNextButtonWithToggle(width: cellW) }
+                }
+            }
         }
+        .frame(height: dialRowHeight + 16 + keypadHeight)
         .padding(.top, 8)
+        .padding(.leading, 8)
+        .padding(.trailing, 8)
         .padding(.bottom, 8)
         .background(Color(.systemBackground))
+    }
+
+    private let dialRowHeight: CGFloat = 44
+    private let keypadButtonH: CGFloat = 48
+    private let keypadSpacing: CGFloat = 8
+    private let toggleButtonHeight: CGFloat = 24
+    private var keypadHeight: CGFloat { 4 * keypadButtonH + 3 * keypadSpacing }
+
+    /// 「次へ」ボタンの真上 4pt にトグルを overlay 配置（次へ本体には影響なし）
+    private func sideNextButtonWithToggle(width: CGFloat) -> some View {
+        sideNextButton(width: width)
+            .overlay(alignment: .top) {
+                Button {
+                    nextOnLeft.toggle()
+                } label: {
+                    Image(systemName: "arrow.left.and.right")
+                        .font(.footnote.weight(.semibold))
+                        .frame(width: width, height: toggleButtonHeight)
+                        .foregroundStyle(Color.accentColor)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text("record.measurementAvg.nextSideToggle"))
+                .offset(y: -(toggleButtonHeight + 4))
+            }
+    }
+
+    /// 縦長「次へ」ボタン本体（テンキーと同じ高さ）
+    private func sideNextButton(width: CGFloat) -> some View {
+        let enabled = (focused != nil)
+        return Button {
+            advanceFocus()
+        } label: {
+            VStack(spacing: 6) {
+                Image(systemName: "arrow.right.circle.fill")
+                    .font(.title2)
+                Text("record.measurementAvg.next")
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.7)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(width: width, height: keypadHeight)
+            .foregroundStyle(enabled ? Color.accentColor : Color(.tertiaryLabel))
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill((enabled ? Color.accentColor : Color.gray).opacity(0.12))
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
     }
 
     @ViewBuilder
     private var dialRow: some View {
         if let cell = focused {
-            // ステッパー（94pt）と「次へ」ボタン（94pt）でダイアルを中央に挟む
             GeometryReader { proxy in
-                let buttonW: CGFloat = 94
-                let outerSpacing: CGFloat = 8
-                let azWidth = max(120, proxy.size.width - buttonW - outerSpacing)
-                let dialW = max(80, min(220, azWidth - 94 - 12))
-                HStack(spacing: outerSpacing) {
+                // 94pt はステッパー幅、12pt は AZDialView 内部のステッパー〜ダイアル間スペース
+                let dialW = max(80, min(220, proxy.size.width - 94 - 12))
+                HStack {
+                    Spacer(minLength: 0)
                     AZDialView(
                         value: dialBinding(for: cell),
                         min: cell.column.spec.min,
@@ -563,48 +632,20 @@ struct MeasurementAverageView: View {
                         tuning: settings.dialTuning
                     )
                     .id(cell)
-                    .frame(width: azWidth)
-                    Button {
-                        advanceFocus()
-                    } label: {
-                        Label("record.measurementAvg.next", systemImage: "arrow.right.circle.fill")
-                            .font(.callout.weight(.semibold))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                            .frame(width: buttonW, height: 44)
-                            .foregroundStyle(Color.accentColor)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(Color.accentColor.opacity(0.12))
-                            )
-                    }
-                    .buttonStyle(.plain)
+                    Spacer(minLength: 0)
                 }
             }
-            .frame(height: 44)
-            .padding(.horizontal, 16)
+            .frame(height: dialRowHeight)
         } else {
-            HStack {
-                Spacer()
-                Button {
-                    advanceFocus()
-                } label: {
-                    Image(systemName: "arrow.right.circle.fill")
-                        .font(.title)
-                        .foregroundStyle(Color(.tertiaryLabel))
-                }
-                .buttonStyle(.plain)
-                .disabled(true)
-            }
-            .padding(.horizontal, 16)
+            Color.clear.frame(height: dialRowHeight)
         }
     }
 
     private var keypad: some View {
         let cols = focused?.column
         let hasDecimal = cols?.hasDecimal ?? false
-        let buttonH: CGFloat = 48
-        let spacing: CGFloat = 8
+        let buttonH: CGFloat = keypadButtonH
+        let spacing: CGFloat = keypadSpacing
         return VStack(spacing: spacing) {
             ForEach([[7, 8, 9], [4, 5, 6], [1, 2, 3]], id: \.self) { row in
                 HStack(spacing: spacing) {
@@ -632,7 +673,7 @@ struct MeasurementAverageView: View {
             }
             .frame(height: buttonH)
         }
-        .padding(.horizontal, 16)
+        .frame(height: keypadHeight)
         .disabled(focused == nil)
         .opacity(focused == nil ? 0.5 : 1)
     }
@@ -641,22 +682,24 @@ struct MeasurementAverageView: View {
         Button(action: action) {
             Text(label)
                 .font(.title.weight(.medium))
-                .frame(maxWidth: .infinity, minHeight: height)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(.systemGray5))
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(.plain)
+        .frame(height: height)
     }
 
     private func deleteKey(height: CGFloat, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: "delete.left")
                 .font(.title2)
-                .frame(maxWidth: .infinity, minHeight: height)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(.systemGray4))
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(.plain)
+        .frame(height: height)
     }
 
     // MARK: 入力ハンドリング
