@@ -1893,6 +1893,23 @@
         }
       }
     },
+    "graph.bpAvg.help" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tracks pulse pressure (systolic − diastolic) over time. It reflects stroke volume and arterial stiffness, making it a useful marker of vascular aging.\n\nTypical ranges:\n• Normal: 30–50 mmHg\n• Narrow (under 30): possible low cardiac output, heart failure, or aortic stenosis\n• Wide (60 or more): possible arterial stiffening; tends to widen with age\n\nWhat to watch for:\n• Consistently above 60 mmHg → elevated cardiovascular risk, especially in older adults\n• Systolic and diastolic both drop but pulse pressure still widens → suggests progressing arteriosclerosis\n• Sudden short-term changes → check measurement posture and time-of-day consistency\n\nMeasurement tips:\n• Look at trends from same-condition recordings (e.g., resting, morning) rather than single readings\n• Keep cuff position and posture consistent each time to reduce variability"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "脈圧（最高血圧 − 最低血圧）の推移を見るためのグラフです。心臓から押し出される血液量と、血管のしなやかさを反映する指標で、加齢や動脈硬化の影響を映し出します。\n\n一般的な目安：\n・正常範囲：30〜50 mmHg\n・狭い（30 未満）：心拍出量の低下・心不全・大動脈弁狭窄などの可能性\n・広い（60 以上）：動脈の硬化が進んでいる可能性。加齢に伴い徐々に広がる傾向あり\n\n注目ポイント：\n・継続的に 60 mmHg を超える → 心血管リスクの上昇サイン（特に高齢者で重要）\n・上下の血圧が同じくらい下がっても脈圧だけ広がる → 動脈硬化の進行を疑う\n・短期間に急変した場合は、測定姿勢や時間帯のばらつきも確認\n\n測定のコツ：\n・脈圧は単発の値より、同じ条件（安静時・朝など）での連続記録で傾向を見る\n・血圧計のカフ位置・姿勢を毎回そろえると変動が小さくなります"
+          }
+        }
+      }
+    },
     "graph.bpLineMode" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1974,6 +1991,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "グラフ表示と並び順"
+          }
+        }
+      }
+    },
+    "graph.pulse.help" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tracks your resting pulse over time. Compare values within the same category (Rest / Pre-exercise / etc.) for meaningful trends.\n\nTypical ranges:\n• Adult resting heart rate: 60–80 bpm\n• Bradycardia: under 50 bpm (often normal for trained athletes)\n• Tachycardia: over 100 bpm\n\nWhat to watch for:\n• Gradual decrease over weeks/months — sign of improving cardiovascular fitness\n• Several days running 5–10 bpm above your norm — possible fatigue, poor sleep, illness, or dehydration\n• Sudden spikes or irregular rhythms with dizziness or shortness of breath — consult a doctor\n\nMeasurement tips:\n• Same time and posture (seated or supine) each day\n• Wait at least 5 minutes after caffeine, exercise, or a bath"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "安静時心拍数の長期推移を見るためのグラフです。同じ「区分」（安静時／運動前後など）で比べると意味のある変化が読み取れます。\n\n一般的な目安：\n・成人の安静時心拍数：60〜80 bpm が標準的\n・徐脈：50 bpm 未満（鍛えている人では正常なこともあります）\n・頻脈：100 bpm 超\n\n注目ポイント：\n・安静時心拍数が数週間〜数ヶ月かけて徐々に下がる → 持久力の向上を示すサイン\n・普段より 5〜10 bpm 高い日が続く → 睡眠不足・疲労・体調不良・脱水などの可能性\n・急な上昇や乱れ、息切れ・めまいを伴う場合は医療機関にご相談ください\n\n測定のコツ：\n・毎日できるだけ同じ時間・同じ姿勢（座位 or 仰臥位）で\n・カフェイン・運動・入浴の直後は避け、5 分以上安静にしてから"
           }
         }
       }
@@ -5557,14 +5591,14 @@
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "translated",
+            "state" : "needs_review",
             "value" : "When a new record is saved within the configured time window, choose how to handle the two records\n\nBoth: Record both entries\nPrevious: Record the first entry\nCurrent: Record the second entry\nAverage: Record the average of the two entries\n\n\nNote: This feature will probably no longer be needed now that Add Reading exists. If you do not need it, set this to Off."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "設定した時間内に新しい記録が保存されたとき、2つの記録を次から選択します\n\n両方：2つとも記録します\n直前：1つ目を記録します\n今回：2つ目を記録します\n平均：2つの平均値を記録します\n\n\n※「測定を追加」機能の登場により本機能は不要になると思います。不要ならば「しない」に設定します"
+            "value" : "設定した時間内に新しい記録が保存されたとき、2つの記録を次から選択します\n\n両方：2つとも記録します\n直前：1つ目を記録します\n今回：2つ目を記録します\n平均：2つの平均値を記録します\n\n\n※「測定を追加」や「複数測定」機能の登場により本機能は不要になると思います。不要ならば「しない」に設定します"
           }
         }
       }

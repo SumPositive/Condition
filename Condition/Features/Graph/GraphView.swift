@@ -1298,13 +1298,17 @@ struct BpPpChartView: View {
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .firstTextBaseline) {
                     Text("metric.pulsePressure").font(.callout.weight(.semibold))
+                    BeginnerHelpBanner("graph.bpAvg.help", storageKey: "helpDismissed.graph.bpAvg", compact: true)
                     Spacer()
                     if let avg = avgPP { StatCell(label: "stat.avg", value: "\(avg)") }
                     if let mn = minPP, let mx = maxPP { StatCell(label: "text.range", value: "\(mn)–\(mx)") }
                     Text("unit.mmHg").font(.callout.weight(.semibold)).foregroundStyle(.orange)
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("metric.pulsePressure").font(.callout.weight(.semibold))
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("metric.pulsePressure").font(.callout.weight(.semibold))
+                        BeginnerHelpBanner("graph.bpAvg.help", storageKey: "helpDismissed.graph.bpAvg", compact: true)
+                    }
                     HStack {
                         if let avg = avgPP { StatCell(label: "stat.avg", value: "\(avg)") }
                         if let mn = minPP, let mx = maxPP { StatCell(label: "text.range", value: "\(mn)–\(mx)") }
@@ -1552,13 +1556,21 @@ struct LineChartView: View {
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(LocalizedStringKey(title)).font(.callout.weight(.semibold))
+                    if kind == .pulse {
+                        BeginnerHelpBanner("graph.pulse.help", storageKey: "helpDismissed.graph.pulse", compact: true)
+                    }
                     Spacer()
                     if let avg = avgValue { StatCell(label: "stat.avg", value: "\(fmt(avg))") }
                     if let mn = minValue, let mx = maxValue { StatCell(label: "text.range", value: "\(fmt(mn))–\(fmt(mx))") }
                     Text(LocalizedStringKey(unit)).font(.callout.weight(.semibold)).foregroundStyle(color)
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(LocalizedStringKey(title)).font(.callout.weight(.semibold))
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(LocalizedStringKey(title)).font(.callout.weight(.semibold))
+                        if kind == .pulse {
+                            BeginnerHelpBanner("graph.pulse.help", storageKey: "helpDismissed.graph.pulse", compact: true)
+                        }
+                    }
                     HStack {
                         if let avg = avgValue { StatCell(label: "stat.avg", value: "\(fmt(avg))") }
                         if let mn = minValue, let mx = maxValue { StatCell(label: "text.range", value: "\(fmt(mn))–\(fmt(mx))") }
