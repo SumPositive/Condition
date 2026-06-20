@@ -1,5 +1,7 @@
 // AdMobViews.swift
-// AdMob広告（開発者応援）
+// AdMob 広告（開発者応援）
+//
+// Google公式サンプルに合わせ、Requestを直接生成して読み込む
 
 import SwiftUI
 import UIKit
@@ -8,86 +10,82 @@ import UIKit
 
 // アプリID は Info.plist の GADApplicationIdentifier にセット済み
 
-private let adUnavailableMessage = "support.noAdsAvailableRightNowPlease"
+// MARK: - 広告ユニットID
 
-// 広告ユニットID
-// AdMob コンソールで体調メモ用の広告ユニットを作成後、リリース用 ID に置き換えてください
-// シミュレータでは Release 構成でも本番広告が返らないことがあるため、必ずテスト広告IDを使う。
 #if DEBUG || targetEnvironment(simulator)
-let ADMOB_REWARD_UnitID = "ca-app-pub-3940256099942544/1712485313"  // テスト用リワード
-let ADMOB_BANNER_UnitID = "ca-app-pub-3940256099942544/2934735716"  // テスト用固定サイズバナー
+// シートは300×250固定サイズなので、Google公式の固定バナー用テストIDを使う
+private let ADMOB_BANNER_UNIT_ID = "ca-app-pub-3940256099942544/2934735716"  // テスト用固定バナー
+private let ADMOB_REWARD_UNIT_ID = "ca-app-pub-3940256099942544/1712485313"  // テスト用リワード
 #else
-let ADMOB_REWARD_UnitID = "ca-app-pub-7576639777972199/4693657810"  // 本番用リワード ID を設定
-let ADMOB_BANNER_UnitID = "ca-app-pub-7576639777972199/9141270336"  // 本番用バナー ID を設定
+private let ADMOB_BANNER_UNIT_ID = "ca-app-pub-7576639777972199/9141270336"  // 本番用バナー
+private let ADMOB_REWARD_UNIT_ID = "ca-app-pub-7576639777972199/4693657810"  // 本番用リワード
 #endif
 
-@MainActor
-private enum AdMobBootstrap {
-    private static var startTask: Task<Void, Never>?
+/// 一覧途中に挟むアダプティブバナー用ユニットID（公開：InlineAdBanner から参照）
+let INLINE_AD_BANNER_UNIT_ID: String = {
+    #if DEBUG || targetEnvironment(simulator)
+    return "ca-app-pub-3940256099942544/2435281174"
+    #else
+    return "ca-app-pub-7576639777972199/9141270336"
+    #endif
+}()
 
-    static func startIfNeeded() async {
-        if let startTask {
-            await startTask.value
-            return
-        }
+#if DEBUG
+/// 広告失敗の原因とSDK応答を画面上でも判別できる形式へ整える
+private func adMobDebugDescription(_ error: Error, adUnitID: String) -> String {
+    let nsError = error as NSError
+    let appID = Bundle.main.object(forInfoDictionaryKey: "GADApplicationIdentifier") as? String ?? "unknown"
+    var details = [
+        "app: \(appID)",
+        "unit: \(adUnitID)",
+        "\(nsError.domain) (\(nsError.code)): \(nsError.localizedDescription)",
+    ]
 
-        // 広告ロード前に SDK 起動完了を待つ。
-        let task = Task<Void, Never> {
-            _ = await MobileAds.shared.start()
-        }
-        startTask = task
-        await task.value
+    // 失敗時のuserInfoには各広告ネットワークの応答情報が含まれる
+    if let responseInfo = nsError.userInfo.values.first(where: { $0 is ResponseInfo }) as? ResponseInfo {
+        details.append("response: \(responseInfo.dictionaryRepresentation)")
+    } else {
+        details.append("userInfo keys: \(nsError.userInfo.keys.map(\.description).sorted())")
     }
+    return details.joined(separator: "\n")
 }
+#endif
 
-// MARK: - AdMobAdSheetView
+// MARK: - AdMobAdSheetView（広告を見て応援するシート）
 
-/// バナー広告と動画広告をまとめて確認できるシートビュー
+/// 設定画面から開く「広告を見て応援する」シート。
+/// 上にバナー、下にリワード再生ボタンを並べる構成。
 struct AdMobAdSheetView: View {
     @Environment(\.dismiss) private var dismiss
     let onRewardEarned: () -> Void
+
+    @StateObject private var loader = RewardedAdLoader(adUnitID: ADMOB_REWARD_UNIT_ID)
     private var settings: AppSettings { AppSettings.shared }
 
-    private let bannerConfigs = [
-        AdMobBannerConfiguration(
-            adUnitID: ADMOB_BANNER_UnitID,
-            size: CGSize(width: 300, height: 250)
-        )
-    ]
-
-    @StateObject private var loader = RewardedAdLoader(adUnitID: ADMOB_REWARD_UnitID)
-    @State private var rewardDescription: String?
-
     var body: some View {
-        let content = NavigationView {
+        let content = NavigationStack {
             ScrollView {
-                VStack(spacing: 0) {
-                    VStack(alignment: .leading, spacing: 16) {
-                        ForEach(bannerConfigs) { config in
-                            AdMobBannerView(adUnitID: config.adUnitID, size: config.size)
-                                .padding()
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .fill(Color(uiColor: .tertiarySystemBackground))
-                                )
-                        }
+                VStack(spacing: 16) {
+                    AdMobBannerView(
+                        adUnitID: ADMOB_BANNER_UNIT_ID,
+                        size: CGSize(width: 300, height: 250)
+                    )
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color(uiColor: .tertiarySystemBackground))
+                    )
 
-                        AdMobRewardedContentView(
-                            loader: loader,
-                            rewardDescription: $rewardDescription,
-                            presentAction: presentAd
-                        )
+                    rewardedSection
                         .padding()
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .frame(maxWidth: .infinity)
                         .background(
                             RoundedRectangle(cornerRadius: 16)
                                 .fill(Color(uiColor: .tertiarySystemBackground))
                         )
-                    }
-                    .padding()
                 }
-                .padding(.vertical, 8)
+                .padding()
             }
             .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
             .navigationTitle("support.watchAd")
@@ -103,29 +101,13 @@ struct AdMobAdSheetView: View {
                     }
                 }
             }
+            .onAppear {
+                loader.onRewardEarned = { _ in
+                    onRewardEarned()
+                }
+            }
         }
-        .onAppear {
-            loader.onAdDismissed = {
-                loader.loadAd()
-            }
-            loader.onRewardEarned = { _ in
-                rewardDescription = "support.adThanks.title"
-                onRewardEarned()
-            }
-            loader.onAdLoaded = {
-                rewardDescription = nil
-            }
-            loader.onAdFailedToLoad = { _ in
-                rewardDescription = adUnavailableMessage
-            }
-            loader.onAdPresented = {
-                rewardDescription = nil
-            }
-            loader.onAdFailedToPresent = { _ in
-                rewardDescription = adUnavailableMessage
-            }
-            loader.loadAd()
-        }
+
         if settings.fontScale.followsSystem {
             content
         } else {
@@ -133,198 +115,74 @@ struct AdMobAdSheetView: View {
         }
     }
 
-    private func presentAd() {
-        guard let topController = UIApplication.topMostViewController() else { return }
-        loader.present(from: topController)
-    }
-}
-
-// MARK: - AdMobBannerConfiguration
-
-struct AdMobBannerConfiguration: Identifiable {
-    let id = UUID()
-    let adUnitID: String
-    let size: CGSize
-}
-
-// MARK: - AdMobRewardedContentView
-
-struct AdMobRewardedContentView: View {
-    @ObservedObject var loader: RewardedAdLoader
-    @Binding var rewardDescription: String?
-    let presentAction: () -> Void
-
-    var body: some View {
-        VStack(spacing: 16) {
-            HStack(spacing: 66) {
+    @ViewBuilder
+    private var rewardedSection: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "film")
+                    .font(.title2)
+                Text("support.videoAd")
+                    .font(.headline)
+                Spacer()
                 Label {
-                    Text("support.videoAd")
-                        .font(.headline)
-                        .foregroundStyle(.primary)
+                    Text("support.soundWarning")
+                        .font(.footnote.weight(.semibold))
                 } icon: {
-                    Image(systemName: "movieclapper")
-                        .symbolRenderingMode(.hierarchical)
-                        .colorMultiply(.primary)
+                    Image(systemName: "exclamationmark.triangle.fill")
                 }
-
-                Label {
-                    Text("text.soundWillPlay")
-                        .font(.footnote)
-                        .foregroundStyle(.red)
-                } icon: {
-                    Image(systemName: "exclamationmark.triangle")
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(.red)
-                }
+                .foregroundStyle(.red)
             }
 
-            Text("text.watchToTheEndToSee")
+            Text("support.adCloseHint")
                 .font(.footnote)
                 .multilineTextAlignment(.center)
-                .foregroundStyle(.primary)
-                .padding(.horizontal)
+                .foregroundStyle(.secondary)
 
-            HStack {
-                Spacer()
-                if loader.isLoading {
-                    ProgressView("support.loadingAd")
-                        .padding()
-                } else {
-                    Button {
-                        presentAction()
-                    } label: {
-                        Label {
-                            Text("support.playAd")
-                                .font(.body.weight(.semibold))
-                                .padding(.horizontal, 8)
-                        } icon: {
-                            Image(systemName: loader.isReady ? "play.rectangle" : "pause.rectangle")
-                                .symbolRenderingMode(.hierarchical)
-                        }
+            if loader.isLoading {
+                ProgressView("support.loadingAd")
+            } else {
+                Button {
+                    if let root = UIApplication.topMostViewController() {
+                        loader.present(from: root)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!loader.isReady)
+                } label: {
+                    Label("support.playAd", systemImage: loader.isReady ? "play.rectangle" : "pause.rectangle")
+                        .font(.body.weight(.semibold))
                 }
-                Spacer()
+                .buttonStyle(.borderedProminent)
+                .disabled(!loader.isReady)
             }
 
             if loader.errorMessage != nil {
+                Text(LocalizedStringKey(loader.errorMessage ?? ""))
+                    .font(.caption.weight(.semibold))
+                    .multilineTextAlignment(.center)
+                #if DEBUG
+                if let detail = loader.debugErrorMessage {
+                    Text(detail)
+                        .font(.caption2.monospaced())
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                }
+                #endif
                 Button("action.reload") {
                     loader.loadAd()
                 }
-                .buttonStyle(.borderedProminent)
-            }
-
-            if let rewardDescription {
-                Text(LocalizedStringKey(rewardDescription))
-                    .font(.footnote)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
+                .buttonStyle(.bordered)
             }
         }
     }
 }
 
-// MARK: - RewardedAdLoader
+// MARK: - AdMobBannerView（シート用 300×250 バナー）
 
-@MainActor
-final class RewardedAdLoader: NSObject, ObservableObject, FullScreenContentDelegate {
-    @Published private(set) var isLoading = false
-    @Published private(set) var isReady = false
-    @Published private(set) var errorMessage: String?
-
-    var onAdLoaded: (() -> Void)?
-    var onAdFailedToLoad: ((Error) -> Void)?
-    var onAdPresented: (() -> Void)?
-    var onAdFailedToPresent: ((Error) -> Void)?
-    var onAdDismissed: (() -> Void)?
-    var onRewardEarned: ((AdReward) -> Void)?
-
-    private let adUnitID: String
-    // nonisolated(unsafe): completion handler から isolation を越えずに代入するため
-    nonisolated(unsafe) private var rewardedAd: RewardedAd?
-
-    init(adUnitID: String) {
-        self.adUnitID = adUnitID
-        super.init()
-    }
-
-    func loadAd() {
-        guard !isLoading else { return }
-        isLoading = true
-        isReady = false
-        errorMessage = nil
-
-        let adUnitID = adUnitID
-        Task { [weak self] in
-            await AdMobBootstrap.startIfNeeded()
-            do {
-                let request = Request()
-                let ad = try await RewardedAd.load(with: adUnitID, request: request)
-                guard let self else { return }
-                self.rewardedAd = ad
-                ad.fullScreenContentDelegate = self
-                self.isLoading = false
-                self.isReady = true
-                self.onAdLoaded?()
-            } catch {
-                guard let self else { return }
-                self.isLoading = false
-                self.errorMessage = adUnavailableMessage
-                self.rewardedAd = nil
-                self.onAdFailedToLoad?(error)
-            }
-        }
-    }
-
-    func present(from root: UIViewController) {
-        guard let rewardedAd else { return }
-        let ad = rewardedAd
-        isReady = false
-        errorMessage = nil
-        ad.present(from: root) { [weak self] in
-            guard let self else { return }
-            self.onRewardEarned?(ad.adReward)
-        }
-    }
-
-    nonisolated func adDidDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
-        MainActor.assumeIsolated { [weak self] in
-            guard let self else { return }
-            self.isReady = false
-            self.rewardedAd = nil
-            self.onAdDismissed?()
-            self.loadAd()
-        }
-    }
-
-    nonisolated func adWillPresentFullScreenContent(_ ad: FullScreenPresentingAd) {
-        MainActor.assumeIsolated { [weak self] in
-            guard let self else { return }
-            self.onAdPresented?()
-        }
-    }
-
-    nonisolated func ad(_ ad: FullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
-        MainActor.assumeIsolated { [weak self] in
-            guard let self else { return }
-            self.errorMessage = adUnavailableMessage
-            self.isReady = false
-            self.rewardedAd = nil
-            self.onAdFailedToPresent?(error)
-            self.loadAd()
-        }
-    }
-}
-
-// MARK: - AdMobBannerView
-
-struct AdMobBannerView: View {
+private struct AdMobBannerView: View {
     let adUnitID: String
     let size: CGSize
 
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var debugErrorMessage: String?
     @State private var reloadToken = UUID()
 
     var body: some View {
@@ -335,10 +193,14 @@ struct AdMobBannerView: View {
                 onReceiveAd: {
                     isLoading = false
                     errorMessage = nil
+                    debugErrorMessage = nil
                 },
-                onFailToReceiveAd: { _ in
+                onFailToReceiveAd: { error in
                     isLoading = false
-                    errorMessage = adUnavailableMessage
+                    errorMessage = "support.noBannerAdsAvailableRightNowPlease"
+                    #if DEBUG
+                    debugErrorMessage = adMobDebugDescription(error, adUnitID: adUnitID)
+                    #endif
                 },
                 reloadToken: reloadToken
             )
@@ -353,30 +215,33 @@ struct AdMobBannerView: View {
             if isLoading {
                 ProgressView("support.loadingAd")
                     .font(.caption)
-            } else if errorMessage != nil {
+            } else if let key = errorMessage {
                 VStack(spacing: 6) {
-                    Text(LocalizedStringKey(adUnavailableMessage))
+                    Text(LocalizedStringKey(key))
                         .font(.caption.weight(.semibold))
                         .multilineTextAlignment(.center)
                     Button("action.reload") {
                         reloadToken = UUID()
                         isLoading = true
                         errorMessage = nil
+                        debugErrorMessage = nil
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.bordered)
+                    #if DEBUG
+                    if let debugErrorMessage {
+                        Text(debugErrorMessage)
+                            .font(.caption2.monospaced())
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                    }
+                    #endif
                 }
             }
-        }
-        .onAppear {
-            isLoading = true
-            errorMessage = nil
         }
     }
 }
 
-// MARK: - AdMobBannerRepresentable
-
-struct AdMobBannerRepresentable: UIViewControllerRepresentable {
+private struct AdMobBannerRepresentable: UIViewControllerRepresentable {
     let adUnitID: String
     let size: CGSize
     let onReceiveAd: () -> Void
@@ -400,12 +265,12 @@ struct AdMobBannerRepresentable: UIViewControllerRepresentable {
         viewController.view.addSubview(bannerView)
         NSLayoutConstraint.activate([
             bannerView.centerXAnchor.constraint(equalTo: viewController.view.centerXAnchor),
-            bannerView.centerYAnchor.constraint(equalTo: viewController.view.centerYAnchor)
+            bannerView.centerYAnchor.constraint(equalTo: viewController.view.centerYAnchor),
         ])
 
         context.coordinator.bannerView = bannerView
-        context.coordinator.loadBanner()
-
+        // Google公式例と同じ素のリクエストで直接読み込む
+        bannerView.load(Request())
         return viewController
     }
 
@@ -413,7 +278,6 @@ struct AdMobBannerRepresentable: UIViewControllerRepresentable {
         context.coordinator.bannerView?.rootViewController = uiViewController
     }
 
-    @MainActor
     final class Coordinator: NSObject, BannerViewDelegate {
         weak var bannerView: BannerView?
         private let onReceiveAd: () -> Void
@@ -429,21 +293,166 @@ struct AdMobBannerRepresentable: UIViewControllerRepresentable {
         }
 
         func bannerView(_ bannerView: BannerView, didFailToReceiveAdWithError error: Error) {
+            #if DEBUG
+            // テスト広告が出ない場合にGoogle SDKの具体的な失敗理由を確認する
+            print("[AdMob] banner load failed: \(adMobDebugDescription(error, adUnitID: bannerView.adUnitID ?? "unknown"))")
+            #endif
             onFailToReceiveAd(error)
         }
+    }
+}
 
-        func loadBanner() {
-            Task {
-                await AdMobBootstrap.startIfNeeded()
-                bannerView?.load(Request())
+// MARK: - RewardedAdLoader
+
+@MainActor
+final class RewardedAdLoader: NSObject, ObservableObject, FullScreenContentDelegate {
+    @Published private(set) var isLoading = false
+    @Published private(set) var isReady = false
+    @Published private(set) var errorMessage: String?
+    @Published private(set) var debugErrorMessage: String?
+
+    var onRewardEarned: ((AdReward) -> Void)?
+    private let adUnitID: String
+    nonisolated(unsafe) private var rewardedAd: RewardedAd?
+
+    init(adUnitID: String) {
+        self.adUnitID = adUnitID
+        super.init()
+        loadAd()
+    }
+
+    /// リワード広告を読み込む
+    func loadAd() {
+        guard !isLoading else { return }
+        isLoading = true
+        isReady = false
+        errorMessage = nil
+        debugErrorMessage = nil
+
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let ad = try await RewardedAd.load(
+                    with: adUnitID,
+                    request: Request()
+                )
+                rewardedAd = ad
+                ad.fullScreenContentDelegate = self
+                self.isLoading = false
+                self.isReady = true
+            } catch {
+                #if DEBUG
+                // リワード広告のロード失敗理由をデバッグコンソールへ残す
+                print("[AdMob] rewarded load failed: \(adMobDebugDescription(error, adUnitID: adUnitID))")
+                #endif
+                isLoading = false
+                errorMessage = "support.noAdsAvailableRightNowPlease"
+                debugErrorMessage = adMobDebugDescription(error, adUnitID: adUnitID)
+                rewardedAd = nil
             }
         }
     }
+
+    /// 読み込み済み広告を表示する
+    func present(from root: UIViewController) {
+        guard let rewardedAd else { return }
+        let ad = rewardedAd
+        isReady = false
+        ad.present(from: root) { [weak self] in
+            guard let self else { return }
+            self.onRewardEarned?(ad.adReward)
+        }
+    }
+
+    nonisolated func adDidDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
+        MainActor.assumeIsolated { [weak self] in
+            guard let self else { return }
+            self.rewardedAd = nil
+            self.loadAd()
+        }
+    }
+
+    nonisolated func ad(_ ad: FullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
+        MainActor.assumeIsolated { [weak self] in
+            guard let self else { return }
+            self.errorMessage = "support.noAdsAvailableRightNowPlease"
+            self.rewardedAd = nil
+            self.loadAd()
+        }
+    }
+}
+
+// MARK: - InlineAdBanner（一覧途中に挟むアダプティブバナー）
+
+/// 記録一覧の各月セクションヘッダーなど、自然な区切り位置に挟むアダプティブバナー。
+/// 横幅に追従する adaptive サイズで要求するので、テスト広告も含め在庫が安定する。
+struct InlineAdBanner: View {
+    /// バナーの高さ。AdMob の standard banner サイズ（320×50）に合わせる
+    var height: CGFloat = 50
+
+    var body: some View {
+        InlineAdBannerRepresentable(adUnitID: INLINE_AD_BANNER_UNIT_ID)
+            .frame(height: height)
+            .frame(maxWidth: .infinity)
+    }
+}
+
+private struct InlineAdBannerRepresentable: UIViewRepresentable {
+    let adUnitID: String
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    func makeUIView(context: Context) -> BannerView {
+        let width = UIScreen.main.bounds.width
+        let bannerView = BannerView(adSize: currentOrientationAnchoredAdaptiveBanner(width: width))
+        bannerView.adUnitID = adUnitID
+        bannerView.delegate = context.coordinator
+        loadIfReady(bannerView, coordinator: context.coordinator)
+        return bannerView
+    }
+
+    func updateUIView(_ uiView: BannerView, context: Context) {
+        loadIfReady(uiView, coordinator: context.coordinator)
+    }
+
+    private func loadIfReady(_ bannerView: BannerView, coordinator: Coordinator) {
+        guard !coordinator.didLoad else { return }
+        guard let root = inlineAdRootViewController() else { return }
+        // rootViewControllerが取得できてから一度だけ広告リクエストを送る
+        bannerView.rootViewController = root
+        coordinator.didLoad = true
+        // Google公式例と同じ素のリクエストで直接読み込む
+        bannerView.load(Request())
+    }
+
+    final class Coordinator: NSObject, BannerViewDelegate {
+        var didLoad = false
+
+        func bannerView(_ bannerView: BannerView, didFailToReceiveAdWithError error: Error) {
+            #if DEBUG
+            // 一覧内バナーのロード失敗理由をデバッグコンソールへ残す
+            print("[AdMob] inline banner load failed: \(adMobDebugDescription(error, adUnitID: bannerView.adUnitID ?? "unknown"))")
+            #endif
+        }
+    }
+}
+
+/// keyWindow の root view controller を返す（InlineAdBanner 専用ヘルパー）
+@MainActor
+private func inlineAdRootViewController() -> UIViewController? {
+    UIApplication.shared.connectedScenes
+        .compactMap { $0 as? UIWindowScene }
+        .flatMap(\.windows)
+        .first { $0.isKeyWindow }?
+        .rootViewController
 }
 
 // MARK: - UIApplication extension
 
 extension UIApplication {
+    /// 表示中の最前面 ViewController を返す
     static func topMostViewController(
         base: UIViewController? = UIApplication.shared.connectedScenes
             .compactMap { ($0 as? UIWindowScene)?.windows.first(where: { $0.isKeyWindow })?.rootViewController }

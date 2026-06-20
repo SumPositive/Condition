@@ -6690,6 +6690,23 @@
         }
       }
     },
+    "support.adCloseHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Watch to the end to show the close button"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最後まで視聴すると閉じるボタンが表示されます"
+          }
+        }
+      }
+    },
     "support.adThanks.title" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6758,6 +6775,23 @@
         }
       }
     },
+    "support.noBannerAdsAvailableRightNowPlease" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No banner ad available now. Try later."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "現在、バナー広告がありません。後ほどお試しください"
+          }
+        }
+      }
+    },
     "support.playAd" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6771,6 +6805,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "広告を再生する"
+          }
+        }
+      }
+    },
+    "support.soundWarning" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sound will play"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "音が出ます"
           }
         }
       }

@@ -520,6 +520,7 @@
 		77B75E46E0211B3256458D91 /* Debug configuration for PBXNativeTarget "Condition" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ADMOB_APP_ID = "ca-app-pub-3940256099942544~1458002511";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Condition/Resources/Condition.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
@@ -538,7 +539,7 @@
 					"$(inherited)",
 					"-ObjC",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.azukid.AzBodyNote;
+				PRODUCT_BUNDLE_IDENTIFIER = com.azukid.AzBodyNote.AdMobTest;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
@@ -550,6 +551,7 @@
 		84DE75889E433B6FF3DB6EA5 /* Release configuration for PBXNativeTarget "Condition" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ADMOB_APP_ID = "ca-app-pub-7576639777972199~8822933495";
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Condition/Resources/Condition.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";

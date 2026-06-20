@@ -40,6 +40,16 @@ targets:
         INFOPLIST_FILE: Condition/Resources/Info.plist
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         DEVELOPMENT_TEAM: ""
+      configs:
+        # DebugはAdMob側のアプリ登録状態に依存しない公式サンプルアプリIDを使う
+        Debug:
+          ADMOB_APP_ID: ca-app-pub-3940256099942544~1458002511
+          # 旧バンドルID固有の配信問題を切り分ける診断用ID
+          PRODUCT_BUNDLE_IDENTIFIER: com.azukid.AzBodyNote.AdMobTest
+        # Releaseでは体調メモとして登録した本番アプリIDを使う
+        Release:
+          ADMOB_APP_ID: ca-app-pub-7576639777972199~8822933495
+          PRODUCT_BUNDLE_IDENTIFIER: com.azukid.AzBodyNote
     dependencies:
       - package: GoogleMobileAds
         product: GoogleMobileAds
@@ -62,7 +72,7 @@ targets:
         NSRemindersUsageDescription: 健康データのリマインダーに使用します。
         NSHealthShareUsageDescription: ヘルスケアの記録を読み取り、記録画面に自動入力するために使用します。
         NSHealthUpdateUsageDescription: 記録した健康データをヘルスケアアプリに書き込むために使用します。
-        GADApplicationIdentifier: ca-app-pub-7576639777972199~8822933495
+        GADApplicationIdentifier: $(ADMOB_APP_ID)
         NSUserTrackingUsageDescription: 広告の効果測定と改善のために使用します。
 
   ConditionTests:

@@ -232,10 +232,18 @@ struct RecordListView: View {
                         .onDelete { offsets in
                             deleteRecords(in: section.records, offsets: offsets)
                         }
+
+                        // 広告は月セクションの末尾セルとして表示する
+                        InlineAdBanner(height: 60)
+                            .padding(.top, 4)
+                            .listRowInsets(EdgeInsets())
+                            .listRowSeparator(.hidden)
                     }
                 }
             }
             .listStyle(.plain)
+            // 月末広告と次月見出しの間隔を小さく保つ
+            .listSectionSpacing(.custom(4))
         }
     }
 

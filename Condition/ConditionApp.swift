@@ -79,6 +79,7 @@ private struct RootSceneView: View {
             await migrationService.migrateIfNeeded(context: context)
         }
         .task {
+            // Google公式の推奨どおりアプリ起動時にSDKを一度だけ初期化する
             await MobileAds.shared.start()
         }
         .preferredColorScheme(settings.appearanceMode.colorScheme)
