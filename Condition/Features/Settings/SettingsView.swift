@@ -9,28 +9,7 @@ import StoreKit
 import UniformTypeIdentifiers
 import WebKit
 
-private enum RecordJSONExportStyle: Int, CaseIterable, Identifiable {
-    case compact = 0
-    case pretty = 1
-
-    var id: Int { rawValue }
-
-    var titleKey: String {
-        switch self {
-        case .compact: return "settings.exportFormat.compact"
-        case .pretty:  return "settings.exportFormat.pretty"
-        }
-    }
-
-    var jsonOptions: JSONSerialization.WritingOptions {
-        switch self {
-        case .compact:
-            return [.sortedKeys]
-        case .pretty:
-            return [.prettyPrinted, .sortedKeys]
-        }
-    }
-}
+// RecordJSONExportStyle は Core/Services/RecordsJSONIO.swift に移動
 
 private struct SettingsPickerOption: Hashable, Identifiable {
     let id: Int
@@ -550,7 +529,11 @@ struct SettingsView: View {
                 sortBy: [SortDescriptor(\BodyRecord.dateTime)]
             )
             let records = (try? context.fetch(descriptor)) ?? []
-        let data = makeExportJSON(records: records, style: exportFormat)
+            let data = RecordsJSONIO.export(
+                records: records,
+                style: exportFormat,
+                categoryAppearances: RecordsJSONIO.normalizedDateOptAppearances(settings.dateOptAppearances)
+            )
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyyMMdd_HHmmss"
             let fileName = "Condition_\(formatter.string(from: Date())).json"
@@ -586,13 +569,11 @@ struct SettingsView: View {
 
             do {
                 let data = try Data(contentsOf: url)
-                let decoder = JSONDecoder()
-                let envelope = try decoder.decode(RecordImportEnvelope.self, from: data)
-                if let categoryAppearances = envelope.categoryAppearances {
+                let result = try RecordsJSONIO.importJSON(data, into: context)
+                if let categoryAppearances = result.categoryAppearances {
                     // バックアップに同梱された区分表示マスタを復元する
-                    settings.dateOptAppearances = normalizedDateOptAppearances(categoryAppearances)
+                    settings.dateOptAppearances = RecordsJSONIO.normalizedDateOptAppearances(categoryAppearances)
                 }
-                let result = try mergeImportedRecords(envelope.records)
                 AppAnalytics.shared.logOperation(
                     "records_json_import",
                     parameters: ["inserted": result.inserted, "updated": result.updated]
@@ -670,137 +651,6 @@ struct SettingsView: View {
         topVC.present(activityVC, animated: true)
     }
 
-    private func makeExportJSON(records: [BodyRecord], style: RecordJSONExportStyle) -> Data {
-        let iso = ISO8601DateFormatter()
-        iso.formatOptions = [.withInternetDateTime, .withDashSeparatorInDate, .withColonSeparatorInTime, .withTimeZone]
-
-        var result: [[String: Any]] = []
-        for record in records {
-            var object: [String: Any] = [
-                "dateTime": iso.string(from: record.dateTime),
-                "condition": record.dateOpt.displayName,
-                "conditionRaw": record.nDateOpt,
-                "dataSourceRaw": record.nDataSource,
-                "cautionFlag": record.bCaution,
-                "memo1": record.sNote1,
-                "memo2": record.sNote2,
-                "device": record.sEquipment,
-            ]
-            if 0 < record.nBpHi_mmHg { object["bpSystolic"] = record.nBpHi_mmHg }
-            if 0 < record.nBpLo_mmHg { object["bpDiastolic"] = record.nBpLo_mmHg }
-            if 0 < record.nPulse_bpm { object["heartRate"] = record.nPulse_bpm }
-            if 0 < record.nTemp_10c { object["bodyTemp"] = decimalNumber(record.nTemp_10c, scale: 1) }
-            if 0 < record.nWeight_10Kg { object["weight"] = decimalNumber(record.nWeight_10Kg, scale: 1) }
-            if 0 < record.nBodyFat_10p { object["bodyFat"] = decimalNumber(record.nBodyFat_10p, scale: 1) }
-            if 0 < record.nSkMuscle_10p { object["skeletalMuscle"] = decimalNumber(record.nSkMuscle_10p, scale: 1) }
-            result.append(object)
-        }
-
-        let envelope: [String: Any] = [
-            "categoryAppearances": categoryAppearanceObjects(),
-            "exportDate": iso.string(from: Date()),
-            "records": result,
-        ]
-
-        return (try? JSONSerialization.data(withJSONObject: envelope, options: style.jsonOptions)) ?? Data()
-    }
-
-    private func decimalNumber(_ value: Int, scale: Int) -> NSDecimalNumber {
-        // JSON出力でDoubleの2進小数誤差が長く出ないよう、10進数として出力する
-        NSDecimalNumber(value: value).dividing(by: NSDecimalNumber(mantissa: 1, exponent: Int16(scale), isNegative: false))
-    }
-
-    /// ISO8601 ⇄ Date のラウンドトリップで発生する subsecond 精度のズレを吸収するため、
-    /// 重複判定は秒単位に丸めた日時で行う
-    private static func normalizedSecond(_ date: Date) -> Date {
-        Date(timeIntervalSince1970: floor(date.timeIntervalSince1970))
-    }
-
-    /// インポート測定値（整数）を 0=未入力 または許容範囲内に丸める。
-    /// nil / 0以下 → 0（未入力扱い）、範囲外 → min..max に clamp
-    private static func clampedIntMeasure(_ raw: Int?, spec: MeasureSpec) -> Int {
-        guard let v = raw, v > 0 else { return 0 }
-        return min(max(v, spec.min), spec.max)
-    }
-
-    /// インポート測定値（小数）を ×10 整数化のうえ、許容範囲内に clamp
-    private static func clampedDecMeasure(_ raw: Double?, spec: MeasureSpec) -> Int {
-        guard let v = raw, v > 0 else { return 0 }
-        let scaled = Int((v * 10).rounded())
-        return min(max(scaled, spec.min), spec.max)
-    }
-
-    private func mergeImportedRecords(_ importedRecords: [RecordImportRecord]) throws -> (inserted: Int, updated: Int) {
-        let descriptor = FetchDescriptor<BodyRecord>(
-            predicate: #Predicate { $0.dateTime < bodyRecordGoalDate }
-        )
-        let existingRecords = try context.fetch(descriptor)
-        var existingByDate: [Date: BodyRecord] = [:]
-        for record in existingRecords {
-            existingByDate[Self.normalizedSecond(record.dateTime)] = record
-        }
-
-        var inserted = 0
-        var updated = 0
-        for imported in importedRecords {
-            guard let date = imported.parsedDate else { continue }
-            let key = Self.normalizedSecond(date)
-            let record: BodyRecord
-            if let existing = existingByDate[key] {
-                record = existing
-                updated += 1
-            } else {
-                record = BodyRecord(dateTime: date, dateOpt: imported.dateOpt ?? .cat02)
-                context.insert(record)
-                existingByDate[key] = record
-                inserted += 1
-            }
-
-            record.dateTime = date
-            record.dateOpt = imported.dateOpt ?? .cat02
-            record.dataSource = imported.dataSource ?? .appInput
-            record.bCaution = imported.cautionFlag ?? false
-            // 文字列は末尾改行・余分な空白を除去（ローカル保存と整合）
-            record.sNote1     = (imported.memo1  ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-            record.sNote2     = (imported.memo2  ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-            record.sEquipment = (imported.device ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-            // 測定値は 0（=未入力）または各項目の許容範囲内に clamp
-            record.nBpHi_mmHg    = Self.clampedIntMeasure(imported.bpSystolic,   spec: MeasureRange.bpHi)
-            record.nBpLo_mmHg    = Self.clampedIntMeasure(imported.bpDiastolic,  spec: MeasureRange.bpLo)
-            record.nPulse_bpm    = Self.clampedIntMeasure(imported.heartRate,    spec: MeasureRange.pulse)
-            record.nTemp_10c     = Self.clampedDecMeasure(imported.bodyTemp,     spec: MeasureRange.temp)
-            record.nWeight_10Kg  = Self.clampedDecMeasure(imported.weight,       spec: MeasureRange.weight)
-            record.nBodyFat_10p  = Self.clampedDecMeasure(imported.bodyFat,      spec: MeasureRange.bodyFat)
-            record.nSkMuscle_10p = Self.clampedDecMeasure(imported.skeletalMuscle, spec: MeasureRange.skMuscle)
-        }
-
-        try context.save()
-        return (inserted, updated)
-    }
-
-    private func categoryAppearanceObjects() -> [[String: Any]] {
-        DateOpt.allCases.map { dateOpt in
-            let appearance = settings.dateOptAppearances.first { $0.dateOptRawValue == dateOpt.rawValue } ?? dateOpt.defaultAppearance
-            return [
-                "dateOptRawValue": appearance.dateOptRawValue,
-                "nameJa": appearance.nameJa,
-                "nameEn": appearance.nameEn,
-                "iconName": appearance.iconName,
-                "colorKey": appearance.colorKey,
-            ]
-        }
-    }
-
-    private func normalizedDateOptAppearances(_ imported: [DateOptAppearance]) -> [DateOptAppearance] {
-        DateOpt.allCases.map { dateOpt in
-            if let appearance = imported.first(where: { $0.dateOptRawValue == dateOpt.rawValue }) {
-                // 既存区分だけを採用し、新しい区分や欠落区分は既定値で補完する
-                return appearance
-            }
-            return dateOpt.defaultAppearance
-        }
-    }
-
     private var progressOverlay: some View {
         ZStack {
             // 入出力処理中は背面操作を受け付けない
@@ -838,71 +688,7 @@ private extension SettingsView {
     }
 }
 
-private struct RecordImportEnvelope: Decodable {
-    let categoryAppearances: [DateOptAppearance]?
-    let records: [RecordImportRecord]
-}
-
-private struct RecordImportRecord: Decodable {
-    let dateTime: String
-    let condition: String?
-    let conditionRaw: Int?
-    let dataSourceRaw: Int?
-    let cautionFlag: Bool?
-    let memo1: String?
-    let memo2: String?
-    let device: String?
-    let bpSystolic: Int?
-    let bpDiastolic: Int?
-    let heartRate: Int?
-    let bodyTemp: Double?
-    let weight: Double?
-    let bodyFat: Double?
-    let skeletalMuscle: Double?
-
-    var parsedDate: Date? {
-        let iso = ISO8601DateFormatter()
-        iso.formatOptions = [.withInternetDateTime, .withDashSeparatorInDate, .withColonSeparatorInTime, .withTimeZone]
-        return iso.date(from: dateTime)
-    }
-
-    var dateOpt: DateOpt? {
-        if let conditionRaw {
-            return DateOpt(rawValue: conditionRaw)
-        }
-        guard let condition, !condition.isEmpty else { return nil }
-        if let exact = DateOpt.allCases.first(where: { $0.label == condition }) {
-            return exact
-        }
-        if let custom = DateOpt.allCases.first(where: { $0.displayName == condition }) {
-            return custom
-        }
-        // 旧export JSONは旧キー名をconditionに持つ可能性があるため、import互換として残す
-        if let legacy = legacyDateOpt(for: condition) {
-            return legacy
-        }
-        return DateOpt.allCases.first {
-            NSLocalizedString($0.label, comment: "") == condition
-        }
-    }
-
-    var dataSource: RecordDataSource? {
-        guard let dataSourceRaw else { return nil }
-        return RecordDataSource(rawValue: dataSourceRaw)
-    }
-
-    private func legacyDateOpt(for condition: String) -> DateOpt? {
-        let legacyPairs: [(String, DateOpt)] = [
-            ("category.wake", .cat01),
-            ("category.rest", .cat02),
-            ("category.beforeBed", .cat03),
-            ("category.bedtime", .cat04),
-            ("category.preExercise", .cat05),
-            ("category.postExercise", .cat06),
-        ]
-        return legacyPairs.first { $0.0 == condition }?.1
-    }
-}
+// RecordImportEnvelope / RecordImportRecord は Core/Services/RecordsJSONIO.swift に移動
 
 // MARK: - 古い記録整理の確認シート
 

@@ -2,7 +2,10 @@
 
 import Testing
 import Foundation
+import SwiftData
 @testable import Condition
+
+// MARK: - 既存テスト
 
 @Suite("ValueFormatter Tests")
 struct ValueFormatterTests {
@@ -25,16 +28,20 @@ struct ValueFormatterTests {
 @Suite("DateOpt Tests")
 struct DateOptTests {
 
-    @Test("autoDateOpt: 起床時刻")
+    @Test("autoDateOpt: 6時台は dateOptHourMap で設定された区分を返す")
     @MainActor
-    func wakeAutoDetect() {
+    func autoDateOptByHourMap() {
         let settings = AppSettings.shared
-        settings.wakeHour = 6
+        // 6時台に cat01（起床時 既定）を割り当てる
+        var map = settings.dateOptHourMap
+        if map.count > 6 { map[6] = DateOpt.cat01.rawValue }
+        settings.dateOptHourMap = map
+
         let cal = Calendar(identifier: .gregorian)
         var comps = cal.dateComponents([.year, .month, .day], from: Date())
         comps.hour = 6; comps.minute = 30
         let date = cal.date(from: comps)!
-        #expect(settings.autoDateOpt(for: date) == .wake)
+        #expect(settings.autoDateOpt(for: date) == .cat01)
     }
 }
 
@@ -57,5 +64,562 @@ struct BodyRecordTests {
         let goal   = BodyRecord(dateTime: BodyRecord.goalDate)
         #expect(!normal.isGoalRecord)
         #expect(goal.isGoalRecord)
+    }
+}
+
+// MARK: - テスト用ヘルパー
+
+/// インメモリ ModelContainer を生成する。各テストで隔離した SwiftData ストアを得る用途
+@MainActor
+private func makeInMemoryContainer() throws -> ModelContainer {
+    let config = ModelConfiguration(isStoredInMemoryOnly: true)
+    return try ModelContainer(for: BodyRecord.self, configurations: config)
+}
+
+/// テスト用に固定的なレコードを作って context に挿入し、save まで実行する
+@MainActor
+@discardableResult
+private func seedRecord(
+    _ context: ModelContext,
+    daysAgo: Int = 0,
+    bpHi: Int = 120,
+    bpLo: Int = 78,
+    pulse: Int = 65,
+    weight10kg: Int = 650,
+    dateOpt: DateOpt = .cat02,
+    note1: String = "",
+    note2: String = "",
+    device: String = ""
+) throws -> BodyRecord {
+    let cal = Calendar.current
+    let date = cal.date(byAdding: .day, value: -daysAgo, to: Date()) ?? Date()
+    let r = BodyRecord(dateTime: date, dateOpt: dateOpt)
+    r.nBpHi_mmHg = bpHi
+    r.nBpLo_mmHg = bpLo
+    r.nPulse_bpm = pulse
+    r.nWeight_10Kg = weight10kg
+    r.sNote1 = note1
+    r.sNote2 = note2
+    r.sEquipment = device
+    context.insert(r)
+    try context.save()
+    return r
+}
+
+// MARK: - SwiftData 永続化テスト
+
+@Suite("BodyRecord Persistence Tests")
+struct BodyRecordPersistenceTests {
+
+    @Test("挿入と取得：1件のレコードが正しく保存・取得される")
+    @MainActor
+    func insertAndFetchOne() throws {
+        let container = try makeInMemoryContainer()
+        let ctx = ModelContext(container)
+        let inserted = try seedRecord(ctx, bpHi: 130, bpLo: 85, pulse: 72)
+
+        let fetched = try ctx.fetch(FetchDescriptor<BodyRecord>())
+        #expect(fetched.count == 1)
+        #expect(fetched.first?.nBpHi_mmHg == 130)
+        #expect(fetched.first?.nBpLo_mmHg == 85)
+        #expect(fetched.first?.nPulse_bpm == 72)
+        #expect(fetched.first?.persistentModelID == inserted.persistentModelID)
+    }
+
+    @Test("大量挿入：100件のレコードが個別に保存される")
+    @MainActor
+    func bulkInsertCountsMatch() throws {
+        let container = try makeInMemoryContainer()
+        let ctx = ModelContext(container)
+        for i in 0..<100 {
+            try seedRecord(ctx, daysAgo: i)
+        }
+        let fetched = try ctx.fetch(FetchDescriptor<BodyRecord>())
+        #expect(fetched.count == 100)
+    }
+
+    @Test("更新：取得→変更→再取得で反映される")
+    @MainActor
+    func updateRoundTrip() throws {
+        let container = try makeInMemoryContainer()
+        let ctx = ModelContext(container)
+        try seedRecord(ctx, bpHi: 120)
+
+        let target = try ctx.fetch(FetchDescriptor<BodyRecord>()).first!
+        target.nBpHi_mmHg = 140
+        try ctx.save()
+
+        let reloaded = try ctx.fetch(FetchDescriptor<BodyRecord>()).first!
+        #expect(reloaded.nBpHi_mmHg == 140)
+    }
+
+    @Test("削除：個別 delete 後に件数が減る")
+    @MainActor
+    func deleteOne() throws {
+        let container = try makeInMemoryContainer()
+        let ctx = ModelContext(container)
+        try seedRecord(ctx, daysAgo: 0)
+        try seedRecord(ctx, daysAgo: 1)
+        try seedRecord(ctx, daysAgo: 2)
+
+        let all = try ctx.fetch(FetchDescriptor<BodyRecord>())
+        ctx.delete(all[0])
+        try ctx.save()
+
+        #expect(try ctx.fetch(FetchDescriptor<BodyRecord>()).count == 2)
+    }
+
+    @Test("Predicate：日時で絞り込みが効く")
+    @MainActor
+    func predicateByDateRange() throws {
+        let container = try makeInMemoryContainer()
+        let ctx = ModelContext(container)
+        for i in 0..<10 {
+            try seedRecord(ctx, daysAgo: i)
+        }
+        let cutoff = Calendar.current.date(byAdding: .day, value: -3, to: Date())!
+        let desc = FetchDescriptor<BodyRecord>(
+            predicate: #Predicate { $0.dateTime >= cutoff }
+        )
+        let recent = try ctx.fetch(desc)
+        #expect(recent.count >= 3 && recent.count <= 4)
+    }
+
+    @Test("Predicate：目標値レコードは bodyRecordGoalDate で除外される")
+    @MainActor
+    func predicateExcludesGoalDate() throws {
+        let container = try makeInMemoryContainer()
+        let ctx = ModelContext(container)
+        try seedRecord(ctx)
+        let goal = BodyRecord(dateTime: bodyRecordGoalDate, dateOpt: .cat02)
+        ctx.insert(goal)
+        try ctx.save()
+
+        let desc = FetchDescriptor<BodyRecord>(
+            predicate: #Predicate { $0.dateTime < bodyRecordGoalDate }
+        )
+        let normal = try ctx.fetch(desc)
+        #expect(normal.count == 1)
+        #expect(!normal[0].isGoalRecord)
+    }
+
+    @Test("ソート：dateTime 降順で並ぶ")
+    @MainActor
+    func sortByDateDesc() throws {
+        let container = try makeInMemoryContainer()
+        let ctx = ModelContext(container)
+        try seedRecord(ctx, daysAgo: 5)
+        try seedRecord(ctx, daysAgo: 1)
+        try seedRecord(ctx, daysAgo: 3)
+
+        let desc = FetchDescriptor<BodyRecord>(
+            sortBy: [SortDescriptor(\BodyRecord.dateTime, order: .reverse)]
+        )
+        let sorted = try ctx.fetch(desc)
+        #expect(sorted.count == 3)
+        #expect(sorted[0].dateTime > sorted[1].dateTime)
+        #expect(sorted[1].dateTime > sorted[2].dateTime)
+    }
+
+    @Test("yearMonth 集計：同月内のレコードが同じ yearMonth を返す")
+    @MainActor
+    func yearMonthGrouping() throws {
+        let container = try makeInMemoryContainer()
+        let ctx = ModelContext(container)
+        let cal = Calendar(identifier: .gregorian)
+        var comps = DateComponents()
+        comps.year = 2026; comps.month = 1
+        comps.day = 5;  let d1 = cal.date(from: comps)!
+        comps.day = 28; let d2 = cal.date(from: comps)!
+
+        let a = BodyRecord(dateTime: d1); ctx.insert(a)
+        let b = BodyRecord(dateTime: d2); ctx.insert(b)
+        try ctx.save()
+
+        #expect(a.yearMonth == 202601)
+        #expect(b.yearMonth == 202601)
+    }
+}
+
+// MARK: - JSON ラウンドトリップ
+
+@Suite("RecordsJSONIO Round-Trip Tests")
+struct JSONRoundTripTests {
+
+    @Test("単一レコード：エクスポート→インポートで全フィールドが復元される")
+    @MainActor
+    func singleRecordRoundTrip() throws {
+        let container = try makeInMemoryContainer()
+        let srcCtx = ModelContext(container)
+        let cal = Calendar.current
+        let date = cal.date(byAdding: .day, value: -1, to: Date())!
+        let r = BodyRecord(dateTime: date, dateOpt: .cat04)
+        r.nBpHi_mmHg = 132
+        r.nBpLo_mmHg = 84
+        r.nPulse_bpm = 71
+        r.nTemp_10c = 365
+        r.nWeight_10Kg = 712
+        r.nBodyFat_10p = 220
+        r.nSkMuscle_10p = 305
+        r.sNote1 = "朝の測定"
+        r.sNote2 = "やや疲労感"
+        r.sEquipment = "Omron Connect"
+        r.bCaution = true
+        srcCtx.insert(r)
+        try srcCtx.save()
+
+        let data = RecordsJSONIO.export(records: [r], style: .pretty)
+        #expect(!data.isEmpty)
+
+        let destContainer = try makeInMemoryContainer()
+        let destCtx = ModelContext(destContainer)
+        let result = try RecordsJSONIO.importJSON(data, into: destCtx)
+        #expect(result.inserted == 1)
+        #expect(result.updated == 0)
+
+        let restored = try destCtx.fetch(FetchDescriptor<BodyRecord>()).first!
+        #expect(restored.dateOpt == .cat04)
+        #expect(restored.nBpHi_mmHg == 132)
+        #expect(restored.nBpLo_mmHg == 84)
+        #expect(restored.nPulse_bpm == 71)
+        #expect(restored.nTemp_10c == 365)
+        #expect(restored.nWeight_10Kg == 712)
+        #expect(restored.nBodyFat_10p == 220)
+        #expect(restored.nSkMuscle_10p == 305)
+        #expect(restored.sNote1 == "朝の測定")
+        #expect(restored.sNote2 == "やや疲労感")
+        #expect(restored.sEquipment == "Omron Connect")
+        #expect(restored.bCaution == true)
+        #expect(RecordsJSONIO.normalizedSecond(restored.dateTime) ==
+                RecordsJSONIO.normalizedSecond(date))
+    }
+
+    @Test("複数レコード：エクスポート→インポートで件数と内容が一致する")
+    @MainActor
+    func multipleRecordsRoundTrip() throws {
+        let container = try makeInMemoryContainer()
+        let srcCtx = ModelContext(container)
+        var inputs: [BodyRecord] = []
+        for i in 0..<10 {
+            let r = try seedRecord(srcCtx, daysAgo: i, bpHi: 110 + i, bpLo: 70 + i, pulse: 60 + i)
+            inputs.append(r)
+        }
+
+        let data = RecordsJSONIO.export(records: inputs)
+
+        let destContainer = try makeInMemoryContainer()
+        let destCtx = ModelContext(destContainer)
+        let result = try RecordsJSONIO.importJSON(data, into: destCtx)
+        #expect(result.inserted == 10)
+
+        let restored = try destCtx.fetch(FetchDescriptor<BodyRecord>(
+            sortBy: [SortDescriptor(\BodyRecord.dateTime)]
+        ))
+        let originals = inputs.sorted { $0.dateTime < $1.dateTime }
+        #expect(restored.count == originals.count)
+        for (r, o) in zip(restored, originals) {
+            #expect(r.nBpHi_mmHg == o.nBpHi_mmHg)
+            #expect(r.nBpLo_mmHg == o.nBpLo_mmHg)
+            #expect(r.nPulse_bpm == o.nPulse_bpm)
+        }
+    }
+
+    @Test("compact / pretty の出力サイズは異なるが、再インポート結果は等価")
+    @MainActor
+    func compactPrettyEquivalence() throws {
+        let container = try makeInMemoryContainer()
+        let ctx = ModelContext(container)
+        for i in 0..<5 {
+            try seedRecord(ctx, daysAgo: i)
+        }
+        let records = try ctx.fetch(FetchDescriptor<BodyRecord>())
+
+        let compact = RecordsJSONIO.export(records: records, style: .compact)
+        let pretty  = RecordsJSONIO.export(records: records, style: .pretty)
+        #expect(compact.count < pretty.count)
+
+        let c1 = try makeInMemoryContainer(); let cx1 = ModelContext(c1)
+        let c2 = try makeInMemoryContainer(); let cx2 = ModelContext(c2)
+        _ = try RecordsJSONIO.importJSON(compact, into: cx1)
+        _ = try RecordsJSONIO.importJSON(pretty,  into: cx2)
+        let fromCompact = try cx1.fetch(FetchDescriptor<BodyRecord>())
+        let fromPretty  = try cx2.fetch(FetchDescriptor<BodyRecord>())
+        #expect(fromCompact.count == fromPretty.count)
+    }
+
+    @Test("envelope に exportDate と records キーが含まれる")
+    @MainActor
+    func envelopeStructure() throws {
+        let container = try makeInMemoryContainer()
+        let ctx = ModelContext(container)
+        try seedRecord(ctx)
+        let records = try ctx.fetch(FetchDescriptor<BodyRecord>())
+
+        let data = RecordsJSONIO.export(records: records)
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        #expect(json?["exportDate"] is String)
+        #expect(json?["records"] is [[String: Any]])
+    }
+
+    @Test("categoryAppearances を指定すると JSON に含まれる")
+    @MainActor
+    func envelopeIncludesCategoryAppearances() throws {
+        let container = try makeInMemoryContainer()
+        let ctx = ModelContext(container)
+        try seedRecord(ctx)
+        let records = try ctx.fetch(FetchDescriptor<BodyRecord>())
+
+        let appearances = DateOpt.allCases.map { $0.defaultAppearance }
+        let data = RecordsJSONIO.export(records: records, categoryAppearances: appearances)
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        let arr = json?["categoryAppearances"] as? [[String: Any]]
+        #expect(arr?.count == DateOpt.allCases.count)
+    }
+}
+
+// MARK: - JSON インポート堅牢性
+
+@Suite("RecordsJSONIO Robustness Tests")
+struct JSONImportRobustnessTests {
+
+    /// テスト用に最小限の JSON を組み立てる
+    private static func envelopeJSON(_ records: [[String: Any]]) -> Data {
+        let envelope: [String: Any] = [
+            "exportDate": "2026-06-20T10:00:00+09:00",
+            "records": records,
+        ]
+        return try! JSONSerialization.data(withJSONObject: envelope)
+    }
+
+    @Test("不正な dateTime のレコードはスキップされる")
+    @MainActor
+    func malformedDateTimeIsSkipped() throws {
+        let container = try makeInMemoryContainer()
+        let ctx = ModelContext(container)
+
+        let data = Self.envelopeJSON([
+            ["dateTime": "not a date", "bpSystolic": 120],
+            ["dateTime": "2026-06-20T09:00:00+09:00", "bpSystolic": 130],
+        ])
+        let result = try RecordsJSONIO.importJSON(data, into: ctx)
+        #expect(result.inserted == 1)
+        let fetched = try ctx.fetch(FetchDescriptor<BodyRecord>())
+        #expect(fetched.count == 1)
+        #expect(fetched.first?.nBpHi_mmHg == 130)
+    }
+
+    @Test("範囲外の整数値は spec の min/max にクランプされる")
+    @MainActor
+    func intOutOfRangeIsClamped() throws {
+        let container = try makeInMemoryContainer()
+        let ctx = ModelContext(container)
+
+        let data = Self.envelopeJSON([
+            [
+                "dateTime": "2026-06-20T09:00:00+09:00",
+                "bpSystolic": 9999,
+                "bpDiastolic": 1,
+                "heartRate": 250,
+            ]
+        ])
+        try RecordsJSONIO.importJSON(data, into: ctx)
+        let r = try ctx.fetch(FetchDescriptor<BodyRecord>()).first!
+        #expect(r.nBpHi_mmHg == MeasureRange.bpHi.max)
+        #expect(r.nBpLo_mmHg == MeasureRange.bpLo.min)
+        #expect(r.nPulse_bpm == MeasureRange.pulse.max)
+    }
+
+    @Test("0 以下の値は 未入力(0) として扱われる")
+    @MainActor
+    func nonPositiveIsTreatedAsUnset() throws {
+        let container = try makeInMemoryContainer()
+        let ctx = ModelContext(container)
+
+        let data = Self.envelopeJSON([
+            [
+                "dateTime": "2026-06-20T09:00:00+09:00",
+                "bpSystolic": -10,
+                "bpDiastolic": 0,
+                "weight": 0.0,
+            ]
+        ])
+        try RecordsJSONIO.importJSON(data, into: ctx)
+        let r = try ctx.fetch(FetchDescriptor<BodyRecord>()).first!
+        #expect(r.nBpHi_mmHg == 0)
+        #expect(r.nBpLo_mmHg == 0)
+        #expect(r.nWeight_10Kg == 0)
+    }
+
+    @Test("小数測定値は ×10 整数化されつつ range に clamp される")
+    @MainActor
+    func decimalScaledAndClamped() throws {
+        let container = try makeInMemoryContainer()
+        let ctx = ModelContext(container)
+        let data = Self.envelopeJSON([
+            [
+                "dateTime": "2026-06-20T09:00:00+09:00",
+                "weight": 65.3,
+                "bodyTemp": 36.6,
+                "bodyFat": 999.9,
+            ]
+        ])
+        try RecordsJSONIO.importJSON(data, into: ctx)
+        let r = try ctx.fetch(FetchDescriptor<BodyRecord>()).first!
+        #expect(r.nWeight_10Kg == 653)
+        #expect(r.nTemp_10c == 366)
+        #expect(r.nBodyFat_10p == MeasureRange.bodyFat.max)
+    }
+
+    @Test("同一日時（秒丸め）は更新され、二重挿入されない")
+    @MainActor
+    func sameDateSecondsCausesUpdate() throws {
+        let container = try makeInMemoryContainer()
+        let ctx = ModelContext(container)
+        try seedRecord(ctx, daysAgo: 0, bpHi: 120)
+        let original = try ctx.fetch(FetchDescriptor<BodyRecord>()).first!
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withDashSeparatorInDate, .withColonSeparatorInTime, .withTimeZone]
+        let date = RecordsJSONIO.normalizedSecond(original.dateTime).addingTimeInterval(0.5)
+        let data = Self.envelopeJSON([
+            ["dateTime": iso.string(from: date), "bpSystolic": 145],
+        ])
+        let result = try RecordsJSONIO.importJSON(data, into: ctx)
+        #expect(result.inserted == 0)
+        #expect(result.updated == 1)
+        let after = try ctx.fetch(FetchDescriptor<BodyRecord>())
+        #expect(after.count == 1)
+        #expect(after.first?.nBpHi_mmHg == 145)
+    }
+
+    @Test("未知の conditionRaw は fallback として .cat02 になる")
+    @MainActor
+    func unknownConditionRawFallsBackToCat02() throws {
+        let container = try makeInMemoryContainer()
+        let ctx = ModelContext(container)
+        let data = Self.envelopeJSON([
+            [
+                "dateTime": "2026-06-20T09:00:00+09:00",
+                "conditionRaw": 999,
+                "bpSystolic": 120,
+            ]
+        ])
+        try RecordsJSONIO.importJSON(data, into: ctx)
+        let r = try ctx.fetch(FetchDescriptor<BodyRecord>()).first!
+        #expect(r.dateOpt == .cat02)
+    }
+
+    @Test("レガシー condition キー（category.wake 等）は対応区分にマップされる")
+    @MainActor
+    func legacyConditionKeyMapsToCategory() throws {
+        let container = try makeInMemoryContainer()
+        let ctx = ModelContext(container)
+        let data = Self.envelopeJSON([
+            ["dateTime": "2026-06-20T09:00:00+09:00", "condition": "category.wake"],
+            ["dateTime": "2026-06-20T10:00:00+09:00", "condition": "category.bedtime"],
+        ])
+        try RecordsJSONIO.importJSON(data, into: ctx)
+        let sorted = try ctx.fetch(FetchDescriptor<BodyRecord>(
+            sortBy: [SortDescriptor(\BodyRecord.dateTime)]
+        ))
+        #expect(sorted.count == 2)
+        #expect(sorted[0].dateOpt == .cat01)
+        #expect(sorted[1].dateOpt == .cat04)
+    }
+
+    @Test("空 records 配列でもエラーにならず 0 件挿入")
+    @MainActor
+    func emptyRecordsArray() throws {
+        let container = try makeInMemoryContainer()
+        let ctx = ModelContext(container)
+        let data = Self.envelopeJSON([])
+        let result = try RecordsJSONIO.importJSON(data, into: ctx)
+        #expect(result.inserted == 0)
+        #expect(result.updated == 0)
+    }
+
+    @Test("壊れた JSON はエラーをスローする")
+    @MainActor
+    func corruptedJSONThrows() throws {
+        let container = try makeInMemoryContainer()
+        let ctx = ModelContext(container)
+        let data = "this is not json".data(using: .utf8)!
+        #expect(throws: (any Error).self) {
+            try RecordsJSONIO.importJSON(data, into: ctx)
+        }
+    }
+
+    @Test("文字列フィールドの前後空白・改行は除去される")
+    @MainActor
+    func stringTrimming() throws {
+        let container = try makeInMemoryContainer()
+        let ctx = ModelContext(container)
+        let data = Self.envelopeJSON([
+            [
+                "dateTime": "2026-06-20T09:00:00+09:00",
+                "memo1": "  メモ1  \n",
+                "memo2": "\n\n メモ2\t",
+                "device": "  Omron  ",
+            ]
+        ])
+        try RecordsJSONIO.importJSON(data, into: ctx)
+        let r = try ctx.fetch(FetchDescriptor<BodyRecord>()).first!
+        #expect(r.sNote1 == "メモ1")
+        #expect(r.sNote2 == "メモ2")
+        #expect(r.sEquipment == "Omron")
+    }
+}
+
+// MARK: - パフォーマンス／効率性
+
+@Suite("RecordsJSONIO Performance Tests")
+struct JSONImportPerformanceTests {
+
+    @Test("1000件のエクスポート→インポート往復が許容時間内")
+    @MainActor
+    func bulkRoundTripPerformance() throws {
+        let container = try makeInMemoryContainer()
+        let ctx = ModelContext(container)
+        for i in 0..<1000 {
+            try seedRecord(ctx, daysAgo: i, bpHi: 110 + (i % 50), bpLo: 70 + (i % 20))
+        }
+        let records = try ctx.fetch(FetchDescriptor<BodyRecord>())
+
+        let start = Date()
+        let data = RecordsJSONIO.export(records: records)
+        let exportElapsed = Date().timeIntervalSince(start)
+        // 1000 件のエクスポートは 2 秒以内
+        #expect(exportElapsed < 2.0)
+
+        let destContainer = try makeInMemoryContainer()
+        let destCtx = ModelContext(destContainer)
+        let importStart = Date()
+        let result = try RecordsJSONIO.importJSON(data, into: destCtx)
+        let importElapsed = Date().timeIntervalSince(importStart)
+        // 1000 件のインポートも 5 秒以内（in-memory ストアで余裕がある想定）
+        #expect(importElapsed < 5.0)
+        #expect(result.inserted == 1000)
+    }
+
+    @Test("同じ JSON を二度インポートしても重複挿入されない（全件 update）")
+    @MainActor
+    func reimportingIsIdempotent() throws {
+        let container = try makeInMemoryContainer()
+        let ctx = ModelContext(container)
+        for i in 0..<50 {
+            try seedRecord(ctx, daysAgo: i)
+        }
+        let records = try ctx.fetch(FetchDescriptor<BodyRecord>())
+        let data = RecordsJSONIO.export(records: records)
+
+        let destContainer = try makeInMemoryContainer()
+        let destCtx = ModelContext(destContainer)
+        let first = try RecordsJSONIO.importJSON(data, into: destCtx)
+        #expect(first.inserted == 50)
+        let second = try RecordsJSONIO.importJSON(data, into: destCtx)
+        #expect(second.inserted == 0)
+        #expect(second.updated == 50)
+
+        let count = try destCtx.fetch(FetchDescriptor<BodyRecord>()).count
+        #expect(count == 50)
     }
 }

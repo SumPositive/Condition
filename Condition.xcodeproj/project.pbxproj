@@ -42,6 +42,7 @@
 		E88A92888F6AFD1FB7DFFC9F /* ModelContainer+Setup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86715F6F24A9840913D72CC6 /* ModelContainer+Setup.swift */; };
 		F15A862490DED9463FCB6F26 /* DateOpt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E16A771447D302CDF593C00 /* DateOpt.swift */; };
 		FBA000000000000000000001 /* AppAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBA000000000000000000002 /* AppAnalytics.swift */; };
+		A8B9C0D1E2F30001ABCDEF01 /* RecordsJSONIO.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8B9C0D1E2F30001ABCDEF02 /* RecordsJSONIO.swift */; };
 		FBA000000000000000000003 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = FBA000000000000000000006 /* FirebaseAnalytics */; };
 		FBA000000000000000000004 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = FBA000000000000000000007 /* FirebaseCrashlytics */; };
 /* End PBXBuildFile section */
@@ -94,6 +95,7 @@
 		EFEF1236779D72BC224C618E /* StatisticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsView.swift; sourceTree = "<group>"; };
 		F6931DD60054ABF712D5455D /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		FBA000000000000000000002 /* AppAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAnalytics.swift; sourceTree = "<group>"; };
+		A8B9C0D1E2F30001ABCDEF02 /* RecordsJSONIO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordsJSONIO.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -284,6 +286,7 @@
 				FBA000000000000000000002 /* AppAnalytics.swift */,
 				C3DC29A32F72BE25007F4C3A /* PDFPanelExporter.swift */,
 				9C7CBA484995B66668A9235C /* HealthKitService.swift */,
+				A8B9C0D1E2F30001ABCDEF02 /* RecordsJSONIO.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -414,6 +417,7 @@
 				B01892399930A51751ED92F1 /* RecordEditView.swift in Sources */,
 				42832198D0789A3EEE5E6B66 /* RecordEditViewModel.swift in Sources */,
 				C3DC29A42F72BE25007F4C3A /* PDFPanelExporter.swift in Sources */,
+				A8B9C0D1E2F30001ABCDEF01 /* RecordsJSONIO.swift in Sources */,
 				1051435A3366B5694C9B71EC /* RecordListView.swift in Sources */,
 				26B161A5280A5687C622C649 /* SettingsView.swift in Sources */,
 				6A6487B27CC55B3970DF9411 /* StatisticsView.swift in Sources */,
@@ -443,13 +447,17 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.azukid.AzBodyNote.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Condition.app/Condition";
 			};
@@ -652,13 +660,17 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.azukid.AzBodyNote.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Condition.app/Condition";
 			};
