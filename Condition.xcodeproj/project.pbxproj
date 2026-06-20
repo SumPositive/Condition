@@ -29,6 +29,7 @@
 		982998F6ABEDB9272F6A6BA1 /* ValueFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A14BB534396221BF4A8DD998 /* ValueFormatter.swift */; };
 		9AEA2B0965601F94C251CA2F /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = E34D8E33BC77DA54E6C61D52 /* GoogleMobileAds */; };
 		A3F2C8D14B9E0571CF823DEA /* BeginnerHelpBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7C41E920D3A5F68EA271B5C /* BeginnerHelpBanner.swift */; };
+		A8B9C0D1E2F30001ABCDEF01 /* RecordsJSONIO.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8B9C0D1E2F30001ABCDEF02 /* RecordsJSONIO.swift */; };
 		B01892399930A51751ED92F1 /* RecordEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C5B54F260937D2BF7A3B8E0 /* RecordEditView.swift */; };
 		BFF8BE17437CFD77E63A1B44 /* TipStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 132A076B61B2C635E9A5FADA /* TipStore.swift */; };
 		C31B57052FB944B10090CAEC /* RecentConflictSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C31B57042FB944B10090CAEC /* RecentConflictSheet.swift */; };
@@ -42,7 +43,6 @@
 		E88A92888F6AFD1FB7DFFC9F /* ModelContainer+Setup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86715F6F24A9840913D72CC6 /* ModelContainer+Setup.swift */; };
 		F15A862490DED9463FCB6F26 /* DateOpt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E16A771447D302CDF593C00 /* DateOpt.swift */; };
 		FBA000000000000000000001 /* AppAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBA000000000000000000002 /* AppAnalytics.swift */; };
-		A8B9C0D1E2F30001ABCDEF01 /* RecordsJSONIO.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8B9C0D1E2F30001ABCDEF02 /* RecordsJSONIO.swift */; };
 		FBA000000000000000000003 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = FBA000000000000000000006 /* FirebaseAnalytics */; };
 		FBA000000000000000000004 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = FBA000000000000000000007 /* FirebaseCrashlytics */; };
 /* End PBXBuildFile section */
@@ -79,6 +79,7 @@
 		9C7CBA484995B66668A9235C /* HealthKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitService.swift; sourceTree = "<group>"; };
 		9E16A771447D302CDF593C00 /* DateOpt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateOpt.swift; sourceTree = "<group>"; };
 		A14BB534396221BF4A8DD998 /* ValueFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ValueFormatter.swift; sourceTree = "<group>"; };
+		A8B9C0D1E2F30001ABCDEF02 /* RecordsJSONIO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordsJSONIO.swift; sourceTree = "<group>"; };
 		B6FE488F42254CBC37C55F0C /* Condition.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Condition.entitlements; sourceTree = "<group>"; };
 		B7C41E920D3A5F68EA271B5C /* BeginnerHelpBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeginnerHelpBanner.swift; sourceTree = "<group>"; };
 		C31B57042FB944B10090CAEC /* RecentConflictSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentConflictSheet.swift; sourceTree = "<group>"; };
@@ -95,7 +96,6 @@
 		EFEF1236779D72BC224C618E /* StatisticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsView.swift; sourceTree = "<group>"; };
 		F6931DD60054ABF712D5455D /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		FBA000000000000000000002 /* AppAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAnalytics.swift; sourceTree = "<group>"; };
-		A8B9C0D1E2F30001ABCDEF02 /* RecordsJSONIO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordsJSONIO.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -547,7 +547,7 @@
 					"$(inherited)",
 					"-ObjC",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.azukid.AzBodyNote.AdMobTest;
+				PRODUCT_BUNDLE_IDENTIFIER = com.azukid.AzBodyNote;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
