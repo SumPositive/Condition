@@ -61,6 +61,15 @@ Condition/
 - Xcode 26+
 - Swift 6
 
+## Xcodeプロジェクト管理方針
+
+- 当面は `Condition.xcodeproj` を正としてXcodeで直接管理する
+- ターゲット、Build Settings、Build Phases、Package Dependencies、ファイル追加はXcode上で変更する
+- XcodeGenは現在の開発フローでは使用しない
+- `xcodegen generate` などで `Condition.xcodeproj` を再生成しない
+- `project.yml` は過去の生成設定を確認するための参照専用で、最新状態との一致を保証しない
+- CodexやClaude Codeなどの開発支援ツールも、明示的な依頼がない限りXcodeGenを導入・実行しない
+
 ## リリース履歴
 
 | バージョン | 公開日 | 内容 |
