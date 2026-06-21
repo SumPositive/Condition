@@ -35,6 +35,7 @@ enum RecordJSONExportStyle: Int, CaseIterable, Identifiable {
 // MARK: - インポート JSON 形
 
 struct RecordImportEnvelope: Decodable {
+    let schemaVersion: Int?
     let categoryAppearances: [DateOptAppearance]?
     let records: [RecordImportRecord]
 }
@@ -103,9 +104,23 @@ struct RecordImportRecord: Decodable {
 
 enum RecordsJSONIO {
 
+    static let currentSchemaVersion = 1
+
+    enum IOError: LocalizedError, Equatable {
+        case unsupportedSchemaVersion(Int)
+
+        var errorDescription: String? {
+            switch self {
+            case .unsupportedSchemaVersion(let version):
+                return "未対応のJSON形式です（schemaVersion: \(version)）"
+            }
+        }
+    }
+
     struct ImportResult: Equatable {
         let inserted: Int
         let updated: Int
+        let skipped: Int
         /// 直前のインポートで適用された区分表示マスタ（バックアップが含んでいた場合のみ）
         let categoryAppearances: [DateOptAppearance]?
     }
@@ -129,6 +144,8 @@ enum RecordsJSONIO {
 
         var recordObjects: [[String: Any]] = []
         for record in records {
+            // 目標値や入力上限を超える特殊レコードはバックアップ対象外にする
+            guard record.dateTime <= bodyRecordMaxDate else { continue }
             var object: [String: Any] = [
                 "dateTime":      iso.string(from: record.dateTime),
                 "condition":     record.dateOpt.displayName,
@@ -150,6 +167,7 @@ enum RecordsJSONIO {
         }
 
         var envelope: [String: Any] = [
+            "schemaVersion": currentSchemaVersion,
             "exportDate": iso.string(from: exportDate),
             "records":    recordObjects,
         ]
@@ -166,17 +184,31 @@ enum RecordsJSONIO {
     /// 範囲外の測定値は仕様の min/max に clamp。0 以下や nil は「未入力」扱い。
     /// - Throws: JSON decode 失敗または `context.save()` 失敗
     @discardableResult
-    static func importJSON(_ data: Data, into context: ModelContext) throws -> ImportResult {
+    static func importJSON(
+        _ data: Data,
+        into context: ModelContext,
+        saveChanges: (ModelContext) throws -> Void = { try $0.save() }
+    ) throws -> ImportResult {
         let decoder = JSONDecoder()
         let envelope = try decoder.decode(RecordImportEnvelope.self, from: data)
-        return try merge(envelope.records, into: context, categoryAppearances: envelope.categoryAppearances)
+        let schemaVersion = envelope.schemaVersion ?? 0
+        guard 0 <= schemaVersion, schemaVersion <= currentSchemaVersion else {
+            throw IOError.unsupportedSchemaVersion(schemaVersion)
+        }
+        return try merge(
+            envelope.records,
+            into: context,
+            categoryAppearances: envelope.categoryAppearances,
+            saveChanges: saveChanges
+        )
     }
 
     @discardableResult
     static func merge(
         _ importedRecords: [RecordImportRecord],
         into context: ModelContext,
-        categoryAppearances: [DateOptAppearance]? = nil
+        categoryAppearances: [DateOptAppearance]? = nil,
+        saveChanges: (ModelContext) throws -> Void = { try $0.save() }
     ) throws -> ImportResult {
         let descriptor = FetchDescriptor<BodyRecord>(
             predicate: #Predicate { $0.dateTime < bodyRecordGoalDate }
@@ -189,8 +221,12 @@ enum RecordsJSONIO {
 
         var inserted = 0
         var updated = 0
+        var skipped = 0
         for imported in importedRecords {
-            guard let date = imported.parsedDate else { continue }
+            guard let date = imported.parsedDate, date <= bodyRecordMaxDate else {
+                skipped += 1
+                continue
+            }
             let key = normalizedSecond(date)
             let record: BodyRecord
             if let existing = existingByDate[key] {
@@ -219,8 +255,20 @@ enum RecordsJSONIO {
             record.nSkMuscle_10p = clampedDecMeasure(imported.skeletalMuscle, spec: MeasureRange.skMuscle)
         }
 
-        try context.save()
-        return ImportResult(inserted: inserted, updated: updated, categoryAppearances: categoryAppearances)
+        do {
+            try saveChanges(context)
+        } catch {
+            // 保存失敗時は挿入と更新をまとめて取り消す
+            context.rollback()
+            throw error
+        }
+        let normalizedAppearances = categoryAppearances.map { normalizedDateOptAppearances($0) }
+        return ImportResult(
+            inserted: inserted,
+            updated: updated,
+            skipped: skipped,
+            categoryAppearances: normalizedAppearances
+        )
     }
 
     // MARK: 共有ヘルパー
@@ -248,7 +296,7 @@ enum RecordsJSONIO {
     static func normalizedDateOptAppearances(_ imported: [DateOptAppearance]) -> [DateOptAppearance] {
         DateOpt.allCases.map { dateOpt in
             if let appearance = imported.first(where: { $0.dateOptRawValue == dateOpt.rawValue }) {
-                return appearance
+                return normalizedAppearance(appearance, for: dateOpt)
             }
             return dateOpt.defaultAppearance
         }
@@ -259,6 +307,30 @@ enum RecordsJSONIO {
     private static func decimalNumber(_ value: Int, scale: Int) -> NSDecimalNumber {
         // JSON 出力で Double の2進小数誤差が長く出ないよう、10進数として出力する
         NSDecimalNumber(value: value).dividing(by: NSDecimalNumber(mantissa: 1, exponent: Int16(scale), isNegative: false))
+    }
+
+    private static func normalizedAppearance(
+        _ appearance: DateOptAppearance,
+        for dateOpt: DateOpt
+    ) -> DateOptAppearance {
+        let iconName = DateOptIconOption.all.contains(appearance.iconName)
+            ? appearance.iconName
+            : dateOpt.defaultIcon
+        let colorKey = DateOptColorOption.all.contains { $0.id == appearance.colorKey }
+            ? appearance.colorKey
+            : dateOpt.defaultColorKey
+        return DateOptAppearance(
+            dateOptRawValue: dateOpt.rawValue,
+            nameJa: limitedImportName(appearance.nameJa),
+            nameEn: limitedImportName(appearance.nameEn),
+            iconName: iconName,
+            colorKey: colorKey
+        )
+    }
+
+    private static func limitedImportName(_ value: String) -> String {
+        // 壊れたバックアップによる極端な長文だけを防ぎ、通常の名称は維持する
+        String(value.trimmingCharacters(in: .whitespacesAndNewlines).prefix(100))
     }
 
     private static func appearanceObject(_ appearance: DateOptAppearance) -> [String: Any] {

@@ -357,6 +357,7 @@ struct JSONRoundTripTests {
 
         let data = RecordsJSONIO.export(records: records)
         let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        #expect(json?["schemaVersion"] as? Int == RecordsJSONIO.currentSchemaVersion)
         #expect(json?["exportDate"] is String)
         #expect(json?["records"] is [[String: Any]])
     }
@@ -375,12 +376,46 @@ struct JSONRoundTripTests {
         let arr = json?["categoryAppearances"] as? [[String: Any]]
         #expect(arr?.count == DateOpt.allCases.count)
     }
+
+    @Test("区分表示マスタ：8区分の名称・アイコン・色が往復で維持される")
+    @MainActor
+    func categoryAppearancesRoundTrip() throws {
+        let appearances = DateOpt.allCases.map { dateOpt in
+            DateOptAppearance(
+                dateOptRawValue: dateOpt.rawValue,
+                nameJa: dateOpt == .cat08 ? "" : "区分\(dateOpt.rawValue + 1)",
+                nameEn: dateOpt == .cat08 ? "" : "Cat\(dateOpt.rawValue + 1)",
+                iconName: "\(dateOpt.rawValue + 1).square.fill",
+                colorKey: dateOpt == .cat08 ? "gray" : "blue"
+            )
+        }
+        let data = RecordsJSONIO.export(records: [], categoryAppearances: appearances)
+        let container = try makeInMemoryContainer()
+        let result = try RecordsJSONIO.importJSON(data, into: ModelContext(container))
+
+        #expect(result.categoryAppearances == appearances)
+        #expect(result.categoryAppearances?.count == DateOpt.allCases.count)
+    }
+
+    @Test("目標値と入力上限超過レコードはエクスポートされない")
+    func specialDatesAreExcludedFromExport() throws {
+        let valid = BodyRecord(dateTime: bodyRecordMaxDate)
+        let overMax = BodyRecord(dateTime: bodyRecordMaxDate.addingTimeInterval(1))
+        let goal = BodyRecord(dateTime: bodyRecordGoalDate)
+        let data = RecordsJSONIO.export(records: [valid, overMax, goal])
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        let records = json?["records"] as? [[String: Any]]
+
+        #expect(records?.count == 1)
+    }
 }
 
 // MARK: - JSON インポート堅牢性
 
 @Suite("RecordsJSONIO Robustness Tests")
 struct JSONImportRobustnessTests {
+
+    private struct ForcedSaveError: Error {}
 
     /// テスト用に最小限の JSON を組み立てる
     private static func envelopeJSON(_ records: [[String: Any]]) -> Data {
@@ -389,6 +424,12 @@ struct JSONImportRobustnessTests {
             "records": records,
         ]
         return try! JSONSerialization.data(withJSONObject: envelope)
+    }
+
+    private static func isoString(_ date: Date) -> String {
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withDashSeparatorInDate, .withColonSeparatorInTime, .withTimeZone]
+        return iso.string(from: date)
     }
 
     @Test("不正な dateTime のレコードはスキップされる")
@@ -403,6 +444,7 @@ struct JSONImportRobustnessTests {
         ])
         let result = try RecordsJSONIO.importJSON(data, into: ctx)
         #expect(result.inserted == 1)
+        #expect(result.skipped == 1)
         let fetched = try ctx.fetch(FetchDescriptor<BodyRecord>())
         #expect(fetched.count == 1)
         #expect(fetched.first?.nBpHi_mmHg == 130)
@@ -566,6 +608,136 @@ struct JSONImportRobustnessTests {
         #expect(r.sNote1 == "メモ1")
         #expect(r.sNote2 == "メモ2")
         #expect(r.sEquipment == "Omron")
+    }
+
+    @Test("入力上限日は受理し、それを超える日付と目標値日はスキップする")
+    @MainActor
+    func specialImportDatesAreValidated() throws {
+        let container = try makeInMemoryContainer()
+        let ctx = ModelContext(container)
+        let data = Self.envelopeJSON([
+            ["dateTime": Self.isoString(bodyRecordMaxDate), "bpSystolic": 120],
+            ["dateTime": Self.isoString(bodyRecordMaxDate.addingTimeInterval(1)), "bpSystolic": 130],
+            ["dateTime": Self.isoString(bodyRecordGoalDate), "bpSystolic": 140],
+        ])
+
+        let result = try RecordsJSONIO.importJSON(data, into: ctx)
+        let fetched = try ctx.fetch(FetchDescriptor<BodyRecord>())
+        #expect(result.inserted == 1)
+        #expect(result.skipped == 2)
+        #expect(fetched.count == 1)
+        #expect(fetched.first?.dateTime == bodyRecordMaxDate)
+    }
+
+    @Test("旧JSONは受理し、未対応の将来schemaVersionは拒否する")
+    @MainActor
+    func schemaVersionCompatibility() throws {
+        let legacyContainer = try makeInMemoryContainer()
+        let legacyResult = try RecordsJSONIO.importJSON(
+            Self.envelopeJSON([["dateTime": "2026-06-20T09:00:00+09:00"]]),
+            into: ModelContext(legacyContainer)
+        )
+        #expect(legacyResult.inserted == 1)
+
+        let futureJSON = try JSONSerialization.data(withJSONObject: [
+            "schemaVersion": RecordsJSONIO.currentSchemaVersion + 1,
+            "records": [],
+        ])
+        let futureContainer = try makeInMemoryContainer()
+        do {
+            _ = try RecordsJSONIO.importJSON(futureJSON, into: ModelContext(futureContainer))
+            Issue.record("未対応のschemaVersionが受理されました")
+        } catch let error as RecordsJSONIO.IOError {
+            #expect(error == .unsupportedSchemaVersion(RecordsJSONIO.currentSchemaVersion + 1))
+        }
+    }
+
+    @Test("保存失敗時は挿入と既存更新をまとめてロールバックする")
+    @MainActor
+    func saveFailureRollsBackAllChanges() throws {
+        let container = try makeInMemoryContainer()
+        let ctx = ModelContext(container)
+        let existing = try seedRecord(ctx, bpHi: 120)
+        let existingDate = RecordsJSONIO.normalizedSecond(existing.dateTime)
+        let newDate = existingDate.addingTimeInterval(-3_600)
+        let data = Self.envelopeJSON([
+            ["dateTime": Self.isoString(existingDate), "bpSystolic": 150],
+            ["dateTime": Self.isoString(newDate), "bpSystolic": 130],
+        ])
+
+        do {
+            _ = try RecordsJSONIO.importJSON(data, into: ctx) { _ in
+                throw ForcedSaveError()
+            }
+            Issue.record("保存失敗がスローされませんでした")
+        } catch is ForcedSaveError {
+            let fetched = try ctx.fetch(FetchDescriptor<BodyRecord>())
+            #expect(fetched.count == 1)
+            #expect(fetched.first?.nBpHi_mmHg == 120)
+        }
+    }
+
+    @Test("区分マスタの欠落・重複・範囲外値・不正表示値を正規化する")
+    @MainActor
+    func invalidCategoryAppearancesAreNormalized() throws {
+        let envelope: [String: Any] = [
+            "schemaVersion": RecordsJSONIO.currentSchemaVersion,
+            "records": [],
+            "categoryAppearances": [
+                [
+                    "dateOptRawValue": DateOpt.cat01.rawValue,
+                    "nameJa": "  起床  ",
+                    "nameEn": "  Wake  ",
+                    "iconName": "invalid.symbol",
+                    "colorKey": "invalid-color",
+                ],
+                [
+                    "dateOptRawValue": DateOpt.cat01.rawValue,
+                    "nameJa": "重複",
+                    "nameEn": "Duplicate",
+                    "iconName": "heart.fill",
+                    "colorKey": "red",
+                ],
+                [
+                    "dateOptRawValue": 999,
+                    "nameJa": "範囲外",
+                    "nameEn": "Unknown",
+                    "iconName": "heart.fill",
+                    "colorKey": "red",
+                ],
+            ],
+        ]
+        let data = try JSONSerialization.data(withJSONObject: envelope)
+        let container = try makeInMemoryContainer()
+        let result = try RecordsJSONIO.importJSON(data, into: ModelContext(container))
+        let appearances = try #require(result.categoryAppearances)
+        let cat01 = try #require(appearances.first { $0.dateOptRawValue == DateOpt.cat01.rawValue })
+
+        #expect(appearances.count == DateOpt.allCases.count)
+        #expect(cat01.nameJa == "起床")
+        #expect(cat01.nameEn == "Wake")
+        #expect(cat01.iconName == DateOpt.cat01.defaultIcon)
+        #expect(cat01.colorKey == DateOpt.cat01.defaultColorKey)
+        #expect(appearances[DateOpt.cat02.rawValue] == DateOpt.cat02.defaultAppearance)
+    }
+
+    @Test("同一JSON内で同じ秒が重複した場合は最後の値を採用する")
+    @MainActor
+    func duplicateDatesInPayloadUseLastRecord() throws {
+        let container = try makeInMemoryContainer()
+        let ctx = ModelContext(container)
+        let dateTime = "2026-06-20T09:00:00+09:00"
+        let data = Self.envelopeJSON([
+            ["dateTime": dateTime, "bpSystolic": 120],
+            ["dateTime": dateTime, "bpSystolic": 145],
+        ])
+
+        let result = try RecordsJSONIO.importJSON(data, into: ctx)
+        let fetched = try ctx.fetch(FetchDescriptor<BodyRecord>())
+        #expect(result.inserted == 1)
+        #expect(result.updated == 1)
+        #expect(fetched.count == 1)
+        #expect(fetched.first?.nBpHi_mmHg == 145)
     }
 }
 

@@ -576,7 +576,11 @@ struct SettingsView: View {
                 }
                 AppAnalytics.shared.logOperation(
                     "records_json_import",
-                    parameters: ["inserted": result.inserted, "updated": result.updated]
+                    parameters: [
+                        "inserted": result.inserted,
+                        "updated": result.updated,
+                        "skipped": result.skipped,
+                    ]
                 )
                 alertItem = .raw(
                     title: String(localized: "settings.share.importDoneTitle"),
