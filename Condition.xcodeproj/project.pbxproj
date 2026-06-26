@@ -29,6 +29,7 @@
 		982998F6ABEDB9272F6A6BA1 /* ValueFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A14BB534396221BF4A8DD998 /* ValueFormatter.swift */; };
 		9AEA2B0965601F94C251CA2F /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = E34D8E33BC77DA54E6C61D52 /* GoogleMobileAds */; };
 		A3F2C8D14B9E0571CF823DEA /* BeginnerHelpBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7C41E920D3A5F68EA271B5C /* BeginnerHelpBanner.swift */; };
+		A8B9C0D1E2F30002ABCDEF01 /* SymbolFallback.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8B9C0D1E2F30002ABCDEF02 /* SymbolFallback.swift */; };
 		A8B9C0D1E2F30001ABCDEF01 /* RecordsJSONIO.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8B9C0D1E2F30001ABCDEF02 /* RecordsJSONIO.swift */; };
 		B01892399930A51751ED92F1 /* RecordEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C5B54F260937D2BF7A3B8E0 /* RecordEditView.swift */; };
 		BFF8BE17437CFD77E63A1B44 /* TipStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 132A076B61B2C635E9A5FADA /* TipStore.swift */; };
@@ -82,6 +83,7 @@
 		A8B9C0D1E2F30001ABCDEF02 /* RecordsJSONIO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordsJSONIO.swift; sourceTree = "<group>"; };
 		B6FE488F42254CBC37C55F0C /* Condition.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Condition.entitlements; sourceTree = "<group>"; };
 		B7C41E920D3A5F68EA271B5C /* BeginnerHelpBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeginnerHelpBanner.swift; sourceTree = "<group>"; };
+		A8B9C0D1E2F30002ABCDEF02 /* SymbolFallback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymbolFallback.swift; sourceTree = "<group>"; };
 		C31B57042FB944B10090CAEC /* RecentConflictSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentConflictSheet.swift; sourceTree = "<group>"; };
 		C38A3C032FD69C4D00AC7390 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		C38A3E362FDEDB1400AC7390 /* MeasurementAverageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeasurementAverageView.swift; sourceTree = "<group>"; };
@@ -128,6 +130,7 @@
 				0A1A2B3C4D5E6F708192A3B3 /* AZPicker.swift */,
 				B7C41E920D3A5F68EA271B5C /* BeginnerHelpBanner.swift */,
 				E674CD6C1A3BCD2A7D5D8EC3 /* NumpadValueText.swift */,
+				A8B9C0D1E2F30002ABCDEF02 /* SymbolFallback.swift */,
 				A14BB534396221BF4A8DD998 /* ValueFormatter.swift */,
 			);
 			path = Common;
@@ -413,6 +416,7 @@
 				CC257634A8AF415F5F40872E /* MigrationService.swift in Sources */,
 				E88A92888F6AFD1FB7DFFC9F /* ModelContainer+Setup.swift in Sources */,
 				A3F2C8D14B9E0571CF823DEA /* BeginnerHelpBanner.swift in Sources */,
+				A8B9C0D1E2F30002ABCDEF01 /* SymbolFallback.swift in Sources */,
 				20F1765DAAFD7152D5629C7C /* NumpadValueText.swift in Sources */,
 				B01892399930A51751ED92F1 /* RecordEditView.swift in Sources */,
 				42832198D0789A3EEE5E6B66 /* RecordEditViewModel.swift in Sources */,
@@ -718,8 +722,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/SumPositive/AZDial";
 			requirement = {
-				branch = develop;
-				kind = branch;
+				kind = exactVersion;
+				version = 3.3.0;
 			};
 		};
 		FBA000000000000000000005 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {

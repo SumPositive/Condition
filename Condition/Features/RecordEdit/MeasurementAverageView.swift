@@ -575,7 +575,11 @@ struct MeasurementAverageView: View {
                 Button {
                     nextOnLeft.toggle()
                 } label: {
-                    Image(systemName: "arrow.left.and.right")
+                    // iOS 26 では inset 系の見栄えの良いシンボル、未収録 OS では矢印へフォールバック
+                    Image(systemNameResolving: nextOnLeft
+                          ? "inset.filled.righthalf.arrow.right.rectangle"
+                          : "inset.filled.lefthalf.arrow.left.rectangle",
+                          "arrow.left.and.right")
                         .font(.footnote.weight(.semibold))
                         .frame(width: width, height: toggleButtonHeight)
                         .foregroundStyle(Color.accentColor)
