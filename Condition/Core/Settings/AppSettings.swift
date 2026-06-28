@@ -279,6 +279,27 @@ final class AppSettings {
         }
     }
 
+    /// 区分の表示順序（rawValue の並び）。内部 index（DateOpt.rawValue）とは独立して管理する。
+    /// 並べ替え UI から更新し、各画面はこの順序で区分を表示する。
+    var dateOptDisplayOrder: [Int] = DateOpt.allCases.map(\.rawValue) {
+        didSet {
+            ud.set(dateOptDisplayOrder, forKey: SettingsKeys.settDateOptDisplayOrder)
+            dateOptAppearanceRevision += 1
+        }
+    }
+
+    /// 表示順に並べた全区分（保存順 → 欠落分を末尾に補完）
+    var orderedDateOpts: [DateOpt] {
+        let ordered = dateOptDisplayOrder.compactMap { DateOpt(rawValue: $0) }
+        let missing = DateOpt.allCases.filter { !ordered.contains($0) }
+        return ordered + missing
+    }
+
+    /// 表示順に並べた、定義済み（名称設定済み）区分のみ
+    var orderedDefinedDateOpts: [DateOpt] {
+        orderedDateOpts.filter(\.isDefined)
+    }
+
     /// 出荷時初期値（画像定義）
     static let factoryDefaultHourMap: [Int] = [
         3, 3, 3,       // 0-2:   就寝時
@@ -534,6 +555,10 @@ final class AppSettings {
             dateOptHourMap = AppSettings.factoryDefaultHourMap
         }
         dateOptAppearances = DateOptAppearanceStore.appearances()
+        // 区分の表示順序（保存済みを優先。欠落・新規区分は orderedDateOpts 側で末尾補完）
+        if let arr = ud.array(forKey: SettingsKeys.settDateOptDisplayOrder) as? [Int], !arr.isEmpty {
+            dateOptDisplayOrder = arr
+        }
 
         let gbh = ud.integer(forKey: SettingsKeys.goalBpHi)
         if 0 < gbh { goalBpHi = gbh }

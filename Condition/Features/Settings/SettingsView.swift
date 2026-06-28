@@ -1189,7 +1189,8 @@ private struct TossedCoin: View {
 struct DateOptMatrixView: View {
     @State private var settings = AppSettings.shared
 
-    private let kinds = DateOpt.allCases
+    // 区分の列はユーザー設定の表示順で並べる
+    private var kinds: [DateOpt] { settings.orderedDateOpts }
 
     var body: some View {
         ScrollView {
@@ -1322,11 +1323,12 @@ struct DateOptMatrixView: View {
 
 private struct DateOptAppearanceListView: View {
     @State private var settings = AppSettings.shared
+    @State private var editMode: SwiftUI.EditMode = .inactive
 
     var body: some View {
         List {
             Section {
-                ForEach(DateOpt.allCases) { dateOpt in
+                ForEach(settings.orderedDateOpts) { dateOpt in
                     let appearance = appearance(for: dateOpt)
                     NavigationLink {
                         DateOptAppearanceEditView(
@@ -1335,11 +1337,6 @@ private struct DateOptAppearanceListView: View {
                         )
                     } label: {
                         HStack(spacing: 12) {
-                            // セル左端は番号だけにして、改行を防ぐ
-                            Text("\(dateOpt.rawValue + 1)")
-                                .foregroundStyle(.secondary)
-                                .monospacedDigit()
-                                .frame(width: 24, alignment: .leading)
                             Image(systemName: appearance.isDefined ? appearance.iconName : dateOpt.undefinedIcon)
                                 .foregroundStyle(dateOpt.color)
                                 .frame(width: 24)
@@ -1348,10 +1345,32 @@ private struct DateOptAppearanceListView: View {
                         }
                     }
                 }
+                .onMove(perform: moveDateOpt)
+            } footer: {
+                Text("settings.category.reorderHint")
             }
         }
+        .environment(\.editMode, $editMode)
         .navigationTitle("settings.category.appearance")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    withAnimation {
+                        editMode = editMode.isEditing ? .inactive : .active
+                    }
+                } label: {
+                    Text(editMode.isEditing ? "action.done" : "settings.category.reorder")
+                }
+            }
+        }
+    }
+
+    /// 表示順を入れ替える（内部 index = rawValue は変えず、順序配列だけ更新）
+    private func moveDateOpt(from source: IndexSet, to destination: Int) {
+        var order = settings.orderedDateOpts.map(\.rawValue)
+        order.move(fromOffsets: source, toOffset: destination)
+        settings.dateOptDisplayOrder = order
     }
 
     private func appearance(for dateOpt: DateOpt) -> DateOptAppearance {

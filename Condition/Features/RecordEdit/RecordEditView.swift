@@ -73,8 +73,9 @@ struct RecordEditView: View {
 
     private var dateOptCandidates: [DateOpt] {
         // 新規作成では未使用区分を出さず、編集では過去記録の区分を戻せるよう全件表示する
-        if case .edit = vm.mode { return DateOpt.allCases }
-        return DateOpt.allCases.filter(\.isDefined)
+        // いずれもユーザー設定の表示順で並べる
+        if case .edit = vm.mode { return settings.orderedDateOpts }
+        return settings.orderedDefinedDateOpts
     }
 
     private var title: LocalizedStringKey {

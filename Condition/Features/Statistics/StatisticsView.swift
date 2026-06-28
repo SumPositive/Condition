@@ -580,7 +580,7 @@ struct BpJshView: View {
                 // 区分（DateOpt）凡例
                 let cols = [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())]
                 LazyVGrid(columns: cols, alignment: .center, spacing: 8) {
-                    ForEach(DateOpt.allCases.filter(\.isDefined), id: \.self) { opt in
+                    ForEach(settings.orderedDefinedDateOpts, id: \.self) { opt in
                         let isOn = !hiddenDateOptRawValues.contains(opt.rawValue)
                         Button {
                             toggleBpDistributionDateOpt(opt)
@@ -920,6 +920,7 @@ struct BpDateOptCorrView: View {
     @Environment(\.chartAvailableWidth) private var chartWidth
     @Environment(\.chartExtraHeight) private var chartExtraHeight
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    private var settings: AppSettings { AppSettings.shared }
 
     private struct BpPoint: Identifiable {
         let id: Int
@@ -954,7 +955,7 @@ struct BpDateOptCorrView: View {
     }
 
     private var means: [CatMean] {
-        DateOpt.allCases.compactMap { opt in
+        settings.orderedDateOpts.compactMap { opt in
             guard opt.isDefined else { return nil }
             let filtered = validRecords.filter { $0.nDateOpt == opt.rawValue }
             guard !filtered.isEmpty else { return nil }
@@ -965,7 +966,7 @@ struct BpDateOptCorrView: View {
     }
 
     private var categoryOrder: [String] {
-        DateOpt.allCases.filter(\.isDefined).map(\.displayName)
+        settings.orderedDefinedDateOpts.map(\.displayName)
     }
 
     private var showsCategoryAxisText: Bool {

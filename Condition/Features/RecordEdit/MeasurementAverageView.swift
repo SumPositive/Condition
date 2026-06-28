@@ -231,7 +231,7 @@ struct MeasurementAverageView: View {
         var style = AZPickerStyle.form
         style.preservesLabelForegroundStyle = true
         return AZDropdownPicker(
-            options: DateOpt.allCases.filter(\.isDefined),
+            options: settings.orderedDefinedDateOpts,
             selection: $dateOpt,
             isExpanded: $isDateOptExpanded,
             minWidth: 150,

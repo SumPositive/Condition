@@ -4946,13 +4946,47 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Category Icons and Names"
+            "value" : "Category Settings"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "区分のアイコンと名称"
+            "value" : "区分 設定"
+          }
+        }
+      }
+    },
+    "settings.category.reorder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reorder"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "並べ替え"
+          }
+        }
+      }
+    },
+    "settings.category.reorderHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap Reorder to drag and rearrange. This order is used throughout the app; internal data is unaffected."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「並べ替え」をタップするとドラッグで順序を変えられます。この順序はアプリ全体の表示に使われ、内部データには影響しません。"
           }
         }
       }

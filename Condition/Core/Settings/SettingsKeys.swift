@@ -46,6 +46,7 @@ enum SettingsKeys {
     /// 時刻→区分マトリックス ([Int] 24要素, -1=未割当=.restにフォールバック)
     static let settDateOptHourMap = "KVS_SettDateOptHourMap"
     static let settDateOptAppearances = "KVS_SettDateOptAppearances" // 区分の名称・アイコン・色 (JSONデータ)
+    static let settDateOptDisplayOrder = "KVS_SettDateOptDisplayOrder" // 区分の表示順序 ([Int] rawValue 配列、内部 index とは独立)
 
     // MARK: - 目標値
     static let goalBpHi      = "Goal_nBpHi_mmHg"
@@ -94,6 +95,7 @@ enum SettingsKeys {
         dateOptSleepHour,
         settDateOptHourMap,
         settDateOptAppearances,
+        settDateOptDisplayOrder,
         goalBpHi,
         goalBpLo,
         goalPulse,

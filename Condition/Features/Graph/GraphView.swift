@@ -1143,7 +1143,7 @@ struct BpChartView: View {
     private var bpCategoryLegend: some View {
         let cols = [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())]
         return LazyVGrid(columns: cols, alignment: .center, spacing: 8) {
-            ForEach(DateOpt.allCases.filter(\.isDefined), id: \.self) { opt in
+            ForEach(settings.orderedDefinedDateOpts, id: \.self) { opt in
                 let isOn = !hiddenDateOptRawValues.contains(opt.rawValue)
                 Button {
                     toggleBpDistributionDateOpt(opt)
