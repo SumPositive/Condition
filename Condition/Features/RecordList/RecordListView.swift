@@ -24,15 +24,25 @@ struct RecordListView: View {
 
     @State private var toastMessage: String? = nil
     @State private var showHKTimeoutAlert = false
+    /// 区分フィルター（nil = 全区分表示）
+    @State private var categoryFilter: DateOpt? = nil
 
     private var settings: AppSettings { AppSettings.shared }
     private var hkService: HealthKitService { HealthKitService.shared }
 
     // MARK: - 可視フィールドにデータがあるレコードのみ抽出
+    /// 区分フィルターのみ適用した記録（可視フィールド有無では絞らない）。
+    /// 一覧の絞り込みとエクスポート対象を共通化する。
+    private var categoryFilteredRecords: [BodyRecord] {
+        categoryFilter.map { filter in records.filter { $0.dateOpt == filter } } ?? records
+    }
+
     private var visibleRecords: [BodyRecord] {
         let kinds = visibleRecordKinds
-        guard !kinds.isEmpty else { return records }
-        return records.filter { r in
+        // 区分フィルター（選択時のみ該当区分に絞り込む）
+        let base = categoryFilteredRecords
+        guard !kinds.isEmpty else { return base }
+        return base.filter { r in
             kinds.contains { kind in
                 switch kind {
                 case .bp:       return r.nBpHi_mmHg > 0 || r.nBpLo_mmHg > 0
@@ -75,11 +85,12 @@ struct RecordListView: View {
             // タブ画面のタイトルは中央固定表示に揃える
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItemGroup(placement: .topBarLeading) {
                     Button { showExportSheet = true } label: {
                         Image(systemName: "square.and.arrow.up")
                     }
                     .disabled(records.isEmpty)
+                    categoryFilterMenu
                 }
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     #if targetEnvironment(simulator)
@@ -136,7 +147,7 @@ struct RecordListView: View {
                 editRecordSheet(record: record)
             }
             .sheet(isPresented: $showExportSheet) {
-                ExportSheetView(records: records, visibleKinds: visibleRecordKinds)
+                ExportSheetView(records: categoryFilteredRecords, visibleKinds: visibleRecordKinds)
             }
             .sheet(isPresented: $showMeasurementAvgSheet) {
                 MeasurementAverageView()
@@ -180,6 +191,32 @@ struct RecordListView: View {
             mode: .edit(record),
             onModifiedChanged: { editHasUnsavedChanges = $0 }
         )
+    }
+
+    // MARK: - 区分フィルター
+
+    /// 区分で絞り込むメニュー。デフォルトは全区分表示、1区分を選ぶと絞り込む
+    @ViewBuilder
+    private var categoryFilterMenu: some View {
+        Menu {
+            Picker("filter.category.title", selection: $categoryFilter) {
+                Text("filter.category.all").tag(DateOpt?.none)
+                ForEach(settings.orderedDefinedDateOpts, id: \.self) { opt in
+                    Label {
+                        Text(opt.displayName)
+                    } icon: {
+                        Image(systemName: opt.icon)
+                    }
+                    .tag(DateOpt?.some(opt))
+                }
+            }
+        } label: {
+            // フィルター有効時は塗りつぶしアイコンで状態を伝える
+            Image(systemName: categoryFilter == nil
+                  ? "line.3.horizontal.decrease.circle"
+                  : "line.3.horizontal.decrease.circle.fill")
+                .foregroundStyle(Color.blue)
+        }
     }
 
     // MARK: - リスト
