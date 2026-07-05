@@ -22,11 +22,13 @@ private let ADMOB_REWARD_UNIT_ID = "ca-app-pub-7576639777972199/4693657810"  // 
 #endif
 
 /// 一覧途中に挟むアダプティブバナー用ユニットID（公開：InlineAdBanner から参照）
+/// Debug は app が Google テストアプリID になるため、本番ユニットは配下に無く使えない。
+/// Debug では adaptive バナー用のテストユニットを使い、Release で本番ユニットを使う。
 let INLINE_AD_BANNER_UNIT_ID: String = {
     #if DEBUG || targetEnvironment(simulator)
-    return "ca-app-pub-3940256099942544/2435281174"
+    return "ca-app-pub-3940256099942544/2435281174"  // テスト用アダプティブバナー
     #else
-    return "ca-app-pub-7576639777972199/9141270336"
+    return "ca-app-pub-7576639777972199/9141270336"  // 本番用インラインバナー
     #endif
 }()
 
@@ -347,7 +349,9 @@ final class RewardedAdLoader: NSObject, ObservableObject, FullScreenContentDeleg
                 #endif
                 isLoading = false
                 errorMessage = "support.noAdsAvailableRightNowPlease"
+                #if DEBUG
                 debugErrorMessage = adMobDebugDescription(error, adUnitID: adUnitID)
+                #endif
                 rewardedAd = nil
             }
         }
@@ -382,6 +386,20 @@ final class RewardedAdLoader: NSObject, ObservableObject, FullScreenContentDeleg
     }
 }
 
+// MARK: - AdMob 初期化状態
+
+/// MobileAds.start() 完了（＝広告リクエスト可能）を SwiftUI へ伝える共有フラグ。
+/// start() 前・同意解決前にバナーが load するとテストデバイス設定も反映されず
+/// "No ad to show" になるため、この値が true になってからロードする。
+@MainActor
+@Observable
+final class AdReadyState {
+    static let shared = AdReadyState()
+    private(set) var isReady = false
+    func markReady() { isReady = true }
+    private init() {}
+}
+
 // MARK: - InlineAdBanner（一覧途中に挟むアダプティブバナー）
 
 /// 記録一覧の各月セクションヘッダーなど、自然な区切り位置に挟むアダプティブバナー。
@@ -390,10 +408,19 @@ struct InlineAdBanner: View {
     /// バナーの高さ。AdMob の standard banner サイズ（320×50）に合わせる
     var height: CGFloat = 50
 
+    @State private var ready = AdReadyState.shared
+
     var body: some View {
-        InlineAdBannerRepresentable(adUnitID: INLINE_AD_BANNER_UNIT_ID)
-            .frame(height: height)
-            .frame(maxWidth: .infinity)
+        // SDK 初期化完了後にだけ実体を生成し、start() 前のリクエストを防ぐ
+        Group {
+            if ready.isReady {
+                InlineAdBannerRepresentable(adUnitID: INLINE_AD_BANNER_UNIT_ID)
+            } else {
+                Color.clear
+            }
+        }
+        .frame(height: height)
+        .frame(maxWidth: .infinity)
     }
 }
 
@@ -405,8 +432,8 @@ private struct InlineAdBannerRepresentable: UIViewRepresentable {
     }
 
     func makeUIView(context: Context) -> BannerView {
-        let width = UIScreen.main.bounds.width
-        let bannerView = BannerView(adSize: currentOrientationAnchoredAdaptiveBanner(width: width))
+        // adSize は幅が確定してから設定する（makeUIView 時点では 0 のことがある）
+        let bannerView = BannerView()
         bannerView.adUnitID = adUnitID
         bannerView.delegate = context.coordinator
         loadIfReady(bannerView, coordinator: context.coordinator)
@@ -418,17 +445,23 @@ private struct InlineAdBannerRepresentable: UIViewRepresentable {
     }
 
     private func loadIfReady(_ bannerView: BannerView, coordinator: Coordinator) {
-        guard !coordinator.didLoad else { return }
+        guard !coordinator.didRequest else { return }
         guard let root = inlineAdRootViewController() else { return }
+        // 横幅に追従する adaptive サイズで要求する（0幅リクエストは避ける）
+        let width = inlineAdWindowWidth() ?? UIScreen.main.bounds.width
+        guard width > 0 else { return }
+        bannerView.adSize = currentOrientationAnchoredAdaptiveBanner(width: width)
         // rootViewControllerが取得できてから一度だけ広告リクエストを送る
         bannerView.rootViewController = root
-        coordinator.didLoad = true
+        coordinator.didRequest = true
         // Google公式例と同じ素のリクエストで直接読み込む
         bannerView.load(Request())
     }
 
     final class Coordinator: NSObject, BannerViewDelegate {
-        var didLoad = false
+        /// リクエスト送信済みフラグ。1バナーにつき1回だけ要求する
+        /// （失敗時の再要求は無効トラフィックとみなされ得るため行わない）
+        var didRequest = false
 
         func bannerView(_ bannerView: BannerView, didFailToReceiveAdWithError error: Error) {
             #if DEBUG
@@ -437,6 +470,17 @@ private struct InlineAdBannerRepresentable: UIViewRepresentable {
             #endif
         }
     }
+}
+
+/// keyWindow の実幅を返す（0 幅の adaptive リクエストで弾かれるのを防ぐ）
+@MainActor
+private func inlineAdWindowWidth() -> CGFloat? {
+    let width = UIApplication.shared.connectedScenes
+        .compactMap { $0 as? UIWindowScene }
+        .flatMap(\.windows)
+        .first { $0.isKeyWindow }?
+        .bounds.width
+    return (width ?? 0) > 0 ? width : nil
 }
 
 /// keyWindow の root view controller を返す（InlineAdBanner 専用ヘルパー）

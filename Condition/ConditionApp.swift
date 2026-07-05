@@ -79,8 +79,24 @@ private struct RootSceneView: View {
             await migrationService.migrateIfNeeded(context: context)
         }
         .task {
+            #if DEBUG || targetEnvironment(simulator)
+            // テストデバイス登録は必ず start() の前に行う（後だと初回リクエストに反映されない）。
+            // 未登録の実機で広告を初回リクエストすると、SDK が Xcode コンソールへ
+            //   <Google> To get test ads on this device, set:
+            //   GADMobileAds.sharedInstance().requestConfiguration.testDeviceIdentifiers = @[ @"xxxx" ];
+            // というログを出すので、その "xxxx" を下の配列へ転記すると常にテスト広告が返る。
+            MobileAds.shared.requestConfiguration.testDeviceIdentifiers = [
+                // シミュレータをテストデバイスとして明示登録する（"Simulator" は SDK 予約値）。
+                // 実機でテスト広告を見たいときは、起動ログに出るIDをここへ一時的に追加する。
+                "Simulator",
+            ]
+            #endif
+            // 広告リクエスト前に UMP 同意情報を解決する（未解決だと全ユニット No fill になり得る）
+            await AdConsentManager.gatherConsent()
             // Google公式の推奨どおりアプリ起動時にSDKを一度だけ初期化する
             await MobileAds.shared.start()
+            // 初期化完了後にだけバナーをロードさせる（start前リクエストの No fill を防ぐ）
+            AdReadyState.shared.markReady()
         }
         .preferredColorScheme(settings.appearanceMode.colorScheme)
         .dynamicTypeSize(effectiveDynamicTypeSize)

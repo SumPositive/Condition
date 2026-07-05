@@ -270,9 +270,12 @@ struct RecordListView: View {
                             deleteRecords(in: section.records, offsets: offsets)
                         }
 
-                        // 広告は月セクションの末尾セルとして表示する
+                        // 広告は月セクションの末尾セルとして表示する。
+                        // タップ可能な記録行との誤タップ（クリック誘導）を避けるため、
+                        // 直前の行との間に十分な余白を確保して明確に分離する。
                         InlineAdBanner(height: 60)
-                            .padding(.top, 4)
+                            .padding(.top, 12)
+                            .padding(.bottom, 8)
                             .listRowInsets(EdgeInsets())
                             .listRowSeparator(.hidden)
                     }

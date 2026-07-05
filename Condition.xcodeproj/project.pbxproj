@@ -18,6 +18,7 @@
 		307BEA02A0CE7F10B77FFC4A /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E6E18224DAB54321E46951 /* AppSettings.swift */; };
 		35CFF3F641C21C1669ADC898 /* BodyRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB9225443B8D3A26F9D99025 /* BodyRecord.swift */; };
 		3ED314445BE3B57864296DA3 /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 3BEC1D090470BE0FB0C3E7C2 /* InfoPlist.xcstrings */; };
+		4256C59464507B4778A0EECC /* AdConsentManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 727DE7BE7D86EE0F55365E40 /* AdConsentManager.swift */; };
 		42832198D0789A3EEE5E6B66 /* RecordEditViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 037CD7BBB175D96B6BA9D41C /* RecordEditViewModel.swift */; };
 		44C6FAA140856CAAEA0D1BF7 /* ConditionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7168A998F0F394E7BE741CF8 /* ConditionTests.swift */; };
 		546717AE8E7EBCAB0248C456 /* AdMobViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CD6F6F207C0904FC1AAF8A2 /* AdMobViews.swift */; };
@@ -74,6 +75,7 @@
 		61169D4A225123BB0FD81A90 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		631EC7DEF4838569597EA3C8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		7168A998F0F394E7BE741CF8 /* ConditionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConditionTests.swift; sourceTree = "<group>"; };
+		727DE7BE7D86EE0F55365E40 /* AdConsentManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdConsentManager.swift; sourceTree = "<group>"; };
 		7CD6F6F207C0904FC1AAF8A2 /* AdMobViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdMobViews.swift; sourceTree = "<group>"; };
 		86715F6F24A9840913D72CC6 /* ModelContainer+Setup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ModelContainer+Setup.swift"; sourceTree = "<group>"; };
 		90D068752225DE01C4F4BE92 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -220,6 +222,7 @@
 			isa = PBXGroup;
 			children = (
 				7CD6F6F207C0904FC1AAF8A2 /* AdMobViews.swift */,
+				727DE7BE7D86EE0F55365E40 /* AdConsentManager.swift */,
 				EB4C0FF51DDBC65C235DF2ED /* SettingsView.swift */,
 			);
 			path = Settings;
@@ -400,6 +403,7 @@
 			isa = PBXSourcesBuildPhase;
 			files = (
 				546717AE8E7EBCAB0248C456 /* AdMobViews.swift in Sources */,
+				4256C59464507B4778A0EECC /* AdConsentManager.swift in Sources */,
 				04F485DCB1ADFC0859E7298C /* AppConstants.swift in Sources */,
 				307BEA02A0CE7F10B77FFC4A /* AppSettings.swift in Sources */,
 				FBA000000000000000000001 /* AppAnalytics.swift in Sources */,
