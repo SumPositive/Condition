@@ -1405,13 +1405,17 @@ private struct DateOptAppearanceEditView: View {
     private var isJapaneseLocale: Bool {
         Locale.current.language.languageCode?.identifier == "ja"
     }
+    /// 全角幅で文字数を数える言語（日本語・韓国語・繁体字）。名称の丸めに使う。
+    private var isCJKWidthLocale: Bool {
+        ["ja", "ko", "zh-Hant"].contains(DateOptAppearance.currentLanguageCode)
+    }
 
     init(dateOpt: DateOpt, appearance: Binding<DateOptAppearance>) {
         self.dateOpt = dateOpt
         _appearance = appearance
-        let languageCode = Locale.current.language.languageCode?.identifier ?? "en"
-        // 入力中は確定前の文字列を保持し、画面を離れる時に表示用の制限を適用する
-        _draftName = State(initialValue: languageCode == "ja" ? appearance.wrappedValue.nameJa : appearance.wrappedValue.nameEn)
+        // 入力中は確定前の文字列を保持し、画面を離れる時に表示用の制限を適用する。
+        // ko/zh-Hant で未カスタムなら現地語プリセットを初期値にする。
+        _draftName = State(initialValue: appearance.wrappedValue.editableName)
     }
 
     var body: some View {
@@ -1450,7 +1454,7 @@ private struct DateOptAppearanceEditView: View {
                     HStack {
                         Text("settings.category.name")
                         Spacer()
-                        Text(isJapaneseLocale ? "settings.category.name.limit.ja" : "settings.category.name.limit.en")
+                        Text(isCJKWidthLocale ? "settings.category.name.limit.ja" : "settings.category.name.limit.en")
                     }
                 }
 
@@ -1559,8 +1563,8 @@ private struct DateOptAppearanceEditView: View {
     }
 
     private func finalizedName(_ value: String) -> String {
-        if isJapaneseLocale {
-            // 保存時にja名は全角2・半角英数字1の表示幅8以内へ丸める
+        if isCJKWidthLocale {
+            // CJK名は全角2・半角英数字1の表示幅8以内（全角4文字相当）へ丸める
             return limitedJapanese(value.trimmingCharacters(in: .whitespacesAndNewlines), units: englishLimit)
         } else {
             // 保存時に英語名を半角英数字8文字以内へ丸める

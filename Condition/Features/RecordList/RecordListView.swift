@@ -81,10 +81,18 @@ struct RecordListView: View {
                     listContent
                 }
             }
-            .navigationTitle("tab.records")
-            // タブ画面のタイトルは中央固定表示に揃える
+            // ヘッダはタイトルを持たず、中央にアプリ名を控えめに表示する
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    // 「記録」の代わりにアプリ名を少し小さく薄く表示する
+                    Text("app.name")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
+                }
                 ToolbarItemGroup(placement: .topBarLeading) {
                     Button { showExportSheet = true } label: {
                         Image(systemName: "square.and.arrow.up")

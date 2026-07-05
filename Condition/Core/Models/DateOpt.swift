@@ -112,18 +112,58 @@ struct DateOptAppearance: Codable, Equatable, Identifiable {
 
     var id: Int { dateOptRawValue }
 
-    var displayName: String {
-        let languageCode = Locale.current.language.languageCode?.identifier ?? "en"
-        if languageCode == "ja" {
-            return nameJa.isEmpty ? fallbackNameJaOrPlaceholder : nameJa
+    /// 現在の言語コード（区分名の言語判定に共通利用）
+    static var currentLanguageCode: String {
+        let code = Locale.current.language.languageCode?.identifier ?? "en"
+        // 繁体字は script まで見て zh-Hant を判別する
+        if code == "zh" {
+            let script = Locale.current.language.script?.identifier
+            return script == "Hant" ? "zh-Hant" : "zh"
         }
-        return nameEn.isEmpty ? fallbackNameEnOrPlaceholder : nameEn
+        return code
+    }
+
+    var displayName: String {
+        switch Self.currentLanguageCode {
+        case "ja":
+            return nameJa.isEmpty ? fallbackOrPlaceholder(fallbackNameJa) : nameJa
+        case "ko", "zh-Hant":
+            // 保存名が英語プリセットのまま（未カスタム）なら現地語プリセットを表示する
+            let localized = localizedFallbackName
+            if nameEn.isEmpty { return fallbackOrPlaceholder(localized) }
+            return isNameEnStillDefault ? (localized.isEmpty ? nameEn : localized) : nameEn
+        default:
+            return nameEn.isEmpty ? fallbackOrPlaceholder(fallbackNameEn) : nameEn
+        }
     }
 
     var isDefined: Bool {
-        let languageCode = Locale.current.language.languageCode?.identifier ?? "en"
-        // 名称を空欄にした区分は、既定名があっても未定義として扱う
-        return languageCode == "ja" ? !nameJa.isEmpty : !nameEn.isEmpty
+        // 名称を空欄にした区分は、既定名があっても未定義として扱う。
+        // ja は nameJa、それ以外は nameEn の有無で判定する（保存構造は2言語のまま）。
+        Self.currentLanguageCode == "ja" ? !nameJa.isEmpty : !nameEn.isEmpty
+    }
+
+    /// nameEn が英語プリセットのまま（＝ユーザーが編集していない）か
+    private var isNameEnStillDefault: Bool {
+        nameEn == fallbackNameEn
+    }
+
+    /// 名称編集フィールドの初期値。ja は nameJa、それ以外は nameEn を編集する。
+    /// ko/zh-Hant で未カスタムなら現地語プリセットを出発点にする。
+    var editableName: String {
+        switch Self.currentLanguageCode {
+        case "ja":
+            return nameJa
+        case "ko", "zh-Hant":
+            return isNameEnStillDefault ? localizedFallbackName : nameEn
+        default:
+            return nameEn
+        }
+    }
+
+    /// 現在の言語のプリセット既定名（ko/zh-Hant 用）
+    private var localizedFallbackName: String {
+        DateOpt(rawValue: dateOptRawValue)?.defaultLocalizedName ?? ""
     }
 
     private var fallbackNameJa: String {
@@ -134,18 +174,11 @@ struct DateOptAppearance: Codable, Equatable, Identifiable {
         DateOpt(rawValue: dateOptRawValue)?.defaultNameEn ?? ""
     }
 
-    private var fallbackNameJaOrPlaceholder: String {
-        if fallbackNameJa.isEmpty {
+    private func fallbackOrPlaceholder(_ name: String) -> String {
+        if name.isEmpty {
             return DateOpt(rawValue: dateOptRawValue)?.placeholderName ?? ""
         }
-        return fallbackNameJa
-    }
-
-    private var fallbackNameEnOrPlaceholder: String {
-        if fallbackNameEn.isEmpty {
-            return DateOpt(rawValue: dateOptRawValue)?.placeholderName ?? ""
-        }
-        return fallbackNameEn
+        return name
     }
 }
 
@@ -173,6 +206,42 @@ extension DateOpt {
         case .cat06: return "PostEx"
         case .cat07: return ""
         case .cat08: return ""
+        }
+    }
+
+    var defaultNameKo: String {
+        switch self {
+        case .cat01: return "기상"
+        case .cat02: return "안정"
+        case .cat03: return "취침전"
+        case .cat04: return "취침"
+        case .cat05: return "운동전"
+        case .cat06: return "운동후"
+        case .cat07: return ""
+        case .cat08: return ""
+        }
+    }
+
+    var defaultNameZhHant: String {
+        switch self {
+        case .cat01: return "起床"
+        case .cat02: return "安靜"
+        case .cat03: return "睡前"
+        case .cat04: return "就寢"
+        case .cat05: return "運動前"
+        case .cat06: return "運動後"
+        case .cat07: return ""
+        case .cat08: return ""
+        }
+    }
+
+    /// 現在の言語に応じた既定の区分名（プリセット）
+    var defaultLocalizedName: String {
+        switch DateOptAppearance.currentLanguageCode {
+        case "ja":      return defaultNameJa
+        case "ko":      return defaultNameKo
+        case "zh-Hant": return defaultNameZhHant
+        default:        return defaultNameEn
         }
     }
 
