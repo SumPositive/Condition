@@ -680,7 +680,7 @@ XcodeGenは、codexかclaude codeが導入したものだと思うけど、ま�
 - Record list: filter records by category — also applied to PDF export.
 -----
 enにして
-本日公開、README.mdの開発メモ、公開アプリパネル、取扱説明（jp/en）を更新してほしい。
+2.7.0 本日公開、README.mdの開発メモ、公開アプリパネル、取扱説明を更新してほしい。
 --------------------------------
 
 
