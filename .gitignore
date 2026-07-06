@@ -60,3 +60,7 @@ fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/**/*.png
 fastlane/test_output
+
+# App Store Connect API 認証情報（コミット禁止）
+fastlane/.env
+*.p8

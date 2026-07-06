@@ -1,124 +1,124 @@
 {
-  "sourceLanguage" : "ja",
-  "strings" : {
-    "CFBundleDisplayName" : {
-      "comment" : "Bundle display name",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vitalog"
+  "sourceLanguage": "ja",
+  "strings": {
+    "CFBundleDisplayName": {
+      "comment": "Bundle display name",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vitalin"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "体調メモ"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "体調メモ"
           }
         },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "바이탈로그"
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "바이탈로그"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "體徵記錄"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "體徵記錄"
           }
         }
       }
     },
-    "CFBundleName" : {
-      "comment" : "Bundle name",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vitalog"
+    "CFBundleName": {
+      "comment": "Bundle name",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vitalin"
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "体調メモ"
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "体調メモ"
           }
         },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "바이탈로그"
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "바이탈로그"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "體徵記錄"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "體徵記錄"
           }
         }
       }
     },
-    "NSHealthShareUsageDescription" : {
-      "comment" : "Privacy - Health Share Usage Description",
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Used to read your health records and auto-fill the entry screen."
+    "NSHealthShareUsageDescription": {
+      "comment": "Privacy - Health Share Usage Description",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Used to read your health records and auto-fill the entry screen."
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "ヘルスケアの記録を読み取り、記録画面に自動入力するために使用します。"
+        "ja": {
+          "stringUnit": {
+            "state": "new",
+            "value": "ヘルスケアの記録を読み取り、記録画面に自動入力するために使用します。"
           }
         },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "건강 기록을 읽어 기록 화면에 자동 입력하기 위해 사용합니다."
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "건강 기록을 읽어 기록 화면에 자동 입력하기 위해 사용합니다."
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "用於讀取您的健康記錄並自動填入記錄畫面。"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用於讀取您的健康記錄並自動填入記錄畫面。"
           }
         }
       }
     },
-    "NSHealthUpdateUsageDescription" : {
-      "comment" : "Privacy - Health Update Usage Description",
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Used to write your recorded health data to the Health app."
+    "NSHealthUpdateUsageDescription": {
+      "comment": "Privacy - Health Update Usage Description",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Used to write your recorded health data to the Health app."
           }
         },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "記録した健康データをヘルスケアアプリに書き込むために使用します。"
+        "ja": {
+          "stringUnit": {
+            "state": "new",
+            "value": "記録した健康データをヘルスケアアプリに書き込むために使用します。"
           }
         },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "기록한 건강 데이터를 건강 앱에 쓰기 위해 사용합니다."
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기록한 건강 데이터를 건강 앱에 쓰기 위해 사용합니다."
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "用於將您記錄的健康資料寫入健康 App。"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用於將您記錄的健康資料寫入健康 App。"
           }
         }
       }
     }
   },
-  "version" : "1.0"
+  "version": "1.0"
 }

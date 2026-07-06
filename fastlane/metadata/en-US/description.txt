@@ -1,0 +1,27 @@
+Record and review your vitals — blood pressure, heart rate, temperature, weight and more.
+
+A health diary that works with Apple Health to manage blood pressure, heart rate, weight, body temperature, steps, body fat, and skeletal muscle all in one place. Log entries quickly with an intuitive dial, and see how your body changes at a glance through graphs and statistics.
+
+■ Apple HealthKit Sync
+Data you record is synced automatically to the Health app. You can also import data from Health, so readings from Apple Watch, body composition scales, and other devices are managed together.
+
+■ What You Can Record
+・Blood pressure (systolic / diastolic) / pulse pressure
+・Heart rate
+・Body temperature
+・Weight / BMI / body fat / skeletal muscle
+・Steps
+
+■ Main Features
+・Dial input: intuitive, just spin to set a value
+・Categories: auto-selected by time of day — waking, before bed, before/after exercise, and more
+・Graphs: view trends visually from weekly to yearly
+・Statistics: detailed analysis such as BP distribution (JSH criteria) and weight summary
+・Appearance: choose Light, Dark, or system Auto
+・Dial design: change to the style you like
+
+■ Great For
+・Managing Apple Watch and body-scale data all together
+・Keeping a careful daily record and analysis of blood pressure and weight
+・Having your records ready at hand for doctor visits
+・Anyone working on dieting or better health

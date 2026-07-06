@@ -1,0 +1,81 @@
+default_platform(:ios)
+
+# App Store Connect API キー(.p8)方式で認証する。
+# 環境変数で鍵情報を渡す（fastlane/.env に置く。README 参照）:
+#   ASC_KEY_ID    … API キー ID (例: ABC123DEFG)
+#   ASC_ISSUER_ID … Issuer ID (UUID)
+#   ASC_KEY_PATH  … .p8 ファイルへのパス (例: ./fastlane/AuthKey_ABC123DEFG.p8)
+# ※ API キーのロールは App Manager 以上が必須（Developer だと 403）。
+def load_asc_api_key
+  app_store_connect_api_key(
+    key_id: ENV.fetch("ASC_KEY_ID"),
+    issuer_id: ENV.fetch("ASC_ISSUER_ID"),
+    key_filepath: ENV.fetch("ASC_KEY_PATH"),
+    in_house: false
+  )
+end
+
+platform :ios do
+  # ------------------------------------------------------------
+  # テキストメタデータ（説明文・プロモーション・キーワード・名前・サブタイトル）
+  # ------------------------------------------------------------
+
+  desc "テキストメタデータの差分を確認する（force: false なので送信前に Preview.html で確認して停止）"
+  lane :preview_metadata do
+    load_asc_api_key
+    deliver(
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      skip_app_version_update: false,
+      skip_metadata: false,
+      submit_for_review: false,
+      force: false,               # アップロード前に Preview.html を生成し確認を求める
+      run_precheck_before_submit: false
+    )
+  end
+
+  desc "テキストメタデータを App Store Connect に反映する（審査提出はしない）"
+  lane :upload_metadata do
+    load_asc_api_key
+    deliver(
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      skip_metadata: false,
+      submit_for_review: false,
+      force: true,
+      run_precheck_before_submit: false
+    )
+  end
+
+  # ------------------------------------------------------------
+  # スクリーンショット（fastlane snapshot）
+  # 前提: Xcode で UITest ターゲット ConditionUITests を追加し、
+  #       SnapshotHelper.swift と ConditionUITests.swift を紐付けておくこと。
+  #       手順は fastlane/README_screenshots.md を参照。
+  # ------------------------------------------------------------
+
+  desc "シミュレータでスクショを撮影する（Snapfile の言語・デバイスに従う。アップロードはしない）"
+  lane :screenshots do
+    capture_screenshots   # = snapshot。設定は fastlane/Snapfile
+  end
+
+  desc "既存の ./fastlane/screenshots をそのまま App Store Connect に反映する（撮影はしない・審査提出はしない）"
+  lane :upload_screenshots do
+    load_asc_api_key
+    deliver(
+      skip_binary_upload: true,
+      skip_metadata: true,          # メタデータには触らない
+      skip_screenshots: false,      # スクショだけ送る
+      overwrite_screenshots: true,  # 既存スクショを置き換える
+      submit_for_review: false,
+      force: true,
+      run_precheck_before_submit: false
+    )
+  end
+
+  desc "撮影 → アップロードを一気に行う（審査提出はしない）"
+  lane :screenshots_and_upload do
+    capture_screenshots
+    upload_screenshots
+  end
+end

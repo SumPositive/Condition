@@ -1,0 +1,3 @@
+・Reorder categories: drag to rearrange them, and the new order is used in category pickers and graphs.
+・Graph: added help (explanations) for Heart Rate and Pulse Pressure.
+・Record list: filter records by category — also applied to PDF export.
