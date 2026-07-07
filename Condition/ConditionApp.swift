@@ -43,8 +43,15 @@ private struct RootSceneView: View {
     let settings: AppSettings
 
     private var effectiveDynamicTypeSize: DynamicTypeSize {
+        #if DEBUG
+        // fastlane snapshot 撮影時は起動引数で文字サイズを固定できる
+        // （iPad は余白が目立つので UITest 側から "large" 等を渡して見映えを上げる）
+        if let forced = SnapshotSeed.forcedDynamicTypeSize {
+            return forced
+        }
+        #endif
         // 自動ではシステム文字サイズをそのまま使い、ビュー構造は常に同じに保つ。
-        settings.fontScale.followsSystem ? systemDynamicTypeSize : settings.fontScale.dynamicTypeSize
+        return settings.fontScale.followsSystem ? systemDynamicTypeSize : settings.fontScale.dynamicTypeSize
     }
 
     var body: some View {

@@ -411,6 +411,22 @@ struct InlineAdBanner: View {
     @State private var ready = AdReadyState.shared
 
     var body: some View {
+        Group {
+            #if DEBUG
+            // fastlane snapshot 撮影時は広告を出さない（App Store スクショに広告を映さない）
+            if UserDefaults.standard.bool(forKey: "FASTLANE_SNAPSHOT") {
+                EmptyView()
+            } else {
+                bannerBody
+            }
+            #else
+            bannerBody
+            #endif
+        }
+    }
+
+    @ViewBuilder
+    private var bannerBody: some View {
         // SDK 初期化完了後にだけ実体を生成し、start() 前のリクエストを防ぐ
         Group {
             if ready.isReady {

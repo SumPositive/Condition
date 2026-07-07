@@ -1,0 +1,60 @@
+# fastlane snapshot 設定（Vitalin / 体調メモ）
+# ------------------------------------------------------------
+# まずは「少数カット × 少数言語 × 1デバイス」で仕組みを検証する構成
+# 動作確認できたら languages / devices / カットを増やして本番展開する
+#
+# App Store 必須サイズ:
+#   - iPhone 6.9": iPhone 17 Pro Max（1320x2868）
+#   - iPad 13":    iPad Pro 13-inch (M5)  … 審査必須枠。iPhone が埋まってから追加
+#
+# 【注意】UITest ターゲット ConditionUITests の IPHONEOS_DEPLOYMENT_TARGET は
+# アプリ本体に合わせる。DialSplit（26.5）と違いシミュレータ要件が緩ければ
+# 手持ちの iOS ランタイムで撮れる。devices([...]) の名前は
+# `xcrun simctl list devices` に出る名前と一致必須
+
+# iPhone 6.9" と iPad 13" の両方を撮る（4カット × 4言語 × 2デバイス）
+devices([
+  "iPhone 17 Pro Max",
+  "iPad Pro 13-inch (M5)"
+])
+# 診断で1機種に絞る場合はどちらかをコメントアウトする
+
+# 言語コード = 出力フォルダ名（App Store のロケール名に一致）かつ -AppleLanguages
+# 言語切替は SnapshotHelper が language.txt（=この値）で行う。値は Condition の
+# Localizable.xcstrings のロケール名と一致させること（例 "zh-Hant"）
+# 体調メモは 4 言語対応: ja, en-US, ko, zh-Hant
+languages(["ja","en-US","ko","zh-Hant"])
+# 検証中はまず 1〜2 言語に絞ってもよい: languages(["en-US"])
+
+# 撮影対象スキーム
+scheme("Condition")
+
+# 撮影用 UITest を明示指定する
+# TestPlan 経由だと UITest が実行されず snapshot() が呼ばれない（結果0枚）ことがあるため
+# 撮影対象を UITest のメソッドに固定する
+only_testing(["ConditionUITests/ConditionUITests/testTakeScreenshots"])
+
+# 出力先。deliver がここから拾う
+output_directory("./fastlane/screenshots")
+
+# iPhone/iPad 両方を全カット撮り直すので、古いファイルを消してクリーンに出力する
+clear_previous_screenshots(true)
+
+# --- 撮影時間の短縮は断念（2026-07-06 実証）---------------------------
+# derived_data_path 固定 + concurrent_simulators(true) を試したが、この環境
+# （USB上の Xcode26.5 + iOS 26.5 シミュレータ）では xcodebuild がテスト実行時に
+# クローン "Clone N of iPad..." を作り、その起動が RequestDenied / launch-failed で
+# 拒否されて UITest が必ず失敗した。derived_data_path を外し、動いていた元の
+# 素直な構成（毎回クリーンビルド・逐次）に戻す。速度改善はハード更新側で検討する。
+
+# 起動を安定させる
+stop_after_first_error(true)
+
+# クローン起動が拒否される環境なので逐次実行に固定する
+concurrent_simulators(false)
+
+# --- シミュレータ起動失敗（Clone の launch-failed / RequestDenied）対策 ---
+# USB上のXcodeでクローン起動が拒否されることがあるため、リトライを確保する
+# 失敗が続く場合は、実行前に `xcrun simctl shutdown all` +
+# `sudo killall -9 com.apple.CoreSimulator.CoreSimulatorService` でクリーンにする
+number_of_retries(3)

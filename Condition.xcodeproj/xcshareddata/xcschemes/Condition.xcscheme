@@ -48,6 +48,17 @@
                ReferencedContainer = "container:Condition.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "C3562DBE2FFBA90300539096"
+               BuildableName = "ConditionUITests.xctest"
+               BlueprintName = "ConditionUITests"
+               ReferencedContainer = "container:Condition.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction

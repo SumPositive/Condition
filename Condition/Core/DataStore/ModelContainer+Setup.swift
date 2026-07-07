@@ -16,6 +16,23 @@ extension ModelContainer {
 
     @MainActor
     static var shared: ModelContainer = {
+        #if DEBUG
+        // fastlane snapshot 撮影時は in-memory ストアにサンプルを入れて撮る
+        // 実ストアやマイグレーションには一切触れない
+        if SnapshotSeed.isActive {
+            let config = ModelConfiguration(schema: Schema([BodyRecord.self]),
+                                            isStoredInMemoryOnly: true)
+            do {
+                let container = try ModelContainer(for: BodyRecord.self, configurations: config)
+                SnapshotSeed.seedIfNeeded(context: container.mainContext)
+                logger.info("snapshot 撮影用の in-memory ストアを使用")
+                return container
+            } catch {
+                fatalError("snapshot 用 ModelContainer の作成に失敗しました: \(error)")
+            }
+        }
+        #endif
+
         let schema = Schema([BodyRecord.self])
         let storeName = resolveStoreName()
         logger.info("使用ストア: \(storeName)\(storeExt)")

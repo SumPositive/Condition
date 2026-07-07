@@ -39,6 +39,15 @@ final class MigrationService {
     func migrateIfNeeded(context: ModelContext) async {
         phase = .checking
 
+        #if DEBUG
+        // fastlane snapshot 撮影時は in-memory の投入済みデータをそのまま使う
+        // 移行処理には触れず即座に本編へ進める
+        if SnapshotSeed.isActive {
+            phase = .done
+            return
+        }
+        #endif
+
         // 旧 SQLite ファイル検索（フラグより先に確認）
         // iCloud バックアップから migrationDone フラグが復元される場合があるため
         // ファイルの有無を正とする

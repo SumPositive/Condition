@@ -17,6 +17,9 @@ struct ContentView: View {
                         "tab.records",
                         systemImage: "list.bullet.clipboard"
                     )
+                    // UITest（fastlane snapshot）でデバイス非依存にタブを叩くための識別子
+                    // .tabItem の中身（Label）側に付けるとタブボタン自体に反映されやすい
+                    .accessibilityIdentifier("tab.records")
                 }
                 .tag(RootTab.records)
 
@@ -26,6 +29,7 @@ struct ContentView: View {
                         "tab.graph",
                         systemImage: "chart.line.uptrend.xyaxis"
                     )
+                    .accessibilityIdentifier("tab.graph")
                 }
                 .tag(RootTab.graph)
 
@@ -35,6 +39,7 @@ struct ContentView: View {
                         "tab.statistics",
                         systemImage: "chart.dots.scatter"
                     )
+                    .accessibilityIdentifier("tab.statistics")
                 }
                 .tag(RootTab.statistics)
 
@@ -44,6 +49,7 @@ struct ContentView: View {
                         "tab.settings",
                         systemImage: "gear"
                     )
+                    .accessibilityIdentifier("tab.settings")
                 }
                 .tag(RootTab.settings)
         }

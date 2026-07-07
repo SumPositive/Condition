@@ -64,3 +64,6 @@ fastlane/test_output
 # App Store Connect API 認証情報（コミット禁止）
 fastlane/.env
 *.p8
+
+# fastlane snapshot のビルド再利用用 DerivedData（再生成可能・巨大）
+fastlane/.derived_data_snapshot/
