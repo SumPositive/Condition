@@ -814,12 +814,19 @@ struct MeasurementAverageView: View {
         } else {
             inputText += String(d)
         }
+        autoCompleteIfNeeded(cell.column)
     }
 
     private func tapDecimal() {
         guard let cell = focused, cell.column.hasDecimal else { return }
         guard !inputText.contains(".") else { return }
         inputText = inputText.isEmpty ? "0." : inputText + "."
+    }
+
+    /// 桁入力後、これ以上入力が不要と判定できたら値を確定して次のセルへ進む
+    private func autoCompleteIfNeeded(_ column: AvgColumn) {
+        guard column.spec.shouldAutoComplete(after: inputText) else { return }
+        advanceFocus()
     }
 
     private func tapDelete() {

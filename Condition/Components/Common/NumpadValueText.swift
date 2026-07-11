@@ -13,6 +13,9 @@ struct NumpadValueText: View {
     let decimals: Int
     let color: Color
     var unit: LocalizedStringKey? = nil   // 単位ラベル（指定するとボタン内に表示）
+    /// 整数項目の自動確定しきい値（先頭桁がこの値以上なら2桁、未満なら3桁で確定）。
+    /// 小数項目は小数桁で判定するため指定不要。nil の場合は自動確定しない。
+    var autoCompleteFirstDigit: Int? = nil
 
     @State private var showSheet = false
     @State private var settings = AppSettings.shared
@@ -33,7 +36,8 @@ struct NumpadValueText: View {
         .sheet(isPresented: $showSheet) {
             // .sheet は親の dynamicTypeSize 環境を引き継がないことがあるため
             // AppSettings から直接フォントスケールを適用する
-            let sheet = NumpadInputSheet(value: $value, min: min, max: max, decimals: decimals)
+            let sheet = NumpadInputSheet(value: $value, min: min, max: max, decimals: decimals,
+                                         autoCompleteFirstDigit: autoCompleteFirstDigit)
             if settings.fontScale.followsSystem {
                 sheet
             } else {
@@ -78,6 +82,13 @@ private struct NumpadInputSheet: View {
     let min: Int
     let max: Int
     let decimals: Int
+    var autoCompleteFirstDigit: Int? = nil
+
+    /// 自動確定判定に使う MeasureSpec（min/initVal/max は判定に無関係なので流用）
+    private var autoCompleteSpec: MeasureSpec {
+        MeasureSpec(min: min, initVal: value, max: max, decimals: decimals,
+                    autoCompleteFirstDigit: autoCompleteFirstDigit)
+    }
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -179,12 +190,20 @@ private struct NumpadInputSheet: View {
             } else {
                 inputText += String(d)
             }
+            autoCompleteIfNeeded()
         case .decimal:
             guard decimals > 0, !inputText.contains(".") else { return }
             inputText = inputText.isEmpty ? "0." : inputText + "."
         case .delete:
             if !inputText.isEmpty { inputText.removeLast() }
         }
+    }
+
+    /// 桁入力後、これ以上入力が不要と判定できたら自動で確定して閉じる
+    private func autoCompleteIfNeeded() {
+        guard autoCompleteSpec.shouldAutoComplete(after: inputText) else { return }
+        apply()
+        dismiss()
     }
 
     // MARK: - 確定

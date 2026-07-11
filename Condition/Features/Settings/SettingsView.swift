@@ -2047,7 +2047,8 @@ struct GoalSettingsView: View {
                 Text(title).font(.callout)
                 Spacer()
                 if enabled.wrappedValue {
-                    NumpadValueText(value: value, min: spec.min, max: spec.max, decimals: decimals, color: color)
+                    NumpadValueText(value: value, min: spec.min, max: spec.max, decimals: decimals, color: color,
+                                    autoCompleteFirstDigit: spec.autoCompleteFirstDigit)
                     Text(LocalizedStringKey(unit))
                         .font(.callout.weight(.semibold))
                         .foregroundStyle(color.opacity(0.7))

@@ -40,23 +40,23 @@ enum AppConstants {
 
 // MARK: - 測定値の範囲・初期値（旧 E2_n* 定数群）
 enum MeasureRange {
-    // 血圧（上）mmHg
-    static let bpHi = MeasureSpec(min: 30,  initVal: 120, max: 300, decimals: 0)
-    // 血圧（下）mmHg
-    static let bpLo = MeasureSpec(min: 20,  initVal: 80,  max: 200, decimals: 0)
-    // 心拍数 bpm
-    static let pulse = MeasureSpec(min: 10,  initVal: 65,  max: 200, decimals: 0)
-    // 体重 x10 kg  (650 = 65.0 kg)
+    // 血圧（上）mmHg  40以上は2桁で自動確定、30〜39は決定ボタンで確定
+    static let bpHi = MeasureSpec(min: 30,  initVal: 120, max: 300, decimals: 0, autoCompleteFirstDigit: 4)
+    // 血圧（下）mmHg  40以上は2桁で自動確定、20〜39は決定ボタンで確定
+    static let bpLo = MeasureSpec(min: 20,  initVal: 80,  max: 200, decimals: 0, autoCompleteFirstDigit: 4)
+    // 心拍数 bpm  30以上は2桁で自動確定、10〜29は決定ボタンで確定
+    static let pulse = MeasureSpec(min: 10,  initVal: 65,  max: 200, decimals: 0, autoCompleteFirstDigit: 3)
+    // 体重 x10 kg  (650 = 65.0 kg)  小数1桁入力で自動確定
     static let weight = MeasureSpec(min: 0,   initVal: 650, max: 2000, decimals: 1)
-    // 体温 x10 ℃  (365 = 36.5 ℃)
+    // 体温 x10 ℃  (365 = 36.5 ℃)  小数1桁入力で自動確定
     static let temp = MeasureSpec(min: 310, initVal: 365, max: 429,  decimals: 1)
-    // 体脂肪率 x10 % (235 = 23.5 %)
+    // 体脂肪率 x10 % (235 = 23.5 %)  小数1桁入力で自動確定
     static let bodyFat = MeasureSpec(min: 0,   initVal: 235, max: 1000,  decimals: 1)
-    // 骨格筋率 x10 % (285 = 28.5 %)
+    // 骨格筋率 x10 % (285 = 28.5 %)  小数1桁入力で自動確定
     static let skMuscle = MeasureSpec(min: 0,   initVal: 285, max: 1000,  decimals: 1)
-    // 脈圧 mmHg
+    // 脈圧 mmHg  血圧上下から計算される値でテンキー入力はしないため自動確定しきい値なし
     static let bpPp = MeasureSpec(min: 10,  initVal: 40,  max: 100,  decimals: 0)
-    // BMI x10 (220 = 22.0)
+    // BMI x10 (220 = 22.0)  小数1桁入力で自動確定
     static let bmi  = MeasureSpec(min: 100, initVal: 220, max: 500,  decimals: 1)
 }
 
@@ -65,6 +65,33 @@ struct MeasureSpec {
     let initVal: Int
     let max: Int
     let decimals: Int   // 小数点桁数（0=整数表示、1=小数1桁）
+
+    /// テンキー自動確定用のしきい値（整数項目のみ）。
+    /// 先頭桁がこの値以上なら2桁入力で確定、未満なら3桁入力で確定する。
+    /// nil の項目（小数項目）は「小数第 decimals 桁まで入力されたら確定」で判定する。
+    /// 例) 血圧上(30〜300, =4): 40〜99は2桁で確定、100〜300は3桁で確定、30〜39は自動確定しない。
+    var autoCompleteFirstDigit: Int? = nil
+
+    /// テンキーで入力途中の文字列 `text` を、これ以上桁を足す必要がなく自動確定してよいか判定する。
+    /// - 小数項目: 小数点があり小数第 decimals 桁まで入力されたら true
+    /// - 整数項目: 先頭桁 >= autoCompleteFirstDigit なら2桁、未満なら3桁入力で true
+    ///   （下限帯は 2桁で止まり自動確定しないため false のまま。決定ボタンで確定する）
+    func shouldAutoComplete(after text: String) -> Bool {
+        guard !text.isEmpty else { return false }
+
+        if decimals > 0 {
+            // 小数項目: 小数点以降が decimals 桁に達したら確定
+            guard let dot = text.firstIndex(of: ".") else { return false }
+            let fractionDigits = text.distance(from: text.index(after: dot), to: text.endIndex)
+            return fractionDigits >= decimals
+        }
+
+        // 整数項目: 先頭桁のしきい値で必要桁数を切り替える
+        guard let threshold = autoCompleteFirstDigit,
+              let firstDigit = text.first?.wholeNumberValue else { return false }
+        let requiredDigits = firstDigit >= threshold ? 2 : 3
+        return text.count >= requiredDigits
+    }
 }
 
 // MARK: - 日付判定

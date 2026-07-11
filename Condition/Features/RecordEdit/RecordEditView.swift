@@ -663,7 +663,8 @@ struct RecordEditView: View {
             if enabled.wrappedValue {
                 // 数値と単位を同じボタン内に入れてタップ領域を拡大
                 NumpadValueText(value: value, min: spec.min, max: spec.max,
-                                decimals: decimals, color: color, unit: unit)
+                                decimals: decimals, color: color, unit: unit,
+                                autoCompleteFirstDigit: spec.autoCompleteFirstDigit)
             } else {
                 Text("placeholder.none")
                     .font(.title)
