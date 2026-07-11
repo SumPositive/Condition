@@ -1,3 +1,2 @@
-・Reorder categories: drag to rearrange them, and the new order is used in category pickers and graphs.
-・Graph: added help (explanations) for Heart Rate and Pulse Pressure.
-・Record list: filter records by category — also applied to PDF export.
+・Number pad entry now confirms automatically and moves to the next field.
+・Updated the app icon.
