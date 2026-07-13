@@ -56,6 +56,7 @@ struct RecordImportRecord: Decodable {
     let weight: Double?
     let bodyFat: Double?
     let skeletalMuscle: Double?
+    let measurementSamples: MeasurementSampleSet?
 
     var parsedDate: Date? {
         let iso = ISO8601DateFormatter()
@@ -163,6 +164,11 @@ enum RecordsJSONIO {
             if 0 < record.nWeight_10Kg  { object["weight"]          = decimalNumber(record.nWeight_10Kg,  scale: 1) }
             if 0 < record.nBodyFat_10p  { object["bodyFat"]         = decimalNumber(record.nBodyFat_10p,  scale: 1) }
             if 0 < record.nSkMuscle_10p { object["skeletalMuscle"]  = decimalNumber(record.nSkMuscle_10p, scale: 1) }
+            // 平均値を再編集できるよう元の測定値もバックアップする
+            if let sampleSet = record.measurementSampleSet,
+               let sampleObject = jsonObject(sampleSet) {
+                object["measurementSamples"] = sampleObject
+            }
             recordObjects.append(object)
         }
 
@@ -253,6 +259,8 @@ enum RecordsJSONIO {
             record.nWeight_10Kg  = clampedDecMeasure(imported.weight,        spec: MeasureRange.weight)
             record.nBodyFat_10p  = clampedDecMeasure(imported.bodyFat,       spec: MeasureRange.bodyFat)
             record.nSkMuscle_10p = clampedDecMeasure(imported.skeletalMuscle, spec: MeasureRange.skMuscle)
+            // 旧バックアップではnilとなるため従来記録との互換性を保てる
+            record.measurementSampleSet = imported.measurementSamples
         }
 
         do {
@@ -307,6 +315,12 @@ enum RecordsJSONIO {
     private static func decimalNumber(_ value: Int, scale: Int) -> NSDecimalNumber {
         // JSON 出力で Double の2進小数誤差が長く出ないよう、10進数として出力する
         NSDecimalNumber(value: value).dividing(by: NSDecimalNumber(mantissa: 1, exponent: Int16(scale), isNegative: false))
+    }
+
+    /// Codable値をJSONSerializationへ渡せるオブジェクトに変換する
+    private static func jsonObject<T: Encodable>(_ value: T) -> Any? {
+        guard let data = try? JSONEncoder().encode(value) else { return nil }
+        return try? JSONSerialization.jsonObject(with: data)
     }
 
     private static func normalizedAppearance(

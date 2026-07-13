@@ -195,10 +195,15 @@ struct RecordListView: View {
 
     @ViewBuilder
     private func editRecordSheet(record: BodyRecord) -> some View {
-        RecordEditView(
-            mode: .edit(record),
-            onModifiedChanged: { editHasUnsavedChanges = $0 }
-        )
+        if record.measurementSampleSet != nil {
+            // 複数回測定の記録は元の測定値を専用表で修正する
+            MeasurementAverageView(record: record)
+        } else {
+            RecordEditView(
+                mode: .edit(record),
+                onModifiedChanged: { editHasUnsavedChanges = $0 }
+            )
+        }
     }
 
     // MARK: - 区分フィルター

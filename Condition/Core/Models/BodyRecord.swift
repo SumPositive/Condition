@@ -17,6 +17,8 @@ final class BodyRecord {
 var sNote1: String = ""
     var sNote2: String = ""
     var sEquipment: String = ""                  // 測定場所・装置
+    // 平均値の元になった最大5回分の測定値をJSONで保持
+    var sMeasurementSamples: String = ""
 
     // MARK: - 測定値（0 = 未入力）
     // 血圧（単位: mmHg）
@@ -68,6 +70,67 @@ var sNote1: String = ""
     // MARK: - 目標値用特殊日付（グローバル定数 bodyRecordGoalDate も参照）
     static let goalDate: Date = bodyRecordGoalDate
     static let maxInputDate: Date = bodyRecordMaxDate
+}
+
+// MARK: - 複数回測定値
+
+/// 平均値と一緒に保存する最大5回分の測定値
+struct MeasurementSampleSet: Codable, Equatable {
+    static let maxTrials = 5
+
+    var bpHi: [Int?] = []
+    var bpLo: [Int?] = []
+    var pulse: [Int?] = []
+    var weight: [Int?] = []
+    var temp: [Int?] = []
+    var bodyFat: [Int?] = []
+    var skMuscle: [Int?] = []
+
+    var trialCount: Int {
+        [bpHi, bpLo, pulse, weight, temp, bodyFat, skMuscle]
+            .map(\.count)
+            .max() ?? 0
+    }
+
+    var hasAnyValue: Bool {
+        [bpHi, bpLo, pulse, weight, temp, bodyFat, skMuscle]
+            .contains { $0.contains { $0 != nil } }
+    }
+
+    /// 不正に長い配列を保存しないよう最大5回に揃える
+    func limited() -> MeasurementSampleSet {
+        MeasurementSampleSet(
+            bpHi: Array(bpHi.prefix(Self.maxTrials)),
+            bpLo: Array(bpLo.prefix(Self.maxTrials)),
+            pulse: Array(pulse.prefix(Self.maxTrials)),
+            weight: Array(weight.prefix(Self.maxTrials)),
+            temp: Array(temp.prefix(Self.maxTrials)),
+            bodyFat: Array(bodyFat.prefix(Self.maxTrials)),
+            skMuscle: Array(skMuscle.prefix(Self.maxTrials))
+        )
+    }
+}
+
+extension BodyRecord {
+    /// 保存済みの複数回測定値を型付きデータとして読み書きする
+    var measurementSampleSet: MeasurementSampleSet? {
+        get {
+            guard !sMeasurementSamples.isEmpty,
+                  let data = sMeasurementSamples.data(using: .utf8),
+                  let decoded = try? JSONDecoder().decode(MeasurementSampleSet.self, from: data),
+                  decoded.hasAnyValue else { return nil }
+            return decoded.limited()
+        }
+        set {
+            guard let value = newValue?.limited(), value.hasAnyValue,
+                  let data = try? JSONEncoder().encode(value),
+                  let json = String(data: data, encoding: .utf8) else {
+                sMeasurementSamples = ""
+                return
+            }
+            sMeasurementSamples = json
+        }
+    }
 }
 
 // MARK: - 表示用ヘルパー

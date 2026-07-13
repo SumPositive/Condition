@@ -1,6 +1,6 @@
 // 複数回測定の平均を記録するための専用シート
 // 試行（行）× 計測項目（列）の表＋常時表示テンキー
-// 保存時に各項目の平均値を1件の BodyRecord として登録する
+// 保存時に各項目の平均値と最大5回分の測定値を BodyRecord として登録する
 
 import SwiftUI
 import SwiftData
@@ -49,6 +49,19 @@ private enum AvgColumn: Hashable, CaseIterable {
 
     var hasDecimal: Bool { spec.decimals > 0 }
 
+    /// 永続化モデルからこの列の測定値を取得する
+    func values(in set: MeasurementSampleSet) -> [Int?] {
+        switch self {
+        case .bpHi:     return set.bpHi
+        case .bpLo:     return set.bpLo
+        case .pulse:    return set.pulse
+        case .weight:   return set.weight
+        case .temp:     return set.temp
+        case .bodyFat:  return set.bodyFat
+        case .skMuscle: return set.skMuscle
+        }
+    }
+
     /// 標準偏差の許容範囲（青=良好以下、赤=注意以上）
     var sdTolerance: (blue: Int, red: Int) {
         switch self {
@@ -69,9 +82,20 @@ private struct AvgCell: Hashable {
     let trial: Int          // 0 始まり
 }
 
+/// 編集開始時との比較に使う画面状態
+private struct MeasurementAverageSnapshot: Equatable {
+    let dateTime: Date
+    let dateOpt: DateOpt
+    let samples: [AvgColumn: [Int?]]
+    let trialCount: Int
+}
+
 // MARK: - シート本体
 
 struct MeasurementAverageView: View {
+
+    /// nilは新規作成、値がある場合は保存済み平均記録の修正
+    let record: BodyRecord?
 
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -81,6 +105,7 @@ struct MeasurementAverageView: View {
     @State private var dateTime: Date = Date()
     @State private var dateOpt: DateOpt = AppSettings.shared.autoDateOpt(for: Date())
     @State private var showDatePicker = false
+    @State private var showDeleteAlert = false
     @State private var isDateOptExpanded = false
 
     /// 入力済みの値（nil は未入力）
@@ -93,6 +118,10 @@ struct MeasurementAverageView: View {
     @State private var focused: AvgCell? = nil
     /// 入力中の文字列（フォーカス中セルに対応）
     @State private var inputText: String = ""
+    /// onAppearの再実行による入力内容の上書きを防ぐ
+    @State private var didLoadInitialValues = false
+    /// 編集開始時の状態を保持して未変更か判定する
+    @State private var initialSnapshot: MeasurementAverageSnapshot?
 
     /// キャンセル誤タップ防止
     @State private var isCancelArmed = false
@@ -107,7 +136,11 @@ struct MeasurementAverageView: View {
         return f
     }()
 
-    private let maxTrials = 5
+    private let maxTrials = MeasurementSampleSet.maxTrials
+
+    init(record: BodyRecord? = nil) {
+        self.record = record
+    }
 
     // MARK: 表示する列
 
@@ -127,6 +160,11 @@ struct MeasurementAverageView: View {
             default:        break
             }
         }
+        // 修正時は現在非表示の項目でも保存済み測定値があれば表示する
+        for column in AvgColumn.allCases
+        where !result.contains(column) && !(samples[column] ?? []).compactMap({ $0 }).isEmpty {
+            result.append(column)
+        }
         return result
     }
 
@@ -134,6 +172,24 @@ struct MeasurementAverageView: View {
     private var hasAnyValue: Bool {
         for (_, arr) in samples where arr.contains(where: { $0 != nil }) { return true }
         return false
+    }
+
+    /// 編集開始時から画面内容が変わっているか
+    private var hasUnsavedChanges: Bool {
+        guard record != nil else { return hasAnyValue }
+        guard let initialSnapshot else { return false }
+        // 入力途中の文字がある場合も変更として扱う
+        if !inputText.isEmpty { return true }
+        return initialSnapshot != currentSnapshot
+    }
+
+    private var currentSnapshot: MeasurementAverageSnapshot {
+        MeasurementAverageSnapshot(
+            dateTime: dateTime,
+            dateOpt: dateOpt,
+            samples: samples,
+            trialCount: trialCount
+        )
     }
 
     var body: some View {
@@ -158,10 +214,10 @@ struct MeasurementAverageView: View {
                         handleCancelTapped()
                     } label: {
                         Text("action.cancel")
-                            .font(hasAnyValue ? .caption2 : .body)
+                            .font(hasUnsavedChanges ? .caption2 : .body)
                             .foregroundColor(isCancelArmed ? .white : .primary)
-                            .padding(.horizontal, hasAnyValue ? 6 : 0)
-                            .padding(.vertical, hasAnyValue ? 3 : 0)
+                            .padding(.horizontal, hasUnsavedChanges ? 6 : 0)
+                            .padding(.vertical, hasUnsavedChanges ? 3 : 0)
                             .background {
                                 if isCancelArmed {
                                     Capsule().fill(Color.red)
@@ -171,8 +227,17 @@ struct MeasurementAverageView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("action.save") { saveAndDismiss() }
-                        .disabled(!hasAnyValue)
+                        .disabled(!hasAnyValue || (record != nil && !hasUnsavedChanges))
                         .bold()
+                }
+                if record != nil {
+                    ToolbarItem(placement: .bottomBar) {
+                        Button(role: .destructive) {
+                            showDeleteAlert = true
+                        } label: {
+                            Label("record.delete.button", systemImage: "trash")
+                        }
+                    }
                 }
             }
             .sheet(isPresented: $showDatePicker) {
@@ -180,11 +245,23 @@ struct MeasurementAverageView: View {
                     dateOpt = settings.autoDateOpt(for: dateTime)
                 }
             }
-            .interactiveDismissDisabled(hasAnyValue)
+            .interactiveDismissDisabled(hasUnsavedChanges)
+            .alert("record.delete.confirm", isPresented: $showDeleteAlert) {
+                Button("action.delete", role: .destructive) {
+                    deleteRecord()
+                }
+                Button("action.cancel", role: .cancel) {}
+            }
             .onAppear {
+                guard !didLoadInitialValues else { return }
+                didLoadInitialValues = true
+                if let record {
+                    loadSavedRecord(record)
+                } else {
+                    ensureSamplesArrays()
+                    loadInitialDateOpt()
+                }
                 if columns.isEmpty { return }
-                ensureSamplesArrays()
-                loadInitialDateOpt()
                 if focused == nil, let first = columns.first {
                     focused = AvgCell(column: first, trial: 0)
                 }
@@ -708,6 +785,34 @@ struct MeasurementAverageView: View {
 
     // MARK: 入力ハンドリング
 
+    /// 保存済みの平均記録と各試行値を修正画面へ復元する
+    private func loadSavedRecord(_ record: BodyRecord) {
+        dateTime = record.dateTime
+        dateOpt = record.dateOpt
+        guard let set = record.measurementSampleSet else {
+            ensureSamplesArrays()
+            initialSnapshot = currentSnapshot
+            return
+        }
+        trialCount = max(1, min(maxTrials, set.trialCount))
+        var loadedSamples: [AvgColumn: [Int?]] = [:]
+        for column in AvgColumn.allCases {
+            var values = column.values(in: set)
+            if values.count < trialCount {
+                values.append(contentsOf: Array(repeating: nil, count: trialCount - values.count))
+            }
+            loadedSamples[column] = Array(values.prefix(trialCount))
+        }
+        samples = loadedSamples
+        // 復元完了後の状態を未変更の基準にする
+        initialSnapshot = MeasurementAverageSnapshot(
+            dateTime: record.dateTime,
+            dateOpt: record.dateOpt,
+            samples: loadedSamples,
+            trialCount: trialCount
+        )
+    }
+
     /// 新規記録と同じロジックで区分の初期値を決める
     /// （まとめ時間内の直前区分 ＞ 推定 ＞ 時刻帯マップ）
     /// 続いて、決定した区分で1ヶ月以内の直近記録があれば1回目の初期値として読み込む。
@@ -939,7 +1044,7 @@ struct MeasurementAverageView: View {
     // MARK: キャンセル
 
     private func handleCancelTapped() {
-        guard hasAnyValue else {
+        guard hasUnsavedChanges else {
             dismiss()
             return
         }
@@ -964,27 +1069,64 @@ struct MeasurementAverageView: View {
 
     // MARK: 保存
 
+    /// 修正中の平均記録を削除する
+    private func deleteRecord() {
+        guard let record else { return }
+        context.delete(record)
+        do {
+            try context.save()
+            dismiss()
+        } catch {
+            context.rollback()
+            AppAnalytics.shared.record(error: error, name: "measurement_average_sheet_delete_failed")
+        }
+    }
+
     private func saveAndDismiss() {
         commitInputText()
         guard hasAnyValue else { return }
 
-        let record = BodyRecord(dateTime: dateTime, dateOpt: dateOpt)
-        record.dataSource = .appInput
+        // 修正時は同じレコードを更新し、新規時だけレコードを作成する
+        let target = record ?? BodyRecord(dateTime: dateTime, dateOpt: dateOpt)
+        target.dateTime = dateTime
+        target.dateOpt = dateOpt
+        target.dataSource = record == nil ? .appInput : .appModified
 
-        for col in columns {
+        target.nBpHi_mmHg = 0
+        target.nBpLo_mmHg = 0
+        target.nPulse_bpm = 0
+        target.nWeight_10Kg = 0
+        target.nTemp_10c = 0
+        target.nBodyFat_10p = 0
+        target.nSkMuscle_10p = 0
+
+        for col in AvgColumn.allCases {
             guard let avg = averageValue(enteredValues(for: col)) else { continue }
             switch col {
-            case .bpHi:     record.nBpHi_mmHg    = avg
-            case .bpLo:     record.nBpLo_mmHg    = avg
-            case .pulse:    record.nPulse_bpm    = avg
-            case .weight:   record.nWeight_10Kg  = avg
-            case .temp:     record.nTemp_10c     = avg
-            case .bodyFat:  record.nBodyFat_10p  = avg
-            case .skMuscle: record.nSkMuscle_10p = avg
+            case .bpHi:     target.nBpHi_mmHg    = avg
+            case .bpLo:     target.nBpLo_mmHg    = avg
+            case .pulse:    target.nPulse_bpm    = avg
+            case .weight:   target.nWeight_10Kg  = avg
+            case .temp:     target.nTemp_10c     = avg
+            case .bodyFat:  target.nBodyFat_10p  = avg
+            case .skMuscle: target.nSkMuscle_10p = avg
             }
         }
 
-        context.insert(record)
+        // 空欄を含む行構成を保ち、修正時に同じ表を復元する
+        target.measurementSampleSet = MeasurementSampleSet(
+            bpHi: Array((samples[.bpHi] ?? []).prefix(trialCount)),
+            bpLo: Array((samples[.bpLo] ?? []).prefix(trialCount)),
+            pulse: Array((samples[.pulse] ?? []).prefix(trialCount)),
+            weight: Array((samples[.weight] ?? []).prefix(trialCount)),
+            temp: Array((samples[.temp] ?? []).prefix(trialCount)),
+            bodyFat: Array((samples[.bodyFat] ?? []).prefix(trialCount)),
+            skMuscle: Array((samples[.skMuscle] ?? []).prefix(trialCount))
+        )
+
+        if record == nil {
+            context.insert(target)
+        }
         do {
             try context.save()
             AppAnalytics.shared.logOperation(
@@ -996,13 +1138,13 @@ struct MeasurementAverageView: View {
                HKSyncDirection(rawValue: settings.hkDirection)?.canWrite == true {
                 HealthKitService.shared.scheduleWrite(
                     HealthKitValues(
-                        date: record.dateTime,
-                        bpHi: record.nBpHi_mmHg,
-                        bpLo: record.nBpLo_mmHg,
-                        pulse: record.nPulse_bpm,
-                        temp: record.nTemp_10c,
-                        weight: record.nWeight_10Kg,
-                        bodyFat: record.nBodyFat_10p
+                        date: target.dateTime,
+                        bpHi: target.nBpHi_mmHg,
+                        bpLo: target.nBpLo_mmHg,
+                        pulse: target.nPulse_bpm,
+                        temp: target.nTemp_10c,
+                        weight: target.nWeight_10Kg,
+                        bodyFat: target.nBodyFat_10p
                     )
                 )
             }

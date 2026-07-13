@@ -909,7 +909,29 @@ struct RecordEditView: View {
 
     // MARK: - 保存
 
+    /// 「測定を追加」の試行値を永続化用モデルへ変換する
+    private func syncMeasurementSamplesToViewModel() {
+        guard hasAverageSamples else {
+            vm.measurementSampleSet = nil
+            return
+        }
+        func optionalValues(_ field: MeasurementAverageField) -> [Int?] {
+            (measurementSamples[field] ?? []).map { Optional.some($0) }
+        }
+        vm.measurementSampleSet = MeasurementSampleSet(
+            bpHi: optionalValues(.bpHi),
+            bpLo: optionalValues(.bpLo),
+            pulse: optionalValues(.pulse),
+            weight: optionalValues(.weight),
+            temp: optionalValues(.temp),
+            bodyFat: optionalValues(.bodyFat),
+            skMuscle: optionalValues(.skMuscle)
+        )
+    }
+
     private func saveAndDismiss() {
+        // 衝突処理で別レコードへ保存する場合にも試行値を引き継ぐ
+        syncMeasurementSamplesToViewModel()
         // 新規追加で「記録をまとめる」時間内に衝突があればシート表示
         if let conflict = vm.findRecentConflict(context: context) {
             conflictData = conflict

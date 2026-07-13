@@ -294,6 +294,39 @@ struct JSONRoundTripTests {
                 RecordsJSONIO.normalizedSecond(date))
     }
 
+    @Test("複数回測定値：空欄を含む最大5回分が復元される")
+    @MainActor
+    func measurementSamplesRoundTrip() throws {
+        let sourceContainer = try makeInMemoryContainer()
+        let sourceContext = ModelContext(sourceContainer)
+        let record = BodyRecord(dateTime: Date(), dateOpt: .cat02)
+        // 平均値の元になった行構成を空欄も含めて保存する
+        record.measurementSampleSet = MeasurementSampleSet(
+            bpHi: [120, 122, nil, 121, 119],
+            bpLo: [80, 82, nil, 81, 79],
+            pulse: [65, 66, nil, 64, 65],
+            weight: [],
+            temp: [],
+            bodyFat: [],
+            skMuscle: []
+        )
+        sourceContext.insert(record)
+        try sourceContext.save()
+
+        let data = RecordsJSONIO.export(records: [record])
+        let destinationContainer = try makeInMemoryContainer()
+        let destinationContext = ModelContext(destinationContainer)
+        try RecordsJSONIO.importJSON(data, into: destinationContext)
+
+        let restored = try #require(
+            destinationContext.fetch(FetchDescriptor<BodyRecord>()).first?.measurementSampleSet
+        )
+        #expect(restored.bpHi == [120, 122, nil, 121, 119])
+        #expect(restored.bpLo == [80, 82, nil, 81, 79])
+        #expect(restored.pulse == [65, 66, nil, 64, 65])
+        #expect(restored.trialCount == 5)
+    }
+
     @Test("複数レコード：エクスポート→インポートで件数と内容が一致する")
     @MainActor
     func multipleRecordsRoundTrip() throws {

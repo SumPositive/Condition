@@ -49,6 +49,8 @@ final class RecordEditViewModel {
     var errorMessage: String?
     var isLoadingFromHK: Bool = false
     var dataSource: RecordDataSource = .appInput
+    /// 「測定を追加」で蓄積した最大5回分の測定値
+    var measurementSampleSet: MeasurementSampleSet?
     /// ヘルスケア由来の記録は、日時と値を固定する。
     var isHealthRecord: Bool {
         dataSource == .hkImport || dataSource == .hkModified
@@ -417,6 +419,9 @@ final class RecordEditViewModel {
         prev.nBodyFat_10p  = apply(.bodyFat,  prev: prev.nBodyFat_10p,  new: newBF)
         prev.nSkMuscle_10p = apply(.skMuscle, prev: prev.nSkMuscle_10p, new: newSK)
 
+        // 統合後の値は元の試行値だけでは再現できないため通常記録として扱う
+        prev.measurementSampleSet = nil
+
         // メモ・装備：新しい記録が入力済みなら上書き、空なら直前を残す
         let n1 = sNote1.trimmingCharacters(in: .newlines)
         let n2 = sNote2.trimmingCharacters(in: .newlines)
@@ -464,6 +469,8 @@ final class RecordEditViewModel {
         record.nWeight_10Kg  = weightEnabled    ? nWeight_10Kg  : 0
         record.nBodyFat_10p  = bodyFatEnabled   ? nBodyFat_10p  : 0
         record.nSkMuscle_10p = skMuscleEnabled  ? nSkMuscle_10p : 0
+        // 複数回測定時だけ元の試行値を平均値と一緒に保存する
+        record.measurementSampleSet = measurementSampleSet
     }
 
     private func restoreHealthValues(to record: BodyRecord) {
