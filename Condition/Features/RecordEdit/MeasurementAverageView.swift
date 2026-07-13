@@ -90,6 +90,35 @@ private struct MeasurementAverageSnapshot: Equatable {
     let trialCount: Int
 }
 
+/// 空セルでダイアルを動かしたときの初回確定値を決める
+enum MeasurementSampleDialLogic {
+    static func acceptedValue(
+        currentValue: Int?,
+        placeholder: Int?,
+        proposedValue: Int,
+        hasInputText: Bool
+    ) -> Int {
+        // 未入力かつプレースホルダー表示中なら、初回は増減前の値を採用する
+        if currentValue == nil, !hasInputText, let placeholder {
+            return placeholder
+        }
+        return proposedValue
+    }
+}
+
+/// 新規作成と編集で保存前確認の要否を判定する
+enum MeasurementAverageChangeLogic {
+    static func hasUnsavedChanges(
+        isEditing: Bool,
+        hasAnyValue: Bool,
+        hasInputText: Bool,
+        matchesInitialSnapshot: Bool
+    ) -> Bool {
+        if !isEditing { return hasAnyValue }
+        return hasInputText || !matchesInitialSnapshot
+    }
+}
+
 // MARK: - シート本体
 
 struct MeasurementAverageView: View {
@@ -176,11 +205,22 @@ struct MeasurementAverageView: View {
 
     /// 編集開始時から画面内容が変わっているか
     private var hasUnsavedChanges: Bool {
-        guard record != nil else { return hasAnyValue }
+        if record == nil {
+            return MeasurementAverageChangeLogic.hasUnsavedChanges(
+                isEditing: false,
+                hasAnyValue: hasAnyValue,
+                hasInputText: !inputText.isEmpty,
+                matchesInitialSnapshot: false
+            )
+        }
         guard let initialSnapshot else { return false }
-        // 入力途中の文字がある場合も変更として扱う
-        if !inputText.isEmpty { return true }
-        return initialSnapshot != currentSnapshot
+        // 入力途中の文字も含めて編集開始時との差を判定する
+        return MeasurementAverageChangeLogic.hasUnsavedChanges(
+            isEditing: true,
+            hasAnyValue: hasAnyValue,
+            hasInputText: !inputText.isEmpty,
+            matchesInitialSnapshot: initialSnapshot == currentSnapshot
+        )
     }
 
     private var currentSnapshot: MeasurementAverageSnapshot {
@@ -481,14 +521,18 @@ struct MeasurementAverageView: View {
             },
             set: { newValue in
                 // ダイアル操作は入力バッファをクリアして直接セルへ書く
-                let acceptsPlaceholder = inputText.isEmpty
-                    && samples[cell.column]?[cell.trial] == nil
+                let currentValue = samples[cell.column]?[cell.trial]
                 let placeholder = effectivePlaceholder(for: cell.column, trial: cell.trial)
+                let acceptedValue = MeasurementSampleDialLogic.acceptedValue(
+                    currentValue: currentValue,
+                    placeholder: placeholder,
+                    proposedValue: newValue,
+                    hasInputText: !inputText.isEmpty
+                )
                 inputText = ""
                 var arr = samples[cell.column] ?? Array(repeating: nil, count: trialCount)
                 if arr.isEmpty { arr = Array(repeating: nil, count: trialCount) }
                 // 空セルの初回操作は増減せず、表示中のプレースホルダー値を確定する
-                let acceptedValue = acceptsPlaceholder ? (placeholder ?? newValue) : newValue
                 arr[cell.trial] = min(max(acceptedValue, cell.column.spec.min), cell.column.spec.max)
                 samples[cell.column] = arr
             }

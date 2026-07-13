@@ -67,6 +67,149 @@ struct BodyRecordTests {
     }
 }
 
+// MARK: - 複数回測定テスト
+
+@Suite("Measurement Sample Tests")
+struct MeasurementSampleTests {
+
+    @Test("測定値は項目ごとに最大5回へ制限される")
+    func samplesAreLimitedToFiveTrials() {
+        let record = BodyRecord()
+        // 外部データから6回以上渡されても保存上限を超えないことを確認する
+        record.measurementSampleSet = MeasurementSampleSet(
+            bpHi: [120, 121, 122, 123, 124, 125],
+            bpLo: [70, 71, 72, 73, 74, 75],
+            pulse: [],
+            weight: [],
+            temp: [],
+            bodyFat: [],
+            skMuscle: []
+        )
+
+        #expect(record.measurementSampleSet?.bpHi == [120, 121, 122, 123, 124])
+        #expect(record.measurementSampleSet?.bpLo == [70, 71, 72, 73, 74])
+        #expect(record.measurementSampleSet?.trialCount == 5)
+    }
+
+    @Test("測定値が全て空なら通常記録として扱われる")
+    func emptySamplesAreNotStored() {
+        let record = BodyRecord()
+        record.measurementSampleSet = MeasurementSampleSet(
+            bpHi: [nil],
+            bpLo: [nil],
+            pulse: [],
+            weight: [],
+            temp: [],
+            bodyFat: [],
+            skMuscle: []
+        )
+
+        #expect(record.measurementSampleSet == nil)
+        #expect(record.sMeasurementSamples.isEmpty)
+    }
+
+    @Test("壊れた測定値JSONは平均記録として扱わない")
+    func corruptedSamplesAreIgnored() {
+        let record = BodyRecord()
+        record.sMeasurementSamples = "{broken-json"
+
+        #expect(record.measurementSampleSet == nil)
+    }
+
+    @Test("空セルの初回操作はプレースホルダー値を確定する")
+    func firstDialActionAcceptsPlaceholder() {
+        let first = MeasurementSampleDialLogic.acceptedValue(
+            currentValue: nil,
+            placeholder: 120,
+            proposedValue: 121,
+            hasInputText: false
+        )
+        let second = MeasurementSampleDialLogic.acceptedValue(
+            currentValue: 120,
+            placeholder: 120,
+            proposedValue: 121,
+            hasInputText: false
+        )
+
+        #expect(first == 120)
+        #expect(second == 121)
+    }
+
+    @Test("テンキー入力中とプレースホルダーなしでは操作値を採用する")
+    func dialActionUsesProposedValueWithoutApplicablePlaceholder() {
+        let typing = MeasurementSampleDialLogic.acceptedValue(
+            currentValue: nil,
+            placeholder: 120,
+            proposedValue: 125,
+            hasInputText: true
+        )
+        let noPlaceholder = MeasurementSampleDialLogic.acceptedValue(
+            currentValue: nil,
+            placeholder: nil,
+            proposedValue: 130,
+            hasInputText: false
+        )
+
+        #expect(typing == 125)
+        #expect(noPlaceholder == 130)
+    }
+
+    @Test("編集直後は未変更で値や入力に差があると変更済みになる")
+    func editChangeDetection() {
+        let initial = MeasurementAverageChangeLogic.hasUnsavedChanges(
+            isEditing: true,
+            hasAnyValue: true,
+            hasInputText: false,
+            matchesInitialSnapshot: true
+        )
+        let valueChanged = MeasurementAverageChangeLogic.hasUnsavedChanges(
+            isEditing: true,
+            hasAnyValue: true,
+            hasInputText: false,
+            matchesInitialSnapshot: false
+        )
+        let typing = MeasurementAverageChangeLogic.hasUnsavedChanges(
+            isEditing: true,
+            hasAnyValue: true,
+            hasInputText: true,
+            matchesInitialSnapshot: true
+        )
+
+        #expect(!initial)
+        #expect(valueChanged)
+        #expect(typing)
+    }
+
+    @Test("記録編集ViewModelから平均値と各測定値を保存できる")
+    @MainActor
+    func recordEditViewModelStoresSamples() throws {
+        let container = try makeInMemoryContainer()
+        let context = ModelContext(container)
+        let viewModel = RecordEditViewModel(mode: .addNew)
+        viewModel.nBpHi_mmHg = 121
+        viewModel.nBpLo_mmHg = 81
+        viewModel.bpHiEnabled = true
+        viewModel.bpLoEnabled = true
+        viewModel.measurementSampleSet = MeasurementSampleSet(
+            bpHi: [120, 122],
+            bpLo: [80, 82],
+            pulse: [],
+            weight: [],
+            temp: [],
+            bodyFat: [],
+            skMuscle: []
+        )
+
+        try viewModel.save(context: context)
+
+        let saved = try #require(context.fetch(FetchDescriptor<BodyRecord>()).first)
+        #expect(saved.nBpHi_mmHg == 121)
+        #expect(saved.nBpLo_mmHg == 81)
+        #expect(saved.measurementSampleSet?.bpHi == [120, 122])
+        #expect(saved.measurementSampleSet?.bpLo == [80, 82])
+    }
+}
+
 // MARK: - テスト用ヘルパー
 
 /// インメモリ ModelContainer を生成する。各テストで隔離した SwiftData ストアを得る用途
