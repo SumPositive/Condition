@@ -481,10 +481,15 @@ struct MeasurementAverageView: View {
             },
             set: { newValue in
                 // ダイアル操作は入力バッファをクリアして直接セルへ書く
+                let acceptsPlaceholder = inputText.isEmpty
+                    && samples[cell.column]?[cell.trial] == nil
+                let placeholder = effectivePlaceholder(for: cell.column, trial: cell.trial)
                 inputText = ""
                 var arr = samples[cell.column] ?? Array(repeating: nil, count: trialCount)
                 if arr.isEmpty { arr = Array(repeating: nil, count: trialCount) }
-                arr[cell.trial] = min(max(newValue, cell.column.spec.min), cell.column.spec.max)
+                // 空セルの初回操作は増減せず、表示中のプレースホルダー値を確定する
+                let acceptedValue = acceptsPlaceholder ? (placeholder ?? newValue) : newValue
+                arr[cell.trial] = min(max(acceptedValue, cell.column.spec.min), cell.column.spec.max)
                 samples[cell.column] = arr
             }
         )
