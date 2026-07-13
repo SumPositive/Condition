@@ -1757,7 +1757,8 @@ struct GraphSettingsView: View {
                         min: 100,
                         max: 250,
                         step: 1,
-                        stepperStep: 5,
+                        // 身長は1cm単位で調整する
+                        stepperStep: 1,
                         style: DialStyle.builtin(id: settings.dialStyle) ?? .shape,
                         tuning: settings.dialTuning
                     )
@@ -2009,15 +2010,16 @@ struct GoalSettingsView: View {
         NavigationStack {
             Form {
                 Section("goal.values") {
-                    goalDialRow(title: "metric.systolic.long", value: $settings.goalBpHi,      spec: MeasureRange.bpHi,      recordVal: latestBpHi,   unit: "unit.mmHg", stepperStep: 10, color: .red)
-                    goalDialRow(title: "metric.diastolic.long", value: $settings.goalBpLo,      spec: MeasureRange.bpLo,      recordVal: latestBpLo,   unit: "unit.mmHg", stepperStep: 5,  color: .blue)
-                    goalDialRow(title: "metric.pulsePressure",             value: $settings.goalBpPp,      spec: MeasureRange.bpPp,      recordVal: latestBpPp,   unit: "unit.mmHg", stepperStep: 5,  color: .orange)
-                    goalDialRow(title: "metric.heartRate",           value: $settings.goalPulse,     spec: MeasureRange.pulse,     recordVal: latestPulse,  unit: "unit.bpm",  stepperStep: 5,  color: .orange)
-                    goalDialRow(title: "metric.weight",             value: $settings.goalWeight,    spec: MeasureRange.weight,    recordVal: latestWeight, unit: "unit.kg",   stepperStep: 10, decimals: 1, color: .indigo)
-                    goalDialRow(title: "metric.bmi",              value: $settings.goalBMI,       spec: MeasureRange.bmi,       recordVal: latestBMI,    unit: "",     stepperStep: 5,  decimals: 1, color: .cyan)
+                    // ステッパは各測定値の最小単位で調整する
+                    goalDialRow(title: "metric.systolic.long", value: $settings.goalBpHi,      spec: MeasureRange.bpHi,      recordVal: latestBpHi,   unit: "unit.mmHg", stepperStep: 1, color: .red)
+                    goalDialRow(title: "metric.diastolic.long", value: $settings.goalBpLo,      spec: MeasureRange.bpLo,      recordVal: latestBpLo,   unit: "unit.mmHg", stepperStep: 1, color: .blue)
+                    goalDialRow(title: "metric.pulsePressure",             value: $settings.goalBpPp,      spec: MeasureRange.bpPp,      recordVal: latestBpPp,   unit: "unit.mmHg", stepperStep: 1, color: .orange)
+                    goalDialRow(title: "metric.heartRate",           value: $settings.goalPulse,     spec: MeasureRange.pulse,     recordVal: latestPulse,  unit: "unit.bpm",  stepperStep: 1, color: .orange)
+                    goalDialRow(title: "metric.weight",             value: $settings.goalWeight,    spec: MeasureRange.weight,    recordVal: latestWeight, unit: "unit.kg",   stepperStep: 1, decimals: 1, color: .indigo)
+                    goalDialRow(title: "metric.bmi",              value: $settings.goalBMI,       spec: MeasureRange.bmi,       recordVal: latestBMI,    unit: "",     stepperStep: 1, decimals: 1, color: .cyan)
                     goalDialRow(title: "metric.bodyTemp",             value: $settings.goalTemp,      spec: MeasureRange.temp,      recordVal: latestTemp,   unit: "unit.celsius",   stepperStep: 1,  decimals: 1, color: .pink)
-                    goalDialRow(title: "metric.bodyFat",         value: $settings.goalBodyFat,   spec: MeasureRange.bodyFat,   recordVal: latestBodyFat,unit: "%",    stepperStep: 5,  decimals: 1, color: .purple)
-                    goalDialRow(title: "metric.skeletalMuscle",         value: $settings.goalSkMuscle,  spec: MeasureRange.skMuscle,  recordVal: latestSkMuscle,unit: "%",   stepperStep: 5,  decimals: 1, color: .teal)
+                    goalDialRow(title: "metric.bodyFat",         value: $settings.goalBodyFat,   spec: MeasureRange.bodyFat,   recordVal: latestBodyFat,unit: "%",    stepperStep: 1, decimals: 1, color: .purple)
+                    goalDialRow(title: "metric.skeletalMuscle",         value: $settings.goalSkMuscle,  spec: MeasureRange.skMuscle,  recordVal: latestSkMuscle,unit: "%",   stepperStep: 1, decimals: 1, color: .teal)
                 }
             }
             .scrollIndicators(.hidden)

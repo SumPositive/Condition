@@ -761,6 +761,23 @@ fastlane screenshots
 fastlane upload_screenshots
 ------------------------------------------------
 
+Condition
+グラフ設定：体重入力のステッパのステップが1でないので1にしたい
 
+
+--------------------------------
+2.7.3 Update
+- ダイアルステッパーの増減を最小単位に統一しました
+- 
+-----
+fastlane メタデータを更新して
+2.7.3 審査提出中、README.mdの開発メモ、公開アプリパネル、取扱説明を更新して
+-----
+cd /Users/sumpositive/GitLocal/Condition
+fastlane upload_metadata
+---
+fastlane screenshots
+fastlane upload_screenshots
+------------------------------------------------
 
 
