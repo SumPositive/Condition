@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Condition / 体調メモ (Vitalin) App Icon source -->
-<!-- 案B ゴールド: ハート先端が水面に触れ、同心楕円の波紋が斜め見下ろしで広がる -->
+<!-- 白いハートの先端が水面に触れ、ゴールドの波紋が斜め見下ろしで広がる -->
 <!-- 1024x1024。iOSが角丸マスクを行うため背景は正方形いっぱいに塗る -->
 <svg viewBox="0 0 1024 1024" width="1024" height="1024" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -26,6 +26,6 @@
   <ellipse cx="512" cy="650.8" rx="452" ry="135.6" fill="none" stroke="url(#gold)" stroke-width="15" opacity="0.48"/>
   <ellipse cx="512" cy="650.8" rx="560" ry="168.0" fill="none" stroke="url(#gold)" stroke-width="11" opacity="0.34"/>
 
-  <!-- ハート -->
-  <path d="M50 88 C 20 66, 4 48, 4 30 C 4 14, 16 4, 30 4 C 40 4, 47 10, 50 18 C 53 10, 60 4, 70 4 C 84 4, 96 14, 96 30 C 96 48, 80 66, 50 88 Z" transform="translate(232 128) scale(5.6)" fill="url(#gold)"/>
+  <!-- 小さい表示でも判別しやすい白いハート -->
+  <path d="M50 88 C 20 66, 4 48, 4 30 C 4 14, 16 4, 30 4 C 40 4, 47 10, 50 18 C 53 10, 60 4, 70 4 C 84 4, 96 14, 96 30 C 96 48, 80 66, 50 88 Z" transform="translate(232 128) scale(5.6)" fill="#ffffff"/>
 </svg>
