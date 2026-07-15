@@ -20,12 +20,12 @@
   <rect width="1024" height="1024" fill="url(#bg)"/>
 
   <!-- 水面の波紋（同心楕円・斜め見下ろし・外側ほど薄い） -->
-  <ellipse cx="512" cy="650.8" rx="92" ry="27.6" fill="none" stroke="url(#gold)" stroke-width="34" opacity="1"/>
-  <ellipse cx="512" cy="650.8" rx="210" ry="63.0" fill="none" stroke="url(#gold)" stroke-width="26" opacity="0.82"/>
-  <ellipse cx="512" cy="650.8" rx="330" ry="99.0" fill="none" stroke="url(#gold)" stroke-width="20" opacity="0.64"/>
-  <ellipse cx="512" cy="650.8" rx="452" ry="135.6" fill="none" stroke="url(#gold)" stroke-width="15" opacity="0.48"/>
-  <ellipse cx="512" cy="650.8" rx="560" ry="168.0" fill="none" stroke="url(#gold)" stroke-width="11" opacity="0.34"/>
+  <ellipse cx="512" cy="802.4" rx="92" ry="27.6" fill="none" stroke="url(#gold)" stroke-width="34" opacity="1"/>
+  <ellipse cx="512" cy="802.4" rx="210" ry="63.0" fill="none" stroke="url(#gold)" stroke-width="26" opacity="0.82"/>
+  <ellipse cx="512" cy="802.4" rx="330" ry="99.0" fill="none" stroke="url(#gold)" stroke-width="20" opacity="0.64"/>
+  <ellipse cx="512" cy="802.4" rx="452" ry="135.6" fill="none" stroke="url(#gold)" stroke-width="15" opacity="0.48"/>
+  <ellipse cx="512" cy="802.4" rx="560" ry="168.0" fill="none" stroke="url(#gold)" stroke-width="11" opacity="0.34"/>
 
-  <!-- 小さい表示でも判別しやすい白いハート -->
-  <path d="M50 88 C 20 66, 4 48, 4 30 C 4 14, 16 4, 30 4 C 40 4, 47 10, 50 18 C 53 10, 60 4, 70 4 C 84 4, 96 14, 96 30 C 96 48, 80 66, 50 88 Z" transform="translate(232 128) scale(5.6)" fill="#ffffff"/>
+  <!-- ハートの外接範囲の中心をアイコン中央に合わせる -->
+  <path d="M50 88 C 20 66, 4 48, 4 30 C 4 14, 16 4, 30 4 C 40 4, 47 10, 50 18 C 53 10, 60 4, 70 4 C 84 4, 96 14, 96 30 C 96 48, 80 66, 50 88 Z" transform="translate(202 226.8) scale(6.2)" fill="#ffffff"/>
 </svg>

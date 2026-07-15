@@ -752,7 +752,7 @@ fastlane upload_screenshots
 - アプリアイコンを変更しました
 -----
 fastlane メタデータを更新して
-2.7.2 審査提出中、README.mdの開発メモ、公開アプリパネル、取扱説明を更新して
+2.7.2 2026/7/12公開、README.mdの開発メモ、公開アプリパネル、取扱説明を更新して
 -----
 cd /Users/sumpositive/GitLocal/Condition
 fastlane upload_metadata
