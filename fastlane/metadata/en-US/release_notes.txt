@@ -1,2 +1,4 @@
-・Number pad entry now confirms automatically and moves to the next field.
-・Updated the app icon.
+・Multiple measurements: you can now save and edit several readings per record.
+・You can specify the blood pressure measurement site (left/right arm or wrist) as “L・R”.
+・Settings “Open at Launch”: choose which screen opens on launch (new record, record list, graph, or stats).
+・Unified dial and stepper increments to the smallest unit.
