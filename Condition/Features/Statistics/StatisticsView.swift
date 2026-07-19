@@ -440,6 +440,15 @@ struct BpJshView: View {
     @ScaledMetric(relativeTo: .caption) private var zoneLabelSize: CGFloat = 10
     private var settings: AppSettings { AppSettings.shared }
 
+    // 「高値血圧」ゾーンだけ固有の色相を持たないためグレーで表示するが、
+    // 固定の濃いグレーだとダークモードで背景に埋もれて読めない。ライト/ダークで
+    // 明度を反転させ、どちらでも読めるグレーにする。
+    private static let highNormalLabelColor = Color(UIColor { trait in
+        trait.userInterfaceStyle == .dark
+            ? UIColor(white: 0.75, alpha: 1)
+            : UIColor(white: 0.20, alpha: 1)
+    })
+
     private var isJapanese: Bool {
         Locale.preferredLanguages.first?.hasPrefix("ja") ?? true
     }
@@ -657,7 +666,7 @@ struct BpJshView: View {
         let labels: [(name: String, color: Color, y: Int)] = [
             (names[0], Color(red: 0.20, green: 0.50, blue: 0.90),  95),
             (names[1], Color(red: 0.25, green: 0.72, blue: 0.35), 125),
-            (names[2], Color(white: 0.20), 135),
+            (names[2], Self.highNormalLabelColor, 135),
             (names[3], Color(red: 1.00, green: 0.55, blue: 0.00), 150),
             (names[4], Color(red: 0.95, green: 0.25, blue: 0.00), 170),
             (names[5], Color(red: 0.80, green: 0.00, blue: 0.00), 195),
