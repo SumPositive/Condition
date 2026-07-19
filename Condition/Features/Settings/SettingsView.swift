@@ -73,6 +73,7 @@ struct SettingsView: View {
     @State private var progressHint = ""
     @State private var isMergeWindowExpanded = false
     @State private var isMergeDefaultActionExpanded = false
+    @State private var isLaunchActionExpanded = false
 
     private static let mergeWindowOptions = [
         SettingsPickerOption(id: 0, titleKey: "settings.merge.off"),
@@ -244,16 +245,25 @@ struct SettingsView: View {
                 // MARK: - 記録
                 Section("tab.records") {
                     VStack(alignment: .leading, spacing: 8) {
-                        HStack {
+                        AZAdaptiveControlRow {
                             SettingsHelpTitle(
-                                titleKey: "settings.openNewRecordOnForeground",
-                                helpKey: "settings.help.openNewRecordOnForeground",
-                                storageKey: "helpDismissed.settings.openNewRecordOnForeground"
+                                titleKey: "settings.launchAction",
+                                helpKey: "settings.help.launchAction",
+                                storageKey: "helpDismissed.settings.launchAction"
                             )
-                            Spacer()
-                            Toggle("settings.openNewRecordOnForeground", isOn: $settings.openNewRecordOnForeground)
-                                .labelsHidden()
+                                .font(.subheadline)
+                        } control: {
+                            // 起動時に開く画面も共通のドロップダウンPickerで選ぶ
+                            AZDropdownPicker(
+                                options: LaunchAction.allCases,
+                                selection: $settings.launchAction,
+                                isExpanded: $isLaunchActionExpanded,
+                                minWidth: 170
+                            ) { action in
+                                Text(LocalizedStringKey(action.titleKey))
+                            }
                         }
+                        .zIndex(isLaunchActionExpanded ? 62 : 0)
                     }
                     NavigationLink("settings.fieldOrder") {
                         FieldOrderSettingsView()

@@ -119,7 +119,7 @@ final class AppAnalytics {
             "user_level": settings.userLevel.rawValue,
             "appearance_mode": settings.appearanceMode.rawValue,
             "font_scale": settings.fontScale.rawValue,
-            "open_new_on_foreground": settings.openNewRecordOnForeground ? 1 : 0,
+            "launch_action": settings.launchAction.rawValue,
             "merge_window_minutes": settings.mergeWindowMinutes,
             "merge_default_action": settings.mergeDefaultAction,
             "estimate_category": settings.estimateDateOpt ? 1 : 0,

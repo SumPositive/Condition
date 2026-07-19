@@ -122,7 +122,8 @@ enum UDefKeys {
     static let userLevel        = "UDEF_UserLevel"          // ユーザレベル rawValue
     static let fontScale        = "UDEF_FontScale"          // 文字サイズ rawValue
     static let settingsMigratedFromKVS = "UDEF_SettingsMigratedFromKVS" // 旧KVS設定の移行済みフラグ
-    static let openNewRecordOnForeground = "UDEF_OpenNewRecordOnForeground" // フォアグランド復帰時に新しい記録を開く
+    static let openNewRecordOnForeground = "UDEF_OpenNewRecordOnForeground" // 旧：フォアグランド復帰時に新しい記録を開く（launchActionへ移行済み）
+    static let launchAction              = "UDEF_LaunchAction"              // 起動時に開く画面 LaunchAction.rawValue
     static let mergeWindowMinutes        = "UDEF_MergeWindowMinutes"        // 記録をまとめる時間（分）0=しない
     static let mergeDefaultAction        = "UDEF_MergeDefaultAction"        // 衝突解決の初期選択 ConflictAction.rawValue
     static let estimateDateOpt           = "UDEF_EstimateDateOpt"           // 区分を蓄積記録から推定して初期表示する

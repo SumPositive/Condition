@@ -84,6 +84,34 @@ enum AppAppearanceMode: Int, CaseIterable, Identifiable {
     }
 }
 
+// 起動（フォアグラウンド復帰）時に自動で開く画面
+enum LaunchAction: Int, CaseIterable, Identifiable {
+    case none       = 0   // 何もしない
+    case newMulti   = 1   // 新しい記録（複数回測定の平均）
+    case newSingle  = 2   // 新しい記録（単発）
+    case records    = 5   // 記録（一覧）
+    case graph      = 3   // グラフ
+    case statistics = 4   // 統計
+
+    var id: Int { rawValue }
+
+    // rawValue は永続化互換のため飛び番だが、UIの並びは records をグラフの前に置く
+    static var allCases: [LaunchAction] {
+        [.none, .newMulti, .newSingle, .records, .graph, .statistics]
+    }
+
+    var titleKey: String {
+        switch self {
+        case .none:       return "settings.launchAction.none"
+        case .newMulti:   return "settings.launchAction.newMulti"
+        case .newSingle:  return "settings.launchAction.newSingle"
+        case .records:    return "settings.launchAction.records"
+        case .graph:      return "settings.launchAction.graph"
+        case .statistics: return "settings.launchAction.statistics"
+        }
+    }
+}
+
 @Observable
 @MainActor
 final class AppSettings {
@@ -369,8 +397,9 @@ final class AppSettings {
     }
 
     // MARK: - 起動・フォアグラウンド時の動作
-    var openNewRecordOnForeground: Bool = false {
-        didSet { ud.set(openNewRecordOnForeground, forKey: UDefKeys.openNewRecordOnForeground) }
+    /// 起動（フォアグラウンド復帰）時に自動で開く画面
+    var launchAction: LaunchAction = .none {
+        didSet { ud.set(launchAction.rawValue, forKey: UDefKeys.launchAction) }
     }
 
     // MARK: - 記録をまとめる（衝突検出設定）
@@ -394,6 +423,10 @@ final class AppSettings {
     var showNewRecordSheet: Bool = false
     /// 新規記録シートに未保存の変更があるか
     var newRecordSheetModified: Bool = false
+    /// TabView 上位から複数回測定（平均）シートを開くトリガー
+    var showMeasurementAvgSheet: Bool = false
+    /// 起動時アクションでのタブ切替要求（ContentView が消費）
+    var pendingLaunchTab: Int? = nil
 
     // MARK: - 購入状態（制限解除済み）
     let isUnlocked: Bool = true
@@ -418,8 +451,12 @@ final class AppSettings {
         appearanceMode = AppAppearanceMode(rawValue: ud.integer(forKey: UDefKeys.appearanceMode)) ?? .automatic
         userLevel  = AppUserLevel(rawValue:  ud.integer(forKey: UDefKeys.userLevel))  ?? .beginner
         fontScale  = AppFontScale(rawValue:  ud.integer(forKey: UDefKeys.fontScale))  ?? .system
-        if ud.object(forKey: UDefKeys.openNewRecordOnForeground) != nil {
-            openNewRecordOnForeground = ud.bool(forKey: UDefKeys.openNewRecordOnForeground)
+        if ud.object(forKey: UDefKeys.launchAction) != nil {
+            launchAction = LaunchAction(rawValue: ud.integer(forKey: UDefKeys.launchAction)) ?? .none
+        } else if ud.object(forKey: UDefKeys.openNewRecordOnForeground) != nil {
+            // 旧Bool設定から移行：ONだった人は「新しい記録（単発）」、OFFは「何もしない」
+            launchAction = ud.bool(forKey: UDefKeys.openNewRecordOnForeground) ? .newSingle : .none
+            ud.set(launchAction.rawValue, forKey: UDefKeys.launchAction)
         }
         if ud.object(forKey: UDefKeys.mergeWindowMinutes) != nil {
             mergeWindowMinutes = ud.integer(forKey: UDefKeys.mergeWindowMinutes)
