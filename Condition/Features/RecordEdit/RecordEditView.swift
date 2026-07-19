@@ -372,7 +372,14 @@ struct RecordEditView: View {
     private func fieldRow(for kind: GraphKind) -> some View {
         switch kind {
         case .bp:
-            dialRow(averageField: .bpHi, title: "metric.systolic.long", value: $vm.nBpHi_mmHg, enabled: $vm.bpHiEnabled, spec: MeasureRange.bpHi, unitKey: "unit.mmHg", stepperStep: 1, color: .red, locked: vm.valuesLocked)
+            dialRow(
+                averageField: .bpHi, title: "metric.systolic.long", value: $vm.nBpHi_mmHg,
+                enabled: $vm.bpHiEnabled, spec: MeasureRange.bpHi, unitKey: "unit.mmHg",
+                stepperStep: 1, color: .red, locked: vm.valuesLocked,
+                hasTitleAccessory: showsBpSideSegment
+            ) {
+                if showsBpSideSegment { bpSideSegment }
+            }
             dialRow(averageField: .bpLo, title: "metric.diastolic.long", value: $vm.nBpLo_mmHg, enabled: $vm.bpLoEnabled, spec: MeasureRange.bpLo, unitKey: "unit.mmHg", stepperStep: 1, color: .blue, locked: vm.valuesLocked)
         case .pulse:
             dialRow(averageField: .pulse, title: "metric.heartRate", value: $vm.nPulse_bpm, enabled: $vm.pulseEnabled, spec: MeasureRange.pulse, unitKey: "unit.bpm", stepperStep: 1, color: .orange, locked: vm.valuesLocked)
@@ -527,10 +534,36 @@ struct RecordEditView: View {
         return style
     }
 
+    // MARK: - 血圧の測定箇所（左右）
+
+    /// 左右セグメントを収縮期血圧の見出し右に出すか（目標値編集や血圧OFF時は非表示）
+    private var showsBpSideSegment: Bool {
+        if case .goalEdit = vm.mode { return false }
+        return vm.bpHiEnabled || vm.bpLoEnabled
+    }
+
+    /// 収縮期血圧の見出し右に置く [左, ・, 右] セグメント
+    private var bpSideSegment: some View {
+        AZRadioPicker(
+            options: BpSide.allCases,
+            selection: $vm.bpSide,
+            minOptionWidth: 0,
+            maxOptionWidth: 60,
+            horizontalPadding: 10,
+            optionSpacing: 4,
+            groupPadding: 2,
+            wrapsOptions: false,
+            fillsWidth: false
+        ) { side in
+            Text(side.code)
+        }
+        .disabled(vm.valuesLocked)
+    }
+
     // MARK: - ダイアル行
 
     @ViewBuilder
-    private func dialRow(
+    private func dialRow<TitleAccessory: View>(
         averageField: MeasurementAverageField,
         title: LocalizedStringKey,
         value: Binding<Int>,
@@ -540,23 +573,40 @@ struct RecordEditView: View {
         stepperStep: Int,
         decimals: Int = 0,
         color: Color = .primary,
-        locked: Bool = false
+        locked: Bool = false,
+        hasTitleAccessory: Bool = false,
+        @ViewBuilder titleAccessory: () -> TitleAccessory = { EmptyView() }
     ) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            ViewThatFits(in: .horizontal) {
-                // 1行：見出し＋値＋単位＋スイッチ
-                HStack {
-                    Text(title).font(.callout)
-                    Spacer()
-                    rowControls(value: value, enabled: enabled, spec: spec,
-                                unit: LocalizedStringKey(unitKey), decimals: decimals, color: color, locked: locked)
-                }
-                // 2行：見出し（左寄せ） ／ 値＋単位＋スイッチ（右寄せ）
+        let accessory = titleAccessory()
+        return VStack(alignment: .leading, spacing: 4) {
+            if hasTitleAccessory {
+                // 見出しの右にアクセサ（血圧測定部位セグメント）を右寄せ配置する行
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.callout)
+                    HStack {
+                        Text(title).font(.callout)
+                        Spacer(minLength: 8)
+                        accessory
+                    }
                     rowControls(value: value, enabled: enabled, spec: spec,
                                 unit: LocalizedStringKey(unitKey), decimals: decimals, color: color, locked: locked)
                         .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    // 1行：見出し＋値＋単位＋スイッチ
+                    HStack {
+                        Text(title).font(.callout)
+                        Spacer()
+                        rowControls(value: value, enabled: enabled, spec: spec,
+                                    unit: LocalizedStringKey(unitKey), decimals: decimals, color: color, locked: locked)
+                    }
+                    // 2行：見出し（左寄せ） ／ 値＋単位＋スイッチ（右寄せ）
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(title).font(.callout)
+                        rowControls(value: value, enabled: enabled, spec: spec,
+                                    unit: LocalizedStringKey(unitKey), decimals: decimals, color: color, locked: locked)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                    }
                 }
             }
             if enabled.wrappedValue {

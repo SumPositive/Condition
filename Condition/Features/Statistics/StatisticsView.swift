@@ -364,6 +364,7 @@ private struct StatisticsContentView: View {
         case .bpDateOptCorr:   BpDateOptCorrView(records: targetRecords)
         case .bp24h:           Bp24HChartView(records: targetRecords)
         case .bpSummary:       BpSummaryView(records: targetRecords)
+        case .bpLeftRight:     BpLeftRightView(records: targetRecords)
         case .weightSummary:   WeightSummaryView(records: targetRecords)
         case .tempSummary:     TempSummaryView(records: targetRecords)
         case .temp24h:         Temp24HChartView(records: targetRecords)
@@ -1346,6 +1347,204 @@ struct BpSummaryView: View {
         .padding()
         .background(.background.secondary)
         .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+// MARK: - 血圧 左右差
+
+struct BpLeftRightView: View {
+    let records: [BodyRecord]
+
+    @Environment(\.chartAvailableWidth) private var chartWidth
+    @Environment(\.chartExtraHeight) private var chartExtraHeight
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    /// 左右差が大きいと見なす目安（収縮期 mmHg）。一般的な測定Tips用。
+    private static let noticeableDiffThreshold: Double = 10
+
+    /// 血圧ありのレコードを左右で分ける
+    private var rightRecords: [BodyRecord] {
+        records.filter { $0.bpSide == .right && $0.nBpHi_mmHg > 0 && $0.nBpLo_mmHg > 0 }
+    }
+    private var leftRecords: [BodyRecord] {
+        records.filter { $0.bpSide == .left && $0.nBpHi_mmHg > 0 && $0.nBpLo_mmHg > 0 }
+    }
+
+    /// 同日の左右差（left − right）。左右そろった日だけ。
+    private struct DayDiff: Identifiable {
+        let id: Date          // その日の 0:00
+        let day: Date
+        let rightHi: Double
+        let rightLo: Double
+        let leftHi: Double
+        let leftLo: Double
+        var diffHi: Double { leftHi - rightHi }
+        var diffLo: Double { leftLo - rightLo }
+    }
+
+    /// 日単位の平均（収縮期・拡張期）を返す
+    private func dailyAverages(_ recs: [BodyRecord]) -> [Date: (hi: Double, lo: Double)] {
+        let cal = Calendar.current
+        var buckets: [Date: (hiSum: Int, loSum: Int, count: Int)] = [:]
+        for r in recs {
+            let day = cal.startOfDay(for: r.dateTime)
+            var b = buckets[day] ?? (0, 0, 0)
+            b.hiSum += r.nBpHi_mmHg
+            b.loSum += r.nBpLo_mmHg
+            b.count += 1
+            buckets[day] = b
+        }
+        return buckets.mapValues { (hi: Double($0.hiSum) / Double($0.count),
+                                    lo: Double($0.loSum) / Double($0.count)) }
+    }
+
+    private var dayDiffs: [DayDiff] {
+        let rightByDay = dailyAverages(rightRecords)
+        let leftByDay = dailyAverages(leftRecords)
+        // 左右そろった日だけをペアにする
+        let pairedDays = Set(rightByDay.keys).intersection(leftByDay.keys)
+        return pairedDays.compactMap { day -> DayDiff? in
+            guard let r = rightByDay[day], let l = leftByDay[day] else { return nil }
+            return DayDiff(id: day, day: day,
+                           rightHi: r.hi, rightLo: r.lo, leftHi: l.hi, leftLo: l.lo)
+        }
+        .sorted { $0.day < $1.day }
+    }
+
+    /// 各側の期間平均（収縮期）
+    private var rightHiAvg: Double? { periodAvgHi(rightRecords) }
+    private var leftHiAvg: Double? { periodAvgHi(leftRecords) }
+    private var rightLoAvg: Double? { periodAvgLo(rightRecords) }
+    private var leftLoAvg: Double? { periodAvgLo(leftRecords) }
+
+    private func periodAvgHi(_ recs: [BodyRecord]) -> Double? {
+        guard !recs.isEmpty else { return nil }
+        return Double(recs.map(\.nBpHi_mmHg).reduce(0, +)) / Double(recs.count)
+    }
+    private func periodAvgLo(_ recs: [BodyRecord]) -> Double? {
+        guard !recs.isEmpty else { return nil }
+        return Double(recs.map(\.nBpLo_mmHg).reduce(0, +)) / Double(recs.count)
+    }
+
+    /// 同日ペアの平均絶対差（収縮期）
+    private var meanAbsDiffHi: Double? {
+        let diffs = dayDiffs.map { abs($0.diffHi) }
+        guard !diffs.isEmpty else { return nil }
+        return diffs.reduce(0, +) / Double(diffs.count)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("metric.bpLeftRight")
+                .font(.title3)
+                .frame(maxWidth: .infinity)
+
+            if rightRecords.isEmpty && leftRecords.isEmpty {
+                // 左右の記録がまだ無い
+                Text("stat.bpLeftRight.empty")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 4)
+            } else {
+                summaryGrid
+                if dayDiffs.count >= 2 {
+                    diffChart
+                } else {
+                    Text("stat.bpLeftRight.needPairs")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 4)
+                }
+                guidanceTip
+            }
+        }
+        .padding()
+        .background(.background.secondary)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    // 右平均 / 左平均（収縮期・拡張期）
+    private var summaryGrid: some View {
+        Grid(horizontalSpacing: 16, verticalSpacing: 4) {
+            GridRow {
+                Text("").frame(width: 40)
+                Text(BpSide.right.code).font(.footnote.weight(.semibold)).foregroundStyle(BpSide.right.badgeColor)
+                Text(BpSide.left.code).font(.footnote.weight(.semibold)).foregroundStyle(BpSide.left.badgeColor)
+            }
+            GridRow {
+                Text("metric.systolic.short").foregroundStyle(.red)
+                avgCell(rightHiAvg)
+                avgCell(leftHiAvg)
+            }
+            GridRow {
+                Text("metric.diastolic.short").foregroundStyle(.blue)
+                avgCell(rightLoAvg)
+                avgCell(leftLoAvg)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func avgCell(_ value: Double?) -> some View {
+        if let value {
+            Text(String(format: "%.1f", value)).font(.title2.monospacedDigit())
+        } else {
+            Text("–").font(.title2).foregroundStyle(.secondary)
+        }
+    }
+
+    // 同日ペアの左右差（left − right）を時系列で表示
+    private var diffChart: some View {
+        Chart(dayDiffs) { d in
+            LineMark(
+                x: .value("record.datetime", d.day),
+                y: .value("metric.systolic.short", d.diffHi),
+                series: .value("series", "hi")
+            )
+            .foregroundStyle(.red)
+            PointMark(
+                x: .value("record.datetime", d.day),
+                y: .value("metric.systolic.short", d.diffHi)
+            )
+            .foregroundStyle(.red)
+            .symbolSize(24)
+            LineMark(
+                x: .value("record.datetime", d.day),
+                y: .value("metric.diastolic.short", d.diffLo),
+                series: .value("series", "lo")
+            )
+            .foregroundStyle(.blue)
+            PointMark(
+                x: .value("record.datetime", d.day),
+                y: .value("metric.diastolic.short", d.diffLo)
+            )
+            .foregroundStyle(.blue)
+            .symbolSize(24)
+            // 0（左右差なし）基準線
+            RuleMark(y: .value("zero", 0))
+                .foregroundStyle(Color.secondary.opacity(0.4))
+                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+        }
+        .chartYAxisLabel("stat.bpLeftRight.diffAxis")
+        .frame(height: adaptiveChartHeight(base: 200, width: chartWidth, dynamicTypeSize: dynamicTypeSize) + chartExtraHeight)
+    }
+
+    // 控えめな受診目安Tips（医療助言ではない旨を添える）
+    @ViewBuilder
+    private var guidanceTip: some View {
+        if let mad = meanAbsDiffHi, mad >= Self.noticeableDiffThreshold {
+            HStack(alignment: .top, spacing: 6) {
+                Image(systemName: "info.circle")
+                    .foregroundStyle(.secondary)
+                Text("stat.bpLeftRight.tip")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.top, 2)
+        }
     }
 }
 

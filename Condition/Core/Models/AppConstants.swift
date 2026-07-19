@@ -164,6 +164,7 @@ enum StatSection: Int, CaseIterable, Identifiable {
     case bpDateOptCorr   = 2
     case bp24h           = 3
     case bpSummary       = 8   // 血圧 上下平均サマリー
+    case bpLeftRight     = 11  // 血圧 左右差
     case weightSummary   = 4
     case tempSummary     = 5
     case temp24h         = 6
@@ -179,6 +180,7 @@ enum StatSection: Int, CaseIterable, Identifiable {
         case .bpDateOptCorr:   return "metric.bpByCategory"
         case .bp24h:           return "metric.bp24hDistribution"
         case .bpSummary:       return "metric.bloodPressureSummary"
+        case .bpLeftRight:     return "metric.bpLeftRight"
         case .weightSummary:   return "metric.weightSummary"
         case .tempSummary:     return "metric.bodyTempSummary"
         case .temp24h:         return "metric.bodyTemp24hDistribution"

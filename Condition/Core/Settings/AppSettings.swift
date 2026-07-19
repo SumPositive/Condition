@@ -418,6 +418,12 @@ final class AppSettings {
         didSet { ud.set(estimateDateOpt, forKey: UDefKeys.estimateDateOpt) }
     }
 
+    // MARK: - 血圧 測定箇所（左右）
+    /// 直前に選んだ左右。新規記録の初期値として引き継ぐ。
+    var lastBpSide: BpSide = .unknown {
+        didSet { ud.set(lastBpSide.rawValue, forKey: UDefKeys.lastBpSide) }
+    }
+
     // MARK: - 新規記録シート（非永続・セッションのみ）
     /// TabView 上位から新規記録シートを開くトリガー
     var showNewRecordSheet: Bool = false
@@ -466,6 +472,9 @@ final class AppSettings {
         }
         if ud.object(forKey: UDefKeys.estimateDateOpt) != nil {
             estimateDateOpt = ud.bool(forKey: UDefKeys.estimateDateOpt)
+        }
+        if ud.object(forKey: UDefKeys.lastBpSide) != nil {
+            lastBpSide = BpSide(rawValue: ud.integer(forKey: UDefKeys.lastBpSide)) ?? .unknown
         }
     }
 

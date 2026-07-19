@@ -627,6 +627,8 @@ struct RecordRowView: View {
     @ScaledMetric(relativeTo: .title3) private var pulseW:    CGFloat = 42
     @ScaledMetric(relativeTo: .title3) private var weightW:   CGFloat = 60
     @ScaledMetric(relativeTo: .title3) private var otherW:    CGFloat = 52
+    /// L/R バッジ文字サイズ（標準12pt・値と同じ .title3 基準でスケール）
+    @ScaledMetric(relativeTo: .title3) private var bpSideBadgeSz: CGFloat = 12
     @ScaledMetric(relativeTo: .title3) private var catW:      CGFloat = 24
     @ScaledMetric(relativeTo: .title3) private var catIconSz: CGFloat = 16
     @ScaledMetric(relativeTo: .footnote) private var weekdayW: CGFloat = 20
@@ -793,8 +795,12 @@ struct RecordRowView: View {
     private func kindValueCells(_ kind: GraphKind, cellH: CGFloat?) -> some View {
         switch kind {
         case .bp:
-            valueCell(record.displayBpHi, width: bpW,    height: cellH)
-            valueCell(record.displayBpLo, width: bpW,    height: cellH)
+            // 上・下を1グループにまとめ、L/R をその上端中央（上下の間）に重ねる
+            HStack(spacing: 4) {
+                valueCell(record.displayBpHi, width: bpW, height: cellH)
+                valueCell(record.displayBpLo, width: bpW, height: cellH)
+            }
+            .overlay(alignment: .top) { bpSideBadge }
         case .pulse:
             valueCell(record.displayPulse,    width: pulseW,  height: cellH)
         case .weight:
@@ -807,6 +813,21 @@ struct RecordRowView: View {
             valueCell(record.displaySkMuscle, width: otherW,  height: cellH)
         default:
             EmptyView()
+        }
+    }
+
+    /// 「上」と「下」の間の上端中央に重ねる、左右の色付き文字のみのバッジ（枠なし・列幅を占有しない）。
+    /// 表記は全言語共通の L/R（不明は非表示）。12pt を標準サイズとして Dynamic Type に追従させる。
+    @ViewBuilder
+    private var bpSideBadge: some View {
+        if record.bpSide.isDefined {
+            Text(record.bpSide.code)
+                .font(.system(size: bpSideBadgeSz, weight: .regular))
+                .foregroundStyle(record.bpSide.badgeColor)
+                .fixedSize()
+                .accessibilityLabel(Text(LocalizedStringKey(record.bpSide == .left ? "bp.side.left" : "bp.side.right")))
+                // 中央揃えから文字半分ぶん右へ寄せ、数値の上端付近まで少し下げる
+                .offset(x: bpSideBadgeSz * 0.5, y: bpSideBadgeSz * 0.35)
         }
     }
 
@@ -1071,6 +1092,7 @@ private struct ExportSheetView: View {
                 case .bp:
                     if r.nBpHi_mmHg > 0 { obj["bpSystolic"]  = r.nBpHi_mmHg }
                     if r.nBpLo_mmHg > 0 { obj["bpDiastolic"] = r.nBpLo_mmHg }
+                    if r.bpSide.isDefined { obj["bpSide"] = r.bpSide == .left ? "left" : "right" }
                 case .pulse:
                     if r.nPulse_bpm > 0 { obj["heartRate"] = r.nPulse_bpm }
                 case .temp:
@@ -1123,6 +1145,7 @@ private struct ExportSheetView: View {
             case .bp:
                 headers.append(escape(L("metric.systolic.mmHg")))
                 headers.append(escape(L("metric.diastolic.mmHg")))
+                headers.append(escape(L("bp.side.title")))
             case .pulse:    headers.append(escape(L("metric.heartRate.bpm")))
             case .temp:     headers.append(escape(L("metric.bodyTemp.celsius")))
             case .weight:   headers.append(escape(L("metric.weight.kg")))
@@ -1149,6 +1172,7 @@ private struct ExportSheetView: View {
                 case .bp:
                     fields.append(r.nBpHi_mmHg > 0 ? "\(r.nBpHi_mmHg)" : "")
                     fields.append(r.nBpLo_mmHg > 0 ? "\(r.nBpLo_mmHg)" : "")
+                    fields.append(r.bpSide.isDefined ? escape(r.bpSide.code) : "")
                 case .pulse:
                     fields.append(r.nPulse_bpm > 0 ? "\(r.nPulse_bpm)" : "")
                 case .temp:

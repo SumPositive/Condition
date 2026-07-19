@@ -86,6 +86,7 @@ private struct AvgCell: Hashable {
 private struct MeasurementAverageSnapshot: Equatable {
     let dateTime: Date
     let dateOpt: DateOpt
+    let bpSide: BpSide
     let samples: [AvgColumn: [Int?]]
     let trialCount: Int
 }
@@ -133,6 +134,8 @@ struct MeasurementAverageView: View {
 
     @State private var dateTime: Date = Date()
     @State private var dateOpt: DateOpt = AppSettings.shared.autoDateOpt(for: Date())
+    /// 血圧の測定箇所（左右）。新規は直前選択を引き継ぐ。
+    @State private var bpSide: BpSide = AppSettings.shared.lastBpSide
     @State private var showDatePicker = false
     @State private var showDeleteAlert = false
     @State private var isDateOptExpanded = false
@@ -227,6 +230,7 @@ struct MeasurementAverageView: View {
         MeasurementAverageSnapshot(
             dateTime: dateTime,
             dateOpt: dateOpt,
+            bpSide: bpSide,
             samples: samples,
             trialCount: trialCount
         )
@@ -270,15 +274,7 @@ struct MeasurementAverageView: View {
                         .disabled(!hasAnyValue || (record != nil && !hasUnsavedChanges))
                         .bold()
                 }
-                if record != nil {
-                    ToolbarItem(placement: .bottomBar) {
-                        Button(role: .destructive) {
-                            showDeleteAlert = true
-                        } label: {
-                            Label("record.delete.button", systemImage: "trash")
-                        }
-                    }
-                }
+                // 削除は「次へ」ボタンの真上に赤背景で配置（sideNextButtonWithToggle）
             }
             .sheet(isPresented: $showDatePicker) {
                 DatePickerSheet(date: $dateTime) {
@@ -364,6 +360,59 @@ struct MeasurementAverageView: View {
         }
     }
 
+    // MARK: 血圧の測定箇所（左右）
+
+    /// 血圧の列が表示されているときだけ左右セグメントを出す
+    private var showsBpSide: Bool {
+        columns.contains(.bpHi) || columns.contains(.bpLo)
+    }
+
+    /// 「上」列の左端から見た、上下ペア中央までの水平オフセット
+    private var bpPairCenterX: CGFloat {
+        guard let hiIndex = columns.firstIndex(of: .bpHi) else { return 0 }
+        // 行頭: trialLabelWidth ＋ 先頭 spacing 6、以降 各列 (cellWidth + 6)
+        let hiLeft = trialLabelWidth + 6 + CGFloat(hiIndex) * (cellWidth + 6)
+        // 上下ペアの中央 = 上の左端 ＋ cellWidth ＋ 間隔6の半分
+        return hiLeft + cellWidth + 3
+    }
+
+    /// headerRow と同じ総幅（試行ラベル＋各列＋各 spacing＋末尾28）
+    private var headerContentWidth: CGFloat {
+        trialLabelWidth + CGFloat(columns.count) * (6 + cellWidth) + 6 + 28
+    }
+
+    /// 表の見出し「上」「下」の真上に、左右セグメントだけを中央寄せで置く行
+    @ViewBuilder
+    private var bpSideHeaderRow: some View {
+        if showsBpSide {
+            // headerRow と同じ総幅の透明ベースに、上下ペア中央へセグメントを重ねる
+            Color.clear
+                .frame(width: headerContentWidth, height: 30)
+                .overlay(alignment: .topLeading) {
+                    bpSideSegment
+                        .fixedSize()
+                        // 上下ペアの中央にセグメント中央を合わせる
+                        .position(x: bpPairCenterX, y: 15)
+                }
+        }
+    }
+
+    private var bpSideSegment: some View {
+        AZRadioPicker(
+            options: BpSide.allCases,
+            selection: $bpSide,
+            minOptionWidth: 0,
+            maxOptionWidth: 60,
+            horizontalPadding: 10,
+            optionSpacing: 4,
+            groupPadding: 2,
+            wrapsOptions: false,
+            fillsWidth: false
+        ) { side in
+            Text(side.code)
+        }
+    }
+
     // MARK: 表
 
     private var tableScroll: some View {
@@ -378,6 +427,7 @@ struct MeasurementAverageView: View {
                     )
                     .padding(.leading, 40)
                     .padding(.bottom, 2)
+                    bpSideHeaderRow
                     headerRow
                     ForEach(0..<trialCount, id: \.self) { trial in
                         trialRow(trial: trial)
@@ -691,30 +741,52 @@ struct MeasurementAverageView: View {
     private let dialRowHeight: CGFloat = 44
     private let keypadButtonH: CGFloat = 48
     private let keypadSpacing: CGFloat = 8
-    private let toggleButtonHeight: CGFloat = 24
     private var keypadHeight: CGFloat { 4 * keypadButtonH + 3 * keypadSpacing }
 
-    /// 「次へ」ボタンの真上 4pt にトグルを overlay 配置（次へ本体には影響なし）
+    /// 「次へ」ボタン本体の真上に、修正時は削除ボタン（赤い円形）、新規追加時は左右切り替えトグルを配置。
     private func sideNextButtonWithToggle(width: CGFloat) -> some View {
         sideNextButton(width: width)
             .overlay(alignment: .top) {
-                Button {
-                    nextOnLeft.toggle()
-                } label: {
-                    // iOS 26 では inset 系の見栄えの良いシンボル、未収録 OS では矢印へフォールバック
-                    Image(systemNameResolving: nextOnLeft
-                          ? "inset.filled.righthalf.arrow.right.rectangle"
-                          : "inset.filled.lefthalf.arrow.left.rectangle",
-                          "arrow.left.and.right")
-                        .font(.footnote.weight(.semibold))
-                        .frame(width: width, height: toggleButtonHeight)
-                        .foregroundStyle(Color.accentColor)
+                if record != nil {
+                    // 修正時：削除ボタン（ダイアル行の高さの赤い円形）
+                    Button(role: .destructive) {
+                        showDeleteAlert = true
+                    } label: {
+                        Image(systemName: "trash")
+                            .font(.callout.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: deleteButtonSize, height: deleteButtonSize)
+                            .background(Circle().fill(Color.red))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Text("record.delete.button"))
+                    // ダイアル行（keypad の 16pt 上・高さ dialRowHeight）の中央に合わせる
+                    .offset(y: -(16 + dialRowHeight / 2 + deleteButtonSize / 2))
+                } else {
+                    // 新規追加時：削除が無いので左右切り替えトグルを表示
+                    Button {
+                        nextOnLeft.toggle()
+                    } label: {
+                        // iOS 26 では inset 系の見栄えの良いシンボル、未収録 OS では矢印へフォールバック
+                        Image(systemNameResolving: nextOnLeft
+                              ? "inset.filled.righthalf.arrow.right.rectangle"
+                              : "inset.filled.lefthalf.arrow.left.rectangle",
+                              "arrow.left.and.right")
+                            .font(.footnote.weight(.semibold))
+                            .frame(width: width, height: toggleButtonHeight)
+                            .foregroundStyle(Color.accentColor)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Text("record.measurementAvg.nextSideToggle"))
+                    .offset(y: -(toggleButtonHeight + 4))
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(Text("record.measurementAvg.nextSideToggle"))
-                .offset(y: -(toggleButtonHeight + 4))
             }
     }
+
+    /// 削除ボタン（円形）の直径。ダイアル行の高さに収める。
+    private var deleteButtonSize: CGFloat { dialRowHeight - 6 }
+    /// 左右切り替えトグルの高さ
+    private let toggleButtonHeight: CGFloat = 24
 
     /// 縦長「次へ」ボタン本体（テンキーと同じ高さ）
     private func sideNextButton(width: CGFloat) -> some View {
@@ -838,6 +910,7 @@ struct MeasurementAverageView: View {
     private func loadSavedRecord(_ record: BodyRecord) {
         dateTime = record.dateTime
         dateOpt = record.dateOpt
+        bpSide = record.bpSide
         guard let set = record.measurementSampleSet else {
             ensureSamplesArrays()
             initialSnapshot = currentSnapshot
@@ -857,6 +930,7 @@ struct MeasurementAverageView: View {
         initialSnapshot = MeasurementAverageSnapshot(
             dateTime: record.dateTime,
             dateOpt: record.dateOpt,
+            bpSide: record.bpSide,
             samples: loadedSamples,
             trialCount: trialCount
         )
@@ -1160,6 +1234,13 @@ struct MeasurementAverageView: View {
             case .bodyFat:  target.nBodyFat_10p  = avg
             case .skMuscle: target.nSkMuscle_10p = avg
             }
+        }
+
+        // 左右は血圧固有。血圧が無い記録には付けない。
+        let effectiveSide: BpSide = (target.nBpHi_mmHg > 0 || target.nBpLo_mmHg > 0) ? bpSide : .unknown
+        target.bpSide = effectiveSide
+        if effectiveSide.isDefined {
+            settings.lastBpSide = effectiveSide
         }
 
         // 空欄を含む行構成を保ち、修正時に同じ表を復元する

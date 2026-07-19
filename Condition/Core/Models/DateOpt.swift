@@ -499,3 +499,38 @@ enum RecordDataSource: Int {
         }
     }
 }
+
+// MARK: - 血圧の測定箇所（左右）
+
+/// 血圧をどちらの腕で測ったか。区分(DateOpt)とは独立したフラグ。
+enum BpSide: Int, CaseIterable, Identifiable {
+    case unknown = 0  // 不明（デフォルト）
+    case right   = 1  // 右腕
+    case left    = 2  // 左腕
+
+    var id: Int { rawValue }
+
+    // rawValue は保存互換のため据え置き。UI/セグメントの並びは [左, ・(不明), 右]。
+    static var allCases: [BpSide] { [.left, .unknown, .right] }
+
+    /// 全画面共通の表記（全言語 L/R 固定、不明は中点「・」）。文字数が言語で変わらない。
+    var code: String {
+        switch self {
+        case .unknown: return "・"
+        case .right:   return "R"
+        case .left:    return "L"
+        }
+    }
+
+    /// バッジ色（左右で色分け）。不明は色なし。
+    var badgeColor: Color {
+        switch self {
+        case .unknown: return .secondary
+        case .right:   return .orange
+        case .left:    return .teal
+        }
+    }
+
+    /// 左右が指定されているか（不明でない）
+    var isDefined: Bool { self != .unknown }
+}

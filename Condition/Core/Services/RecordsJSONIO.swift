@@ -51,6 +51,7 @@ struct RecordImportRecord: Decodable {
     let device: String?
     let bpSystolic: Int?
     let bpDiastolic: Int?
+    let bpSide: String?          // "right" / "left"（不明は出力しない）
     let heartRate: Int?
     let bodyTemp: Double?
     let weight: Double?
@@ -86,6 +87,15 @@ struct RecordImportRecord: Decodable {
     var dataSource: RecordDataSource? {
         guard let dataSourceRaw else { return nil }
         return RecordDataSource(rawValue: dataSourceRaw)
+    }
+
+    /// 血圧の測定箇所（左右）。未指定・不正値は不明。
+    var parsedBpSide: BpSide {
+        switch bpSide?.lowercased() {
+        case "right": return .right
+        case "left":  return .left
+        default:      return .unknown
+        }
     }
 
     private func legacyDateOpt(for condition: String) -> DateOpt? {
@@ -159,6 +169,7 @@ enum RecordsJSONIO {
             ]
             if 0 < record.nBpHi_mmHg    { object["bpSystolic"]      = record.nBpHi_mmHg }
             if 0 < record.nBpLo_mmHg    { object["bpDiastolic"]     = record.nBpLo_mmHg }
+            if record.bpSide.isDefined  { object["bpSide"]          = record.bpSide == .left ? "left" : "right" }
             if 0 < record.nPulse_bpm    { object["heartRate"]       = record.nPulse_bpm }
             if 0 < record.nTemp_10c     { object["bodyTemp"]        = decimalNumber(record.nTemp_10c,     scale: 1) }
             if 0 < record.nWeight_10Kg  { object["weight"]          = decimalNumber(record.nWeight_10Kg,  scale: 1) }
@@ -254,6 +265,8 @@ enum RecordsJSONIO {
             record.sEquipment = (imported.device ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             record.nBpHi_mmHg    = clampedIntMeasure(imported.bpSystolic,    spec: MeasureRange.bpHi)
             record.nBpLo_mmHg    = clampedIntMeasure(imported.bpDiastolic,   spec: MeasureRange.bpLo)
+            // 左右は血圧がある記録のみ。旧バックアップでは不明。
+            record.bpSide = (record.nBpHi_mmHg > 0 || record.nBpLo_mmHg > 0) ? imported.parsedBpSide : .unknown
             record.nPulse_bpm    = clampedIntMeasure(imported.heartRate,     spec: MeasureRange.pulse)
             record.nTemp_10c     = clampedDecMeasure(imported.bodyTemp,      spec: MeasureRange.temp)
             record.nWeight_10Kg  = clampedDecMeasure(imported.weight,        spec: MeasureRange.weight)

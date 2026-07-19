@@ -24,6 +24,8 @@ var sNote1: String = ""
     // 血圧（単位: mmHg）
     var nBpHi_mmHg: Int = 0
     var nBpLo_mmHg: Int = 0
+    // 血圧の測定箇所（BpSide rawValue, 0=不明）
+    var nBpSide: Int = 0
     // 心拍数（単位: bpm）
     var nPulse_bpm: Int = 0
     // 体温（x10 ℃ 例: 365 = 36.5℃）
@@ -65,6 +67,12 @@ var sNote1: String = ""
     @Transient var dataSource: RecordDataSource {
         get { RecordDataSource(rawValue: nDataSource) ?? .appInput }
         set { nDataSource = newValue.rawValue }
+    }
+
+    // MARK: - BpSide アクセサ（血圧の測定箇所）
+    @Transient var bpSide: BpSide {
+        get { BpSide(rawValue: nBpSide) ?? .unknown }
+        set { nBpSide = newValue.rawValue }
     }
 
     // MARK: - 目標値用特殊日付（グローバル定数 bodyRecordGoalDate も参照）
