@@ -230,6 +230,7 @@ private func seedRecord(
     pulse: Int = 65,
     weight10kg: Int = 650,
     dateOpt: DateOpt = .cat02,
+    bpSide: BpSide = .unknown,
     note1: String = "",
     note2: String = "",
     device: String = ""
@@ -241,6 +242,7 @@ private func seedRecord(
     r.nBpLo_mmHg = bpLo
     r.nPulse_bpm = pulse
     r.nWeight_10Kg = weight10kg
+    r.bpSide = bpSide
     r.sNote1 = note1
     r.sNote2 = note2
     r.sEquipment = device
@@ -408,6 +410,7 @@ struct JSONRoundTripTests {
         r.sNote2 = "やや疲労感"
         r.sEquipment = "Omron Connect"
         r.bCaution = true
+        r.bpSide = .left
         srcCtx.insert(r)
         try srcCtx.save()
 
@@ -433,6 +436,7 @@ struct JSONRoundTripTests {
         #expect(restored.sNote2 == "やや疲労感")
         #expect(restored.sEquipment == "Omron Connect")
         #expect(restored.bCaution == true)
+        #expect(restored.bpSide == .left)
         #expect(RecordsJSONIO.normalizedSecond(restored.dateTime) ==
                 RecordsJSONIO.normalizedSecond(date))
     }
@@ -969,5 +973,216 @@ struct JSONImportPerformanceTests {
 
         let count = try destCtx.fetch(FetchDescriptor<BodyRecord>()).count
         #expect(count == 50)
+    }
+}
+
+// MARK: - 血圧の測定箇所（左右）
+
+@Suite("BpSide Tests")
+struct BpSideTests {
+
+    @Test("rawValue は保存互換のため固定（不明0/右1/左2）")
+    func rawValuesAreStable() {
+        #expect(BpSide.unknown.rawValue == 0)
+        #expect(BpSide.right.rawValue == 1)
+        #expect(BpSide.left.rawValue == 2)
+    }
+
+    @Test("allCases の並びは UI 表示順 [左, 不明, 右]")
+    func allCasesOrder() {
+        #expect(BpSide.allCases == [.left, .unknown, .right])
+    }
+
+    @Test("code は全言語共通の L/R（不明は中点）")
+    func codeIsFixed() {
+        #expect(BpSide.left.code == "L")
+        #expect(BpSide.right.code == "R")
+        #expect(BpSide.unknown.code == "・")
+    }
+
+    @Test("isDefined は不明のみ false")
+    func isDefined() {
+        #expect(BpSide.left.isDefined)
+        #expect(BpSide.right.isDefined)
+        #expect(!BpSide.unknown.isDefined)
+    }
+
+    @Test("BodyRecord.bpSide アクセサは nBpSide と往復する")
+    func accessorRoundTrips() {
+        let r = BodyRecord()
+        #expect(r.bpSide == .unknown)   // 既定は不明
+        r.bpSide = .right
+        #expect(r.nBpSide == BpSide.right.rawValue)
+        r.nBpSide = BpSide.left.rawValue
+        #expect(r.bpSide == .left)
+        // 不正な rawValue は不明にフォールバック
+        r.nBpSide = 99
+        #expect(r.bpSide == .unknown)
+    }
+}
+
+// MARK: - 左右フラグ JSON 往復・インポート
+
+@Suite("BpSide JSON Tests")
+struct BpSideJSONTests {
+
+    private static func envelopeJSON(_ records: [[String: Any]]) -> Data {
+        let envelope: [String: Any] = [
+            "exportDate": "2026-06-20T10:00:00+09:00",
+            "records": records,
+        ]
+        return try! JSONSerialization.data(withJSONObject: envelope)
+    }
+
+    @Test("左右フラグはエクスポート→インポートで往復する", arguments: [BpSide.left, .right, .unknown])
+    @MainActor
+    func bpSideRoundTrips(_ side: BpSide) throws {
+        let container = try makeInMemoryContainer()
+        let srcCtx = ModelContext(container)
+        let r = try seedRecord(srcCtx, daysAgo: 1, bpSide: side)
+
+        let data = RecordsJSONIO.export(records: [r], style: .pretty)
+        let destCtx = ModelContext(try makeInMemoryContainer())
+        try RecordsJSONIO.importJSON(data, into: destCtx)
+
+        let restored = try #require(try destCtx.fetch(FetchDescriptor<BodyRecord>()).first)
+        #expect(restored.bpSide == side)
+    }
+
+    @Test("不明の左右フラグは JSON に bpSide キーを出力しない")
+    @MainActor
+    func unknownSideOmitsKey() throws {
+        let container = try makeInMemoryContainer()
+        let ctx = ModelContext(container)
+        let r = try seedRecord(ctx, bpSide: .unknown)
+
+        let data = RecordsJSONIO.export(records: [r])
+        let text = String(decoding: data, as: UTF8.self)
+        #expect(!text.contains("bpSide"))
+    }
+
+    @Test("血圧の無い記録にインポートで left/right が来ても不明に落とす")
+    @MainActor
+    func bpSideDroppedWhenNoBP() throws {
+        let container = try makeInMemoryContainer()
+        let ctx = ModelContext(container)
+
+        // 血圧値なし＋ bpSide=left → 血圧固有のため無視して不明
+        let data = Self.envelopeJSON([
+            [
+                "dateTime": "2026-06-20T09:00:00+09:00",
+                "heartRate": 70,
+                "bpSide": "left",
+            ]
+        ])
+        try RecordsJSONIO.importJSON(data, into: ctx)
+        let r = try #require(try ctx.fetch(FetchDescriptor<BodyRecord>()).first)
+        #expect(r.nBpHi_mmHg == 0)
+        #expect(r.bpSide == .unknown)
+    }
+
+    @Test("未知の bpSide 文字列は不明として扱う")
+    @MainActor
+    func unknownSideStringIsUnknown() throws {
+        let container = try makeInMemoryContainer()
+        let ctx = ModelContext(container)
+
+        let data = Self.envelopeJSON([
+            [
+                "dateTime": "2026-06-20T09:00:00+09:00",
+                "bpSystolic": 120,
+                "bpSide": "middle",   // 未知の値
+            ]
+        ])
+        try RecordsJSONIO.importJSON(data, into: ctx)
+        let r = try #require(try ctx.fetch(FetchDescriptor<BodyRecord>()).first)
+        #expect(r.bpSide == .unknown)
+    }
+
+    @Test("旧JSON（bpSide キー無し）は不明として読み込む")
+    @MainActor
+    func legacyJSONHasUnknownSide() throws {
+        let container = try makeInMemoryContainer()
+        let ctx = ModelContext(container)
+
+        let data = Self.envelopeJSON([
+            ["dateTime": "2026-06-20T09:00:00+09:00", "bpSystolic": 130, "bpDiastolic": 85]
+        ])
+        try RecordsJSONIO.importJSON(data, into: ctx)
+        let r = try #require(try ctx.fetch(FetchDescriptor<BodyRecord>()).first)
+        #expect(r.bpSide == .unknown)
+    }
+}
+
+// MARK: - 左右フラグ 編集ViewModel
+
+@Suite("BpSide RecordEditViewModel Tests")
+struct BpSideViewModelTests {
+
+    /// AppSettings.lastBpSide を退避・復元してテスト間の汚染を防ぐ
+    @MainActor
+    private func withLastBpSide(_ value: BpSide, _ body: () throws -> Void) rethrows {
+        let settings = AppSettings.shared
+        let saved = settings.lastBpSide
+        settings.lastBpSide = value
+        defer { settings.lastBpSide = saved }
+        try body()
+    }
+
+    @Test("新規追加は直前に選んだ左右（lastBpSide）を初期値にする")
+    @MainActor
+    func addNewInheritsLastBpSide() throws {
+        try withLastBpSide(.right) {
+            let vm = RecordEditViewModel(mode: .addNew)
+            #expect(vm.bpSide == .right)
+        }
+    }
+
+    @Test("血圧ありで保存すると左右が記録され lastBpSide も更新される")
+    @MainActor
+    func savingWithBPStoresSideAndUpdatesLast() throws {
+        try withLastBpSide(.unknown) {
+            let ctx = ModelContext(try makeInMemoryContainer())
+            let vm = RecordEditViewModel(mode: .addNew)
+            vm.bpHiEnabled = true
+            vm.bpLoEnabled = true
+            vm.nBpHi_mmHg = 120
+            vm.nBpLo_mmHg = 80
+            vm.bpSide = .left
+            try vm.save(context: ctx)
+
+            let saved = try #require(try ctx.fetch(FetchDescriptor<BodyRecord>()).first)
+            #expect(saved.bpSide == .left)
+            #expect(AppSettings.shared.lastBpSide == .left)
+        }
+    }
+
+    @Test("血圧を両方OFFで保存すると左右は不明になり lastBpSide も更新しない")
+    @MainActor
+    func savingWithoutBPForcesUnknown() throws {
+        try withLastBpSide(.right) {
+            let ctx = ModelContext(try makeInMemoryContainer())
+            let vm = RecordEditViewModel(mode: .addNew)
+            vm.bpHiEnabled = false
+            vm.bpLoEnabled = false
+            vm.pulseEnabled = true
+            vm.nPulse_bpm = 66
+            vm.bpSide = .left   // 明示しても血圧が無いので無視される
+            try vm.save(context: ctx)
+
+            let saved = try #require(try ctx.fetch(FetchDescriptor<BodyRecord>()).first)
+            #expect(saved.bpSide == .unknown)
+            // 不明は引き継ぎに保存しない → 退避前の値のまま
+            #expect(AppSettings.shared.lastBpSide == .right)
+        }
+    }
+
+    @Test("既存レコードの編集は保存済みの左右を読み込む")
+    @MainActor
+    func editingLoadsRecordSide() throws {
+        let ctx = ModelContext(try makeInMemoryContainer())
+        let r = try seedRecord(ctx, bpSide: .right)
+        let vm = RecordEditViewModel(mode: .edit(r))
+        #expect(vm.bpSide == .right)
     }
 }
