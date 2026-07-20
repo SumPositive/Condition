@@ -795,12 +795,12 @@ struct RecordRowView: View {
     private func kindValueCells(_ kind: GraphKind, cellH: CGFloat?) -> some View {
         switch kind {
         case .bp:
-            // 上・下を1グループにまとめ、L/R をその上端中央（上下の間）に重ねる
+            // 上・下を1グループにまとめ、L/R をその下端中央（上下の間）に重ねる
             HStack(spacing: 4) {
                 valueCell(record.displayBpHi, width: bpW, height: cellH)
                 valueCell(record.displayBpLo, width: bpW, height: cellH)
             }
-            .overlay(alignment: .top) { bpSideBadge }
+            .overlay(alignment: .bottom) { bpSideBadge }
         case .pulse:
             valueCell(record.displayPulse,    width: pulseW,  height: cellH)
         case .weight:
@@ -816,7 +816,7 @@ struct RecordRowView: View {
         }
     }
 
-    /// 「上」と「下」の間の上端中央に重ねる、左右の色付き文字のみのバッジ（枠なし・列幅を占有しない）。
+    /// 「上」と「下」の間の下端中央に重ねる、左右の色付き文字のみのバッジ（枠なし・列幅を占有しない）。
     /// 表記は全言語共通の L/R（不明は非表示）。12pt を標準サイズとして Dynamic Type に追従させる。
     @ViewBuilder
     private var bpSideBadge: some View {
@@ -826,8 +826,11 @@ struct RecordRowView: View {
                 .foregroundStyle(record.bpSide.badgeColor)
                 .fixedSize()
                 .accessibilityLabel(Text(LocalizedStringKey(record.bpSide == .left ? "bp.side.left" : "bp.side.right")))
-                // 中央揃えから文字半分ぶん右へ寄せ、数値の上端付近まで少し下げる
-                .offset(x: bpSideBadgeSz * 0.5, y: bpSideBadgeSz * 0.35)
+                // 水平は overlay(.bottom) の中央合わせが基準（文字サイズ非依存）。ただし各セル内の
+                // 数値が右寄りに描かれるぶん視覚的な中央はやや右になるため、固定 4pt だけ右へ寄せる。
+                // 固定値なので文字サイズが変わってもズレ幅は一定に保たれる。
+                // 縦は下端基準なので、数値へしっかり食い込むよう上げる（負方向）。
+                .offset(x: 4, y: -bpSideBadgeSz * 0.6)
         }
     }
 
