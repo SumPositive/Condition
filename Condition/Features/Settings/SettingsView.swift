@@ -1899,7 +1899,7 @@ struct FieldOrderSettingsView: View {
                                 }
                             }
                         )) {
-                            Text(LocalizedStringKey(kind.title))
+                            Text(LocalizedStringKey(kind.longTitle))
                         }
                     }
                 }

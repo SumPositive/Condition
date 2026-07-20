@@ -132,17 +132,21 @@ struct RecordEditView: View {
                 Form {
                     hkImportSection
                     dateSection
-                    Section {
-                        ForEach(orderedRecordFields, id: \.rawValue) { kind in
+                    // 各測定項目（体重・血圧・脈拍…）を独立したカード（Section）として並べ、
+                    // 項目ごとに1セルに見えるようにする。見出しと「測定を追加」は先頭カードに載せる。
+                    ForEach(Array(orderedRecordFields.enumerated()), id: \.element.rawValue) { index, kind in
+                        Section {
                             fieldRow(for: kind)
-                        }
-                    } header: {
-                        HStack(alignment: .center, spacing: 8) {
-                            Text("record.measurements")
-                            if !showsFloatingAverageAddButton {
-                                Spacer(minLength: 8)
-                                // 英語表示などで見出しと重ならないよう、通常ボタンは右寄せにする
-                                averageAddHeaderControl(font: .caption.weight(.semibold))
+                        } header: {
+                            if index == 0 {
+                                HStack(alignment: .center, spacing: 8) {
+                                    Text("record.measurements")
+                                    if !showsFloatingAverageAddButton {
+                                        Spacer(minLength: 8)
+                                        // 英語表示などで見出しと重ならないよう、通常ボタンは右寄せにする
+                                        averageAddHeaderControl(font: .caption.weight(.semibold))
+                                    }
+                                }
                             }
                         }
                     }
@@ -239,6 +243,8 @@ struct RecordEditView: View {
                         }
                     }
                 }
+                // 測定項目カード（Section）どうしの間隔を区切り線程度まで詰め、セルが密に並んで見えるようにする
+                .listSectionSpacing(2)
                 .scrollDismissesKeyboard(.interactively)
                 .onChange(of: vm.sNote1) { _, _ in scrollFocusedMemoIntoView(proxy) }
                 .onChange(of: vm.sNote2) { _, _ in scrollFocusedMemoIntoView(proxy) }
@@ -372,14 +378,18 @@ struct RecordEditView: View {
     private func fieldRow(for kind: GraphKind) -> some View {
         switch kind {
         case .bp:
-            dialRow(
-                averageField: .bpHi, title: "metric.systolic.long", value: $vm.nBpHi_mmHg,
-                enabled: $vm.bpHiEnabled, spec: MeasureRange.bpHi, unitKey: "unit.mmHg",
-                stepperStep: 1, color: .red, locked: vm.valuesLocked,
-                hasTitleAccessory: showsBpSideSegment
-            ) {
-                if showsBpSideSegment { bpSideSegment }
+            // 「血圧」を上位グループ見出しにまとめ、その右に測定部位セグメントを置く。
+            // 部位（左右）は上下（収縮期・拡張期）共通の属性なので、どちらか一方の
+            // 見出しに同居させず、グループ見出し側に載せて「上下共通」を明示する。
+            if showsBpSideSegment {
+                HStack {
+                    Text("metric.bloodPressure.long").font(.callout)
+                    Spacer(minLength: 8)
+                    bpSideSegment
+                }
+                .padding(.top, 4)
             }
+            dialRow(averageField: .bpHi, title: "metric.systolic.long", value: $vm.nBpHi_mmHg, enabled: $vm.bpHiEnabled, spec: MeasureRange.bpHi, unitKey: "unit.mmHg", stepperStep: 1, color: .red, locked: vm.valuesLocked)
             dialRow(averageField: .bpLo, title: "metric.diastolic.long", value: $vm.nBpLo_mmHg, enabled: $vm.bpLoEnabled, spec: MeasureRange.bpLo, unitKey: "unit.mmHg", stepperStep: 1, color: .blue, locked: vm.valuesLocked)
         case .pulse:
             dialRow(averageField: .pulse, title: "metric.heartRate", value: $vm.nPulse_bpm, enabled: $vm.pulseEnabled, spec: MeasureRange.pulse, unitKey: "unit.bpm", stepperStep: 1, color: .orange, locked: vm.valuesLocked)

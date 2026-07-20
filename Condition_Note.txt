@@ -787,21 +787,49 @@ azukid.com 体調メモの公開アプリパネル、取扱説明のアプリア
 
 「測定箇所」を「血圧測定部位」に変更し、選択肢を [左,・,右] にしたい（不明を・にする）
 
-
+機能追加に伴いテストコードを見直して欲しい
 
 --------------------------------
-2.8.0 Update
+2.8.0 機能追加
 - 複数回測定：複数回の測定値も保存するようになりました。編集もできます
 - 血圧測定部位（左右の腕や手首）を「L・R」で指定できるようになりました
 - 設定：記録：起動時に新しい記録を開く：「起動時に開く」に変更
 　　　　選択肢[何もしない,新しい記録（表形式）,新しい記録（ダイアル）,記録（一覧）,グラフ,統計]
 - ダイアルス・テッパーの増減を最小単位に統一しました
-- 
 -----
 fastlane メタデータを更新して
 2.8.0 審査提出中、README.mdの開発メモ、公開アプリパネル、取扱説明を更新して
 -----
 cd /Users/sumpositive/GitLocal/Condition
+fastlane preview_metadata
+fastlane upload_metadata
+---
+fastlane screenshots
+fastlane upload_screenshots
+------------------------------------------------
+
+
+
+統計：血圧の左右差：推移グラフを表示します、とあるがそのグラフはどこか？
+
+
+
+
+
+
+
+
+--------------------------------
+2.9.0 機能追加
+- 
+- 
+- 
+-----
+fastlane メタデータを更新して
+2.8.0 審査中、README.mdの開発メモ、公開アプリパネル、取扱説明を更新して
+-----
+cd /Users/sumpositive/GitLocal/Condition
+fastlane preview_metadata
 fastlane upload_metadata
 ---
 fastlane screenshots

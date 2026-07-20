@@ -5282,6 +5282,35 @@
         }
       }
     },
+    "metric.bloodPressure.long" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blood Pressure"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "血圧"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "혈압"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "血壓"
+          }
+        }
+      }
+    },
     "metric.bloodPressureDistribution" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5518,6 +5547,35 @@
         }
       }
     },
+    "metric.bodyFat.long" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Body Fat"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "体脂肪率"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "체지방률"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "體脂率"
+          }
+        }
+      }
+    },
     "metric.bodyFat.percent" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5612,6 +5670,35 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Temp"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "体温"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "체온"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "體溫"
+          }
+        }
+      }
+    },
+    "metric.bodyTemp.long" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Body Temperature"
           }
         },
         "ja" : {
@@ -6157,6 +6244,35 @@
         }
       }
     },
+    "metric.heartRate.long" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Heart Rate"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心拍数"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "심박수"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心率"
+          }
+        }
+      }
+    },
     "metric.heartRate.bpm" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6547,6 +6663,35 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Muscle"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "骨格筋率"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "골격근률"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "骨骼肌率"
+          }
+        }
+      }
+    },
+    "metric.skeletalMuscle.long" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skeletal Muscle"
           }
         },
         "ja" : {
@@ -8118,25 +8263,25 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Enter a reading and tap Next to move quickly through cells.\nTap Save to record the average.\n\nAdd up to 5 measurements.\nYou can edit any value or remove a row.\n\nA smaller standard deviation (±SD) means the readings vary less and the average is more reliable.\n  Blue: low variation\n  Red: high variation (consider remeasuring)"
+            "value" : "Enter readings one after another, tap Next to skip, then tap Save to record the average.\n\nYou can specify the arm used. Choose (L) for the left arm, (R) for the right arm, or (·) if unknown or not specified.\n\nAdd up to 5 measurements.\nYou can edit any value or remove a row.\n\nA smaller standard deviation (±SD) means the readings vary less and the average is more reliable.\n  Blue: low variation\n  Red: high variation (consider remeasuring)"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "測定値を入れて「次へ」で軽快に入力\n最後に「保存」で平均値を記録\n\n最大5回まで測定を追加できます\n各値を修正し、行単位で取消ができます\n\n標準偏差(±SD)は小さいほど測定値のばらつきが少なく、平均値の信頼度が高い目安です\n　青：ばらつき少\n　赤：ばらつき大（測り直しを検討）"
+            "value" : "測定値を連続入力、「次へ」で飛ばし、最後に「保存」で平均値を記録します\n\n血圧の測定部位を指定できます。左腕ならば(L) 右腕ならば(R) 不明や指定しないならば(・) を選択します\n\n最大5回まで測定を追加できます\n各値を修正し、行単位で取消ができます\n\n標準偏差(±SD)は小さいほど測定値のばらつきが少なく、平均値の信頼度が高い目安です\n　青：ばらつき少\n　赤：ばらつき大（測り直しを検討）"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "측정값을 입력하고 「다음」으로 경쾌하게 입력\n마지막에 「저장」으로 평균값을 기록\n\n최대 5회까지 측정을 추가할 수 있습니다\n각 값을 수정하고 행 단위로 취소할 수 있습니다\n\n표준편차(±SD)는 작을수록 측정값의 편차가 적어 평균값의 신뢰도가 높다는 기준입니다\n　파랑: 편차 적음\n　빨강: 편차 큼(재측정 검토)"
+            "value" : "측정값을 연속 입력하고 「다음」으로 건너뛴 뒤, 마지막에 「저장」으로 평균값을 기록합니다\n\n혈압 측정 부위를 지정할 수 있습니다. 왼팔이면 (L) 오른팔이면 (R) 불명이거나 지정하지 않으면 (·) 를 선택합니다\n\n최대 5회까지 측정을 추가할 수 있습니다\n각 값을 수정하고 행 단위로 취소할 수 있습니다\n\n표준편차(±SD)는 작을수록 측정값의 편차가 적어 평균값의 신뢰도가 높다는 기준입니다\n　파랑: 편차 적음\n　빨강: 편차 큼(재측정 검토)"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "輸入測量值後用「下一步」快速填寫\n最後用「儲存」記錄平均值\n\n最多可新增 5 次測量\n可修改各數值，並以列為單位還原\n\n標準差(±SD)越小代表測量值離散越少、平均值越可靠\n　藍：離散小\n　紅：離散大（建議重新測量）"
+            "value" : "連續輸入測量值，用「下一步」略過，最後用「儲存」記錄平均值\n\n可指定血壓的測量部位。左臂選 (L) 右臂選 (R) 不明或不指定則選 (·)\n\n最多可新增 5 次測量\n可修改各數值，並以列為單位還原\n\n標準差(±SD)越小代表測量值離散越少、平均值越可靠\n　藍：離散小\n　紅：離散大（建議重新測量）"
           }
         }
       }

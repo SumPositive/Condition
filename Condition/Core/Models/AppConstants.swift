@@ -149,6 +149,19 @@ enum GraphKind: Int, CaseIterable, Identifiable, Codable {
         }
     }
 
+    /// フルネーム表記。狭い場所では title（短語）を使い、項目設定画面など
+    /// 一覧で読みやすさを優先したい場所だけこちらを使う。
+    var longTitle: String {
+        switch self {
+        case .bp:       return "metric.bloodPressure.long"
+        case .pulse:    return "metric.heartRate.long"
+        case .temp:     return "metric.bodyTemp.long"
+        case .bodyFat:  return "metric.bodyFat.long"
+        case .skMuscle: return "metric.skeletalMuscle.long"
+        default:        return title
+        }
+    }
+
     /// 記録入力画面にも対応するフィールドかどうか
     var isRecordField: Bool {
         switch self {
