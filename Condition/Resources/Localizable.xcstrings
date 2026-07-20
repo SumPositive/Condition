@@ -8257,6 +8257,35 @@
         }
       }
     },
+    "record.measurementAvg.bpSideLabel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BP arm"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "血圧の部位"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "혈압 부위"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "血壓部位"
+          }
+        }
+      }
+    },
     "record.measurementAvg.help" : {
       "extractionState" : "manual",
       "localizations" : {

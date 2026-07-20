@@ -367,33 +367,26 @@ struct MeasurementAverageView: View {
         columns.contains(.bpHi) || columns.contains(.bpLo)
     }
 
-    /// 「上」列の左端から見た、上下ペア中央までの水平オフセット
-    private var bpPairCenterX: CGFloat {
-        guard let hiIndex = columns.firstIndex(of: .bpHi) else { return 0 }
-        // 行頭: trialLabelWidth ＋ 先頭 spacing 6、以降 各列 (cellWidth + 6)
-        let hiLeft = trialLabelWidth + 6 + CGFloat(hiIndex) * (cellWidth + 6)
-        // 上下ペアの中央 = 上の左端 ＋ cellWidth ＋ 間隔6の半分
-        return hiLeft + cellWidth + 3
-    }
-
-    /// headerRow と同じ総幅（試行ラベル＋各列＋各 spacing＋末尾28）
-    private var headerContentWidth: CGFloat {
-        trialLabelWidth + CGFloat(columns.count) * (6 + cellWidth) + 6 + 28
-    }
-
-    /// 表の見出し「上」「下」の真上に、左右セグメントだけを中央寄せで置く行
+    /// 「追加」ボタンと、血圧の部位（左右）セグメントを1行に並べる。
+    /// 部位は上下共通なので列見出しの上に浮かせず、ここにラベル付きでまとめる。
+    /// 血圧列が無いときはセグメントを出さない。追加ボタンは最大回数で消えるが、
+    /// セグメントはそれと独立して表示し続ける。
     @ViewBuilder
-    private var bpSideHeaderRow: some View {
-        if showsBpSide {
-            // headerRow と同じ総幅の透明ベースに、上下ペア中央へセグメントを重ねる
-            Color.clear
-                .frame(width: headerContentWidth, height: 30)
-                .overlay(alignment: .topLeading) {
-                    bpSideSegment
-                        .fixedSize()
-                        // 上下ペアの中央にセグメント中央を合わせる
-                        .position(x: bpPairCenterX, y: 15)
-                }
+    private var addTrialAndBpSideRow: some View {
+        HStack(spacing: 8) {
+            if trialCount < maxTrials {
+                addTrialButton
+            }
+            if showsBpSide {
+                // 追加ボタンのすぐ右に左寄せで並べ、余った幅は右側の余白として吸わせる
+                Text("record.measurementAvg.bpSideLabel")
+                    .font(.footnote)
+                    // 「上」列見出しと同じ色をやや薄めて、血圧まわりの表示だと分かるようにする
+                    .foregroundStyle(AvgColumn.bpHi.color.opacity(0.7))
+                    .padding(.leading, 8)
+                bpSideSegment
+                Spacer(minLength: 0)
+            }
         }
     }
 
@@ -427,16 +420,16 @@ struct MeasurementAverageView: View {
                     )
                     .padding(.leading, 40)
                     .padding(.bottom, 2)
-                    bpSideHeaderRow
                     headerRow
                     ForEach(0..<trialCount, id: \.self) { trial in
                         trialRow(trial: trial)
                     }
-                    if trialCount < maxTrials {
-                        addTrialButton
-                            .padding(.leading, trialLabelWidth + 4)
-                            .padding(.top, 2)
-                    }
+                    // 「追加」ボタンと血圧の部位セグメントを同じ行に置く。
+                    // 部位は上下（収縮期・拡張期）共通なので列見出しの上に浮かせず、
+                    // 表のスクロール範囲を圧迫しないこの行にまとめる。血圧列が無ければ非表示。
+                    addTrialAndBpSideRow
+                        .padding(.leading, trialLabelWidth + 4)
+                        .padding(.top, 2)
                     Divider().padding(.vertical, 4)
                     summaryRow(metric: .average)
                     summaryRow(metric: .standardDeviation)
