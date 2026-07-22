@@ -572,6 +572,8 @@ private struct SelectionDetailRow: View {
     let record: BodyRecord
     let detail: String      // 値＋単位の文字列
     let color: Color
+    /// 血圧の詳細でのみ、測定箇所（左右）バッジを出す。脈拍・体重など他項目では出さない。
+    var showsBpSide: Bool = false
 
     private var dateText: String {
         let c = Calendar.current
@@ -583,6 +585,19 @@ private struct SelectionDetailRow: View {
         return String(format: "%d/%d/%d %d:%02d", y, m, d, h, mn)
     }
 
+    /// 血圧の測定箇所（左右）バッジ。血圧の詳細で、左右が指定されているときだけ出す。
+    @ViewBuilder
+    private var bpSideBadge: some View {
+        if showsBpSide, record.bpSide.isDefined {
+            Text(record.bpSide.code)
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 1)
+                .background(Capsule().fill(record.bpSide.badgeColor))
+        }
+    }
+
     var body: some View {
         ViewThatFits(in: .horizontal) {
             // 通常サイズ: 1行
@@ -591,6 +606,7 @@ private struct SelectionDetailRow: View {
                 Text(record.dateOpt.displayName)
                 Text(dateText).foregroundStyle(color.opacity(0.7))
                 Spacer()
+                bpSideBadge
                 Text(detail).bold()
             }
             // 大文字サイズ: 2行（区分+日時 左寄せ / 値+単位 右寄せ）
@@ -600,9 +616,11 @@ private struct SelectionDetailRow: View {
                     Text(record.dateOpt.displayName)
                     Text(dateText).foregroundStyle(color.opacity(0.7))
                 }
-                Text(detail)
-                    .bold()
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+                HStack(spacing: 6) {
+                    Spacer(minLength: 0)
+                    bpSideBadge
+                    Text(detail).bold()
+                }
             }
         }
         .foregroundStyle(color)
@@ -1132,7 +1150,8 @@ struct BpChartView: View {
                     SelectionDetailRow(
                         record: r,
                         detail: "\(r.nBpHi_mmHg)／\(r.nBpLo_mmHg)\(mapStr) mmHg",
-                        color: r.dateOpt.color
+                        color: r.dateOpt.color,
+                        showsBpSide: true
                     )
                 }
             }
