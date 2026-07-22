@@ -109,6 +109,13 @@ extension Color {
     static let azBack   = Color(red: 220/255, green: 220/255, blue: 220/255)
     static let azEdit   = Color(red: 210/255, green: 220/255, blue: 210/255)
     static let azGoal   = Color(red: 210/255, green: 210/255, blue: 220/255)
+
+    // 血圧の上（収縮期）・下（拡張期）の共通色。
+    // 左右（L＝赤・R＝緑）と紛らわしくないよう、同系色（オレンジ／琥珀）の濃淡で上下を表す。
+    /// 上（収縮期）＝濃いオレンジ
+    static let bpSystolic  = Color(red: 0.90, green: 0.42, blue: 0.05)
+    /// 下（拡張期）＝淡い琥珀
+    static let bpDiastolic = Color(red: 0.88, green: 0.66, blue: 0.20)
 }
 
 // MARK: - グラフ・統計設定

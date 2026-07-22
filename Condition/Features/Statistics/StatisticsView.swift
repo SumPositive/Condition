@@ -999,11 +999,11 @@ struct BpDateOptCorrView: View {
         VStack(alignment: .leading, spacing: 8) {
             let bpCorrLegend = HStack(spacing: 10) {
                 HStack(spacing: 4) {
-                    Circle().fill(Color.red.opacity(0.8)).frame(width: 8, height: 8)
+                    Circle().fill(Color.bpSystolic.opacity(0.8)).frame(width: 8, height: 8)
                     Text("metric.systolic.short").font(.caption).foregroundStyle(.secondary)
                 }
                 HStack(spacing: 4) {
-                    Circle().fill(Color.blue.opacity(0.8)).frame(width: 8, height: 8)
+                    Circle().fill(Color.bpDiastolic.opacity(0.8)).frame(width: 8, height: 8)
                     Text("metric.diastolic.short").font(.caption).foregroundStyle(.secondary)
                 }
             }
@@ -1076,7 +1076,7 @@ struct BpDateOptCorrView: View {
                 )
                 .symbol(.circle)
                 .symbolSize(16)
-                .foregroundStyle(pt.isHi ? Color.red.opacity(0.35) : Color.blue.opacity(0.35))
+                .foregroundStyle(pt.isHi ? Color.bpSystolic.opacity(0.35) : Color.bpDiastolic.opacity(0.35))
             }
             ForEach(ms) { m in
                 PointMark(
@@ -1085,7 +1085,7 @@ struct BpDateOptCorrView: View {
                 )
                 .symbol(.diamond)
                 .symbolSize(80)
-                .foregroundStyle(Color.red.opacity(0.9))
+                .foregroundStyle(Color.bpSystolic.opacity(0.9))
 
                 PointMark(
                     x: .value("record.category", m.category),
@@ -1093,7 +1093,7 @@ struct BpDateOptCorrView: View {
                 )
                 .symbol(.diamond)
                 .symbolSize(80)
-                .foregroundStyle(Color.blue.opacity(0.9))
+                .foregroundStyle(Color.bpDiastolic.opacity(0.9))
             }
         }
         .chartXScale(domain: order)
@@ -1182,13 +1182,13 @@ private struct BpDateOptCorrInfoPopover: View {
 
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 8) {
-                        Circle().fill(Color.red.opacity(0.8)).frame(width: 10, height: 10)
-                        Text(isJapanese ? String(localized: "metric.redSystolicUpper") : "Red = Systolic (Upper)")
+                        Circle().fill(Color.bpSystolic.opacity(0.9)).frame(width: 10, height: 10)
+                        Text("metric.systolicUpper")
                             .font(.footnote).foregroundStyle(.secondary)
                     }
                     HStack(spacing: 8) {
-                        Circle().fill(Color.blue.opacity(0.8)).frame(width: 10, height: 10)
-                        Text(isJapanese ? String(localized: "metric.blueDiastolicLower") : "Blue = Diastolic (Lower)")
+                        Circle().fill(Color.bpDiastolic.opacity(0.9)).frame(width: 10, height: 10)
+                        Text("metric.diastolicLower")
                             .font(.footnote).foregroundStyle(.secondary)
                     }
                 }
@@ -1252,14 +1252,14 @@ struct Bp24HChartView: View {
                         x: .value("text.time", item.hour),
                         y: .value("metric.systolic", item.hi)
                     )
-                    .foregroundStyle(.red.opacity(0.6))
+                    .foregroundStyle(Color.bpSystolic.opacity(0.7))
                     .symbolSize(35)
 
                     PointMark(
                         x: .value("text.time", item.hour),
                         y: .value("metric.diastolic", item.lo)
                     )
-                    .foregroundStyle(.blue.opacity(0.6))
+                    .foregroundStyle(Color.bpDiastolic.opacity(0.7))
                     .symbolSize(35)
                 }
 
@@ -1328,14 +1328,14 @@ struct BpSummaryView: View {
                         }
                     }
                     GridRow {
-                        Text("metric.systolic.short").foregroundStyle(.red)
+                        Text("metric.systolic.short").foregroundStyle(Color.bpSystolic)
                         Text(String(format: "%.1f", hiAvg)).font(.title2.monospacedDigit())
                         if settings.statShowAvg {
                             Text(String(format: "%.1f", hiStd)).font(.footnote.monospacedDigit()).foregroundStyle(.secondary)
                         }
                     }
                     GridRow {
-                        Text("metric.diastolic.short").foregroundStyle(.blue)
+                        Text("metric.diastolic.short").foregroundStyle(Color.bpDiastolic)
                         Text(String(format: "%.1f", loAvg)).font(.title2.monospacedDigit())
                         if settings.statShowAvg {
                             Text(String(format: "%.1f", loStd)).font(.footnote.monospacedDigit()).foregroundStyle(.secondary)
@@ -1380,33 +1380,70 @@ struct BpLeftRightView: View {
         let leftLo: Double
         var diffHi: Double { leftHi - rightHi }
         var diffLo: Double { leftLo - rightLo }
+        // バー表示用：右が高いほどプラス（右へ伸ばす）、左が高いほどマイナス（左へ伸ばす）
+        var signedHi: Double { rightHi - leftHi }
+        var signedLo: Double { rightLo - leftLo }
     }
 
-    /// 日単位の平均（収縮期・拡張期）を返す
-    private func dailyAverages(_ recs: [BodyRecord]) -> [Date: (hi: Double, lo: Double)] {
+    /// 左右を同一測定とみなす時間ウィンドウ（分）。
+    /// 血圧は短時間でも変動するため、左右差は近接時刻で測った組だけを対象にする。
+    /// 30分は「同一の測定セッション」とみなせる実用的な上限（既存のまとめ時間の最大値と同じ）。
+    private static let bpPairWindowMinutes = 30
+
+    /// L と R を 30分以内の近接時刻でペアにした結果（1組ぶんの左右値）
+    private struct LRPair {
+        let day: Date         // ペアの代表日（L の日）
+        let leftHi: Int
+        let leftLo: Int
+        let rightHi: Int
+        let rightLo: Int
+    }
+
+    /// L の各記録に対し、30分以内で最も近い未使用の R を割り当ててペアを作る。
+    /// 1つの R は1回だけ使う（重複割当を避ける貪欲マッチング）。
+    private var lrPairs: [LRPair] {
         let cal = Calendar.current
-        var buckets: [Date: (hiSum: Int, loSum: Int, count: Int)] = [:]
-        for r in recs {
-            let day = cal.startOfDay(for: r.dateTime)
-            var b = buckets[day] ?? (0, 0, 0)
-            b.hiSum += r.nBpHi_mmHg
-            b.loSum += r.nBpLo_mmHg
-            b.count += 1
-            buckets[day] = b
+        let window = TimeInterval(Self.bpPairWindowMinutes * 60)
+        let lefts = leftRecords.sorted { $0.dateTime < $1.dateTime }
+        let rights = rightRecords.sorted { $0.dateTime < $1.dateTime }
+        var usedRight = Set<Int>()   // 使用済み R のインデックス
+        var pairs: [LRPair] = []
+
+        for l in lefts {
+            var bestIdx: Int? = nil
+            var bestDelta = window + 1
+            for (i, r) in rights.enumerated() where !usedRight.contains(i) {
+                let delta = abs(r.dateTime.timeIntervalSince(l.dateTime))
+                if delta <= window, delta < bestDelta {
+                    bestDelta = delta
+                    bestIdx = i
+                }
+            }
+            guard let idx = bestIdx else { continue }
+            usedRight.insert(idx)
+            let r = rights[idx]
+            pairs.append(LRPair(day: cal.startOfDay(for: l.dateTime),
+                                leftHi: l.nBpHi_mmHg, leftLo: l.nBpLo_mmHg,
+                                rightHi: r.nBpHi_mmHg, rightLo: r.nBpLo_mmHg))
         }
-        return buckets.mapValues { (hi: Double($0.hiSum) / Double($0.count),
-                                    lo: Double($0.loSum) / Double($0.count)) }
+        return pairs
     }
 
     private var dayDiffs: [DayDiff] {
-        let rightByDay = dailyAverages(rightRecords)
-        let leftByDay = dailyAverages(leftRecords)
-        // 左右そろった日だけをペアにする
-        let pairedDays = Set(rightByDay.keys).intersection(leftByDay.keys)
-        return pairedDays.compactMap { day -> DayDiff? in
-            guard let r = rightByDay[day], let l = leftByDay[day] else { return nil }
+        // 30分ペアを日別に集約（同じ日に複数ペアがあれば平均）
+        var buckets: [Date: (lHi: Int, lLo: Int, rHi: Int, rLo: Int, count: Int)] = [:]
+        for p in lrPairs {
+            var b = buckets[p.day] ?? (0, 0, 0, 0, 0)
+            b.lHi += p.leftHi; b.lLo += p.leftLo
+            b.rHi += p.rightHi; b.rLo += p.rightLo
+            b.count += 1
+            buckets[p.day] = b
+        }
+        return buckets.map { day, b -> DayDiff in
+            let n = Double(b.count)
             return DayDiff(id: day, day: day,
-                           rightHi: r.hi, rightLo: r.lo, leftHi: l.hi, leftLo: l.lo)
+                           rightHi: Double(b.rHi) / n, rightLo: Double(b.rLo) / n,
+                           leftHi: Double(b.lHi) / n, leftLo: Double(b.lLo) / n)
         }
         .sorted { $0.day < $1.day }
     }
@@ -1433,11 +1470,97 @@ struct BpLeftRightView: View {
         return diffs.reduce(0, +) / Double(diffs.count)
     }
 
+    // MARK: - 横向きバー用データ
+
+    /// バー1本ぶん（ある日付の、上または下の左右差）
+    private struct DiffBar: Identifiable {
+        let id: String
+        let dayLabel: String   // 縦軸カテゴリ（例: 7/20）
+        let dayOrder: Date     // 並べ替え用
+        let isSystolic: Bool   // true=上(収縮期,赤) / false=下(拡張期,青)
+        let diff: Double       // 左−右（＋で左が高い＝右へ伸びる）
+    }
+
+    /// 直近8日ぶんの日付を新しい順に並べる（縦軸は上から新しい日）
+    private var recentDayDiffs: [DayDiff] {
+        Array(dayDiffs.sorted { $0.day > $1.day }.prefix(8))
+    }
+
+    private static let barDayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.setLocalizedDateFormatFromTemplate("Md")
+        return f
+    }()
+
+    /// 先頭行の「平均」ラベル（カテゴリ名として使う実文字列）
+    private var averageRowLabel: String { String(localized: "stat.average.short") }
+
+    /// 30分ペアの左右差（右−左）の平均。各日バーと同じ母集団（30分ペア）で揃える。
+    private var averageSignedHi: Double? {
+        guard !dayDiffs.isEmpty else { return nil }
+        return dayDiffs.map(\.signedHi).reduce(0, +) / Double(dayDiffs.count)
+    }
+    private var averageSignedLo: Double? {
+        guard !dayDiffs.isEmpty else { return nil }
+        return dayDiffs.map(\.signedLo).reduce(0, +) / Double(dayDiffs.count)
+    }
+    /// 平均行を出せるか（30分ペアが1組以上ある）
+    private var hasAverageRow: Bool { !dayDiffs.isEmpty }
+
+    /// 上下2本×行ぶんのバー配列（先頭に「平均」行、続いて各日付）
+    private var diffBars: [DiffBar] {
+        var bars: [DiffBar] = []
+        // 平均行（最上部）
+        if hasAverageRow {
+            if let hi = averageSignedHi {
+                bars.append(DiffBar(id: "avg-hi", dayLabel: averageRowLabel,
+                                    dayOrder: .distantFuture, isSystolic: true, diff: hi))
+            }
+            if let lo = averageSignedLo {
+                bars.append(DiffBar(id: "avg-lo", dayLabel: averageRowLabel,
+                                    dayOrder: .distantFuture, isSystolic: false, diff: lo))
+            }
+        }
+        // 各日付
+        for d in recentDayDiffs {
+            let label = Self.barDayFormatter.string(from: d.day)
+            // 右が高いほどプラス＝右へ、左が高いほどマイナス＝左へ伸ばす
+            bars.append(DiffBar(id: "\(d.id.timeIntervalSince1970)-hi", dayLabel: label,
+                                dayOrder: d.day, isSystolic: true, diff: d.signedHi))
+            bars.append(DiffBar(id: "\(d.id.timeIntervalSince1970)-lo", dayLabel: label,
+                                dayOrder: d.day, isSystolic: false, diff: d.signedLo))
+        }
+        return bars
+    }
+
+    /// 縦軸カテゴリの並び（上から：平均→新しい日）
+    private var barDayLabels: [String] {
+        var labels: [String] = []
+        if hasAverageRow { labels.append(averageRowLabel) }
+        labels.append(contentsOf: recentDayDiffs.map { Self.barDayFormatter.string(from: $0.day) })
+        return labels
+    }
+
+    /// X軸の左右対称レンジ（最大差の絶対値を丸めて左右対称にする。最低±10）
+    private var barAxisMagnitude: Double {
+        let maxAbs = diffBars.map { abs($0.diff) }.max() ?? 0
+        let m = max(10, (maxAbs / 5).rounded(.up) * 5)
+        return m
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("metric.bpLeftRight")
-                .font(.title3)
-                .frame(maxWidth: .infinity)
+            HStack(spacing: 4) {
+                Text("metric.bpLeftRight")
+                    .font(.title3)
+                // 見出しの右に (?) を置き、グラフの見方（縦軸＝左右差・0基準・横軸＝日付）を説明する
+                BeginnerHelpBanner(
+                    "stat.bpLeftRight.help",
+                    storageKey: "helpDismissed.stat.bpLeftRight",
+                    compact: true
+                )
+            }
+            .frame(maxWidth: .infinity)
 
             if rightRecords.isEmpty && leftRecords.isEmpty {
                 // 左右の記録がまだ無い
@@ -1448,7 +1571,8 @@ struct BpLeftRightView: View {
                     .padding(.vertical, 4)
             } else {
                 summaryGrid
-                if dayDiffs.count >= 2 {
+                // 同じ日に左右そろったペアが1日でもあればバーを描く
+                if !dayDiffs.isEmpty {
                     diffChart
                 } else {
                     Text("stat.bpLeftRight.needPairs")
@@ -1465,70 +1589,196 @@ struct BpLeftRightView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
-    // 右平均 / 左平均（収縮期・拡張期）
+    // サマリー（左平均 / 右平均）。中央列に見出し（L/R行は「サマリー」、値行は 上/下）を置き、
+    // L値を左・R値を右に配置。中央列を下のグラフの日付列（dayColumnWidth）と同じ幅にして、
+    // L・R値の中間が左右差グラフの中心（日付列）と一致するようにする。
     private var summaryGrid: some View {
-        Grid(horizontalSpacing: 16, verticalSpacing: 4) {
-            GridRow {
-                Text("").frame(width: 40)
-                Text(BpSide.right.code).font(.footnote.weight(.semibold)).foregroundStyle(BpSide.right.badgeColor)
-                Text(BpSide.left.code).font(.footnote.weight(.semibold)).foregroundStyle(BpSide.left.badgeColor)
+        // 値列を固定幅にして Grid を内容幅に収め、HStack の Spacer で全体を中央寄せする。
+        // L・R とも右揃えにして、上下の値の右端（小数点）を列内で揃える。
+        HStack(spacing: 0) {
+            Spacer(minLength: 0)
+            Grid(horizontalSpacing: 0, verticalSpacing: 4) {
+                GridRow {
+                    Text(BpSide.left.code)
+                        .font(.footnote.weight(.semibold)).foregroundStyle(BpSide.left.badgeColor)
+                        .frame(width: valueColWidth, alignment: .trailing)
+                    // L と R の行の間に「サマリー」を置く
+                    Text("stat.bpLeftRight.summaryTitle")
+                        .font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .frame(width: summaryLabelWidth)
+                    Text(BpSide.right.code)
+                        .font(.footnote.weight(.semibold)).foregroundStyle(BpSide.right.badgeColor)
+                        // R見出しは列の左端（中央寄り）に置き、L見出し（右端＝中央寄り）と
+                        // サマリー中心から等距離にする。値の位置は変えない。
+                        .frame(width: valueColWidth, alignment: .leading)
+                }
+                GridRow {
+                    avgCell(leftHiAvg)
+                    Text("metric.systolic.short").foregroundStyle(Self.systolicColor)
+                        .frame(width: summaryLabelWidth)
+                    avgCell(rightHiAvg)
+                }
+                GridRow {
+                    avgCell(leftLoAvg)
+                    Text("metric.diastolic.short").foregroundStyle(Self.diastolicColor)
+                        .frame(width: summaryLabelWidth)
+                    avgCell(rightLoAvg)
+                }
             }
-            GridRow {
-                Text("metric.systolic.short").foregroundStyle(.red)
-                avgCell(rightHiAvg)
-                avgCell(leftHiAvg)
-            }
-            GridRow {
-                Text("metric.diastolic.short").foregroundStyle(.blue)
-                avgCell(rightLoAvg)
-                avgCell(leftLoAvg)
-            }
+            Spacer(minLength: 0)
         }
     }
 
+    /// サマリー中央列（「サマリー」ラベルを収める）の幅
+    @ScaledMetric(relativeTo: .caption2) private var summaryLabelWidth: CGFloat = 56
+    /// サマリー値列の固定幅（"139.5" が収まる幅）。文字サイズに追従。
+    @ScaledMetric(relativeTo: .title2) private var valueColWidth: CGFloat = 68
+
+    // 値は monospacedDigit で桁を揃え、右揃えで上下の右端（小数点）を一致させる。
     @ViewBuilder
     private func avgCell(_ value: Double?) -> some View {
-        if let value {
-            Text(String(format: "%.1f", value)).font(.title2.monospacedDigit())
-        } else {
-            Text("–").font(.title2).foregroundStyle(.secondary)
+        Group {
+            if let value {
+                Text(String(format: "%.1f", value)).font(.title2.monospacedDigit())
+            } else {
+                Text("–").font(.title2).foregroundStyle(.secondary)
+            }
+        }
+        .frame(width: valueColWidth, alignment: .trailing)
+    }
+
+    /// 上（収縮期）・下（拡張期）の色。左右（L＝赤・R＝緑）と被らない共通色。
+    private static let systolicColor: Color = .bpSystolic
+    private static let diastolicColor: Color = .bpDiastolic
+
+    // 同日ペアの左右差を、日付ごとに横向きバー（上＝収縮期・下＝拡張期）で表示。
+    // 中央に日付列を挟み、左半分＝左(L)が高い分、右半分＝右(R)が高い分を外側へ伸ばす。
+    //   10  5  0   0  5  10
+    // ←左が高い  日付  右が高い→
+    private var diffChart: some View {
+        VStack(spacing: 6) {
+            // 方向ラベル行。左端＝左が高い、右端＝右が高い、中央に軸名（左右差 mmHg）
+            HStack {
+                HStack(spacing: 3) {
+                    Image(systemName: "arrow.left")
+                    Text("stat.bpLeftRight.leftHigher")
+                }
+                .foregroundStyle(BpSide.left.badgeColor)
+                Spacer(minLength: 4)
+                Text("unit.mmHg")
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 4)
+                HStack(spacing: 3) {
+                    Text("stat.bpLeftRight.rightHigher")
+                    Image(systemName: "arrow.right")
+                }
+                .foregroundStyle(BpSide.right.badgeColor)
+            }
+            .font(.caption2.weight(.semibold))
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+
+            // 左Chart ｜ 中央の日付列 ｜ 右Chart。行数・行高を揃えて縦位置を一致させる。
+            // 目盛り数字は各Chartの上部軸が描く。中央列は上端に軸ぶんの空きを設けて揃える。
+            HStack(spacing: 0) {
+                halfChart(isRightSide: false)
+                dayColumn
+                halfChart(isRightSide: true)
+            }
+            .frame(height: barChartHeight)
         }
     }
 
-    // 同日ペアの左右差（left − right）を時系列で表示
-    private var diffChart: some View {
-        Chart(dayDiffs) { d in
-            LineMark(
-                x: .value("record.datetime", d.day),
-                y: .value("metric.systolic.short", d.diffHi),
-                series: .value("series", "hi")
-            )
-            .foregroundStyle(.red)
-            PointMark(
-                x: .value("record.datetime", d.day),
-                y: .value("metric.systolic.short", d.diffHi)
-            )
-            .foregroundStyle(.red)
-            .symbolSize(24)
-            LineMark(
-                x: .value("record.datetime", d.day),
-                y: .value("metric.diastolic.short", d.diffLo),
-                series: .value("series", "lo")
-            )
-            .foregroundStyle(.blue)
-            PointMark(
-                x: .value("record.datetime", d.day),
-                y: .value("metric.diastolic.short", d.diffLo)
-            )
-            .foregroundStyle(.blue)
-            .symbolSize(24)
-            // 0（左右差なし）基準線
-            RuleMark(y: .value("zero", 0))
-                .foregroundStyle(Color.secondary.opacity(0.4))
-                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+    /// 目盛りの刻み値（0,5,…,magnitude）
+    private var tickValues: [Double] {
+        stride(from: 0.0, through: barAxisMagnitude, by: 5).map { $0 }
+    }
+
+    /// 中央の行ラベル列（先頭＝平均、以降＝日付）。上端に軸ぶんの空きを設け、
+    /// 左右Chart と同じ行高で縦に並べて行位置を一致させる。
+    private var dayColumn: some View {
+        VStack(spacing: 0) {
+            // halfChart の上部軸（目盛り数字）ぶんの余白
+            Color.clear.frame(height: axisTopInset)
+            ForEach(Array(barDayLabels.enumerated()), id: \.offset) { _, label in
+                let isAverage = (label == averageRowLabel)
+                Text(label)
+                    .font(isAverage
+                          ? .caption2.weight(.bold)
+                          : .caption2.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(isAverage ? Color.accentColor : .primary)
+                    .lineLimit(1)
+                    // 月が2桁でもズレないよう「99/99」相当の固定幅を確保する
+                    .frame(width: dateLabelWidth)
+                    .frame(maxHeight: .infinity)
+            }
         }
-        .chartYAxisLabel("stat.bpLeftRight.diffAxis")
-        .frame(height: adaptiveChartHeight(base: 200, width: chartWidth, dynamicTypeSize: dynamicTypeSize) + chartExtraHeight)
+        .frame(width: dayColumnWidth)
+    }
+
+    /// 日付ラベルの固定幅（"99/99" を monospacedDigit で測った幅の目安）
+    @ScaledMetric(relativeTo: .caption2) private var dateLabelWidth: CGFloat = 36
+
+    /// 片側（左＝左が高い分 / 右＝右が高い分）の横向きバー Chart
+    private func halfChart(isRightSide: Bool) -> some View {
+        Chart {
+            ForEach(diffBars) { bar in
+                // その側に該当する分だけを正の長さで描く（反対側の日は 0＝非表示）
+                let magnitude = isRightSide ? max(bar.diff, 0) : max(-bar.diff, 0)
+                BarMark(
+                    x: .value("stat.bpLeftRight.diffAxis", magnitude),
+                    // 上下2本を太くして接触させ、間の隙間を実質0にする
+                    y: .value("text.date", bar.dayLabel),
+                    height: .fixed(barThickness)
+                )
+                .foregroundStyle(bar.isSystolic ? Color.bpSystolic : Color.bpDiastolic)
+                .position(by: .value("series", bar.isSystolic ? "hi" : "lo"))
+                .cornerRadius(0)
+            }
+        }
+        // 左Chart は 0 を右端に置く → バーが中央（右端）から左へ伸びる。
+        // ClosedRange は逆順を作れないため、domain は配列で渡して軸の向きを反転させる。
+        .chartXScale(domain: isRightSide ? [0, barAxisMagnitude] : [barAxisMagnitude, 0])
+        .chartYScale(domain: barDayLabels)
+        // 目盛りは上部。0 が中央側、magnitude が外側。5刻みで絶対値表示。
+        // 縦の目盛線と目盛りティックをはっきり出す。
+        .chartXAxis {
+            AxisMarks(position: .top, values: tickValues) { value in
+                AxisGridLine().foregroundStyle(.gray.opacity(0.35))
+                AxisTick(length: 4).foregroundStyle(.gray.opacity(0.6))
+                AxisValueLabel {
+                    if let v = value.as(Double.self) {
+                        Text("\(Int(v))").font(.caption2)
+                    }
+                }
+            }
+        }
+        .chartYAxis(.hidden)
+        // プロット領域の上辺に水平の X軸線を引く
+        .chartPlotStyle { plot in
+            plot.overlay(alignment: .top) {
+                Rectangle()
+                    .fill(.gray.opacity(0.5))
+                    .frame(height: 1)
+            }
+        }
+    }
+
+    /// halfChart 上部の目盛り帯の高さ（中央日付列の上余白と合わせる）
+    private let axisTopInset: CGFloat = 20
+    /// 中央の日付列の幅。日付ラベル幅にごく僅かな余白のみ足す（バーを日付近くまで寄せる）。
+    private var dayColumnWidth: CGFloat { dateLabelWidth + 2 }
+    /// 1日ぶんの行の高さ（上下2本＋余白）
+    private let rowHeight: CGFloat = 40
+    /// バー1本の太さ。上下2本を接触させ、間の隙間を実質0に見せる
+    private let barThickness: CGFloat = 13
+
+    /// 行数（平均行＋日付行）に応じた全体の高さ（上部の目盛り帯＋各行）
+    private var barChartHeight: CGFloat {
+        let rows = max(barDayLabels.count, 1)
+        return axisTopInset + CGFloat(rows) * rowHeight + chartExtraHeight
     }
 
     // 控えめな受診目安Tips（医療助言ではない旨を添える）
@@ -2018,7 +2268,7 @@ struct WeightBpScatterView: View {
                         x: .value("metric.weight", pt.weight),
                         y: .value("unit.mmHg", pt.bp)
                     )
-                    .foregroundStyle(pt.isSystolic ? Color.red.opacity(0.55) : Color.blue.opacity(0.55))
+                    .foregroundStyle(pt.isSystolic ? Color.bpSystolic.opacity(0.6) : Color.bpDiastolic.opacity(0.6))
                     .symbolSize(28)
                 }
                 .chartXScale(domain: xDomain)
@@ -2032,11 +2282,11 @@ struct WeightBpScatterView: View {
                 HStack(spacing: 14) {
                     Spacer()
                     HStack(spacing: 4) {
-                        Circle().fill(Color.red.opacity(0.8)).frame(width: 8, height: 8)
+                        Circle().fill(Color.bpSystolic.opacity(0.9)).frame(width: 8, height: 8)
                         Text("metric.systolic.short").font(.caption).foregroundStyle(.secondary)
                     }
                     HStack(spacing: 4) {
-                        Circle().fill(Color.blue.opacity(0.8)).frame(width: 8, height: 8)
+                        Circle().fill(Color.bpDiastolic.opacity(0.9)).frame(width: 8, height: 8)
                         Text("metric.diastolic.short").font(.caption).foregroundStyle(.secondary)
                     }
                     Spacer()

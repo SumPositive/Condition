@@ -523,11 +523,13 @@ enum BpSide: Int, CaseIterable, Identifiable {
     }
 
     /// バッジ色（左右で色分け）。不明は色なし。
+    /// 国際慣習（航海の左舷＝赤・右舷＝緑）に合わせて 左＝赤・右＝緑 とする。
+    /// 血圧の上（収縮期）・下（拡張期）はオレンジ／琥珀にして、この赤緑と被らせない。
     var badgeColor: Color {
         switch self {
         case .unknown: return .secondary
-        case .right:   return .orange
-        case .left:    return .teal
+        case .right:   return .green
+        case .left:    return .red
         }
     }
 

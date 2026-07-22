@@ -389,8 +389,8 @@ struct RecordEditView: View {
                 }
                 .padding(.top, 4)
             }
-            dialRow(averageField: .bpHi, title: "metric.systolic.long", value: $vm.nBpHi_mmHg, enabled: $vm.bpHiEnabled, spec: MeasureRange.bpHi, unitKey: "unit.mmHg", stepperStep: 1, color: .red, locked: vm.valuesLocked)
-            dialRow(averageField: .bpLo, title: "metric.diastolic.long", value: $vm.nBpLo_mmHg, enabled: $vm.bpLoEnabled, spec: MeasureRange.bpLo, unitKey: "unit.mmHg", stepperStep: 1, color: .blue, locked: vm.valuesLocked)
+            dialRow(averageField: .bpHi, title: "metric.systolic.long", value: $vm.nBpHi_mmHg, enabled: $vm.bpHiEnabled, spec: MeasureRange.bpHi, unitKey: "unit.mmHg", stepperStep: 1, color: .bpSystolic, locked: vm.valuesLocked)
+            dialRow(averageField: .bpLo, title: "metric.diastolic.long", value: $vm.nBpLo_mmHg, enabled: $vm.bpLoEnabled, spec: MeasureRange.bpLo, unitKey: "unit.mmHg", stepperStep: 1, color: .bpDiastolic, locked: vm.valuesLocked)
         case .pulse:
             dialRow(averageField: .pulse, title: "metric.heartRate", value: $vm.nPulse_bpm, enabled: $vm.pulseEnabled, spec: MeasureRange.pulse, unitKey: "unit.bpm", stepperStep: 1, color: .orange, locked: vm.valuesLocked)
         case .weight:

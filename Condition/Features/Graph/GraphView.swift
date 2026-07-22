@@ -975,14 +975,14 @@ struct BpChartView: View {
                     Text(LocalizedStringKey(GraphKind.bp.title)).font(.callout.weight(.semibold))
                     Spacer()
                     if let txt = bpRange { StatCell(label: "text.range", value: txt) }
-                    Text("unit.mmHg").font(.callout.weight(.semibold)).foregroundStyle(.red)
+                    Text("unit.mmHg").font(.callout.weight(.semibold)).foregroundStyle(Color.bpSystolic)
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(LocalizedStringKey(GraphKind.bp.title)).font(.callout.weight(.semibold))
                     HStack {
                         if let txt = bpRange { StatCell(label: "text.range", value: txt) }
                         Spacer()
-                        Text("unit.mmHg").font(.callout.weight(.semibold)).foregroundStyle(.red)
+                        Text("unit.mmHg").font(.callout.weight(.semibold)).foregroundStyle(Color.bpSystolic)
                     }
                 }
             }
@@ -1007,7 +1007,7 @@ struct BpChartView: View {
                     ForEach(dailyAverages) { d in
                         LineMark(x: .value("record.datetime", d.date), y: .value("metric.systolic.short", d.hi),
                                  series: .value("chart.series", "metric.systolic.short"))
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Color.bpSystolic)
                             .lineStyle(StrokeStyle(lineWidth: 2))
                             .interpolationMethod(.catmullRom)
                     }
@@ -1015,7 +1015,7 @@ struct BpChartView: View {
                     ForEach(dailyAverages) { d in
                         LineMark(x: .value("record.datetime", d.date), y: .value("metric.diastolic.short", d.lo),
                                  series: .value("chart.series", "metric.diastolic.short"))
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(Color.bpDiastolic)
                             .lineStyle(StrokeStyle(lineWidth: 2))
                             .interpolationMethod(.catmullRom)
                     }
@@ -1082,22 +1082,22 @@ struct BpChartView: View {
                 // 目標ライン
                 if settings.goalBpHi > 0 {
                     RuleMark(y: .value("chart.goalSystolic", settings.goalBpHi))
-                        .foregroundStyle(.red.opacity(0.7))
+                        .foregroundStyle(Color.bpSystolic.opacity(0.7))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [4]))
                         .annotation(position: .trailing, alignment: .center, spacing: 3) {
                             Text("goal.title")
                                 .font(.caption2.weight(.semibold))
-                                .foregroundStyle(.red.opacity(0.7))
+                                .foregroundStyle(Color.bpSystolic.opacity(0.7))
                         }
                 }
                 if settings.goalBpLo > 0 {
                     RuleMark(y: .value("chart.goalDiastolic", settings.goalBpLo))
-                        .foregroundStyle(.blue.opacity(0.7))
+                        .foregroundStyle(Color.bpDiastolic.opacity(0.7))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [4]))
                         .annotation(position: .trailing, alignment: .center, spacing: 3) {
                             Text("goal.title")
                                 .font(.caption2.weight(.semibold))
-                                .foregroundStyle(.blue.opacity(0.7))
+                                .foregroundStyle(Color.bpDiastolic.opacity(0.7))
                         }
                 }
             }

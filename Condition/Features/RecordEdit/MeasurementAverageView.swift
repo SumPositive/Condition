@@ -37,8 +37,9 @@ private enum AvgColumn: Hashable, CaseIterable {
 
     var color: Color {
         switch self {
-        case .bpHi:     return .red
-        case .bpLo:     return .blue
+        // 血圧の上/下は全体共通色（オレンジ／琥珀）。左右（L赤・R緑）と被らせない。
+        case .bpHi:     return .bpSystolic
+        case .bpLo:     return .bpDiastolic
         case .pulse:    return .orange
         case .weight:   return .indigo
         case .temp:     return .pink
