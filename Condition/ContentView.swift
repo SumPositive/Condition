@@ -86,8 +86,12 @@ struct ContentView: View {
             }
             // cold launch は onAppear 側で実行済み。ここではバックグラウンド復帰時のみ扱う。
             guard phase == .active, hasEnteredBackground else { return }
-            // 復帰と同時にブロック層を立て、前画面を触らせない
-            if isSheetAction(settings.launchAction) {
+            // 復帰と同時にブロック層を立て、前画面を触らせない。
+            // ただし新規記録シートが開いているときは起動アクションを実行しない
+            // （performLaunchAction 内で拒否される）ため、暗幕も先出ししない。
+            if isSheetAction(settings.launchAction),
+               !settings.showNewRecordSheet,
+               !settings.showMeasurementAvgSheet {
                 isPreparingLaunchSheet = true
             }
             performLaunchAction(settings.launchAction)
@@ -138,10 +142,9 @@ struct ContentView: View {
     private enum LaunchSheetKind { case single, multi }
 
     private func presentSheet(kind: LaunchSheetKind) {
-        // 未保存の変更あり・すでにどちらかのシートが開いている → 何もしない
+        // 新規記録シート（単体・表形式）が開いているなら何もしない。
         // （呼び出し側で先出ししたブロック層はここで確実に下ろす）
-        guard !settings.newRecordSheetModified,
-              !settings.showNewRecordSheet,
+        guard !settings.showNewRecordSheet,
               !settings.showMeasurementAvgSheet else {
             isPreparingLaunchSheet = false
             return
@@ -172,9 +175,8 @@ struct ContentView: View {
     }
 
     private func switchTab(to tab: RootTab) {
-        // シートを開いている・未保存の編集中はタブ移動で驚かせない
-        guard !settings.newRecordSheetModified,
-              !settings.showNewRecordSheet,
+        // 新規記録シートが開いているならタブ移動で驚かせない
+        guard !settings.showNewRecordSheet,
               !settings.showMeasurementAvgSheet else { return }
         AppAnalytics.shared.logOperation("launch_action_tab_\(tab.analyticsName)")
         selectedTab = tab

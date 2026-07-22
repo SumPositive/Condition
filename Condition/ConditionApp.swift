@@ -120,8 +120,13 @@ private struct RootSceneView: View {
                 onModifiedChanged: { settings.newRecordSheetModified = $0 }
             )
         }
-        // 複数回測定（平均）シートもルートレベルで呈示：起動時アクションからタブに関わらず開く
-        .sheet(isPresented: Bindable(settings).showMeasurementAvgSheet) {
+        // 複数回測定（平均）シートもルートレベルで呈示：起動時アクション・一覧の「＋」の
+        // どちらからも settings.showMeasurementAvgSheet 経由で開く（TabView の選択に関わらず表示）。
+        .sheet(isPresented: Bindable(settings).showMeasurementAvgSheet,
+               onDismiss: {
+                   // 保険：シート閉じ完了時に状態を確実にリセット（戻り漏れの安全装置）
+                   settings.showMeasurementAvgSheet = false
+               }) {
             MeasurementAverageView()
         }
     }

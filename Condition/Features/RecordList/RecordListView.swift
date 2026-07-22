@@ -18,7 +18,6 @@ struct RecordListView: View {
 
     @State private var editTarget: BodyRecord? = nil
     @State private var showExportSheet = false
-    @State private var showMeasurementAvgSheet = false
     /// 編集シートに未保存の変更がある場合 true
     @State private var editHasUnsavedChanges = false
 
@@ -118,7 +117,18 @@ struct RecordListView: View {
                     }
                     #endif // targetEnvironment(simulator)
                     Button {
-                        showMeasurementAvgSheet = true
+                        // 起動時アクションと同じルートレベルのシートで開く。
+                        // ローカル @State で開くと、バックグラウンド復帰時に
+                        // ContentView 側のガードから「シートが開いている」ことが見えず、
+                        // 入力中でも起動時アクションが割り込んでしまうため。
+                        if settings.showMeasurementAvgSheet {
+                            settings.showMeasurementAvgSheet = false
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                                settings.showMeasurementAvgSheet = true
+                            }
+                        } else {
+                            settings.showMeasurementAvgSheet = true
+                        }
                     } label: {
                         Image(systemName: "text.badge.plus")
                             .foregroundStyle(Color.blue)
@@ -157,9 +167,8 @@ struct RecordListView: View {
             .sheet(isPresented: $showExportSheet) {
                 ExportSheetView(records: categoryFilteredRecords, visibleKinds: visibleRecordKinds)
             }
-            .sheet(isPresented: $showMeasurementAvgSheet) {
-                MeasurementAverageView()
-            }
+            // 新規の複数回測定（表形式）シートは ConditionApp のルートレベルで
+            // settings.showMeasurementAvgSheet により呈示する（起動時アクションと共通）。
             .overlay(alignment: .bottom) {
                 if let msg = toastMessage {
                     HKToastView(message: msg)
