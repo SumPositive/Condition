@@ -494,6 +494,8 @@ struct AZRadioPicker<Option: Hashable & Identifiable, Label: View>: View {
     var style: AZPickerStyle = .form
     /// ピルアニメ完了直後に呼ばれるコールバック（selection 確定前にプログレスを描画したい用途向け）
     var onTap: ((Option) -> Void)? = nil
+    /// 候補ごとの文字色。nil を返す（未指定含む）と従来通り選択=アクセント／非選択=primary。
+    var optionTint: ((Option) -> Color?)? = nil
     @ViewBuilder let label: (Option) -> Label
 
     /// 選択ピルを option 間で滑らかに移動させるための名前空間
@@ -583,7 +585,7 @@ struct AZRadioPicker<Option: Hashable & Identifiable, Label: View>: View {
         } label: {
             label(option)
                 .font(.subheadline.weight(isSelected ? .semibold : .regular))
-                .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
+                .foregroundStyle(optionTint?(option) ?? (isSelected ? Color.accentColor : Color.primary))
                 .lineLimit(fillsWidth ? 1 : nil)
                 .minimumScaleFactor(fillsWidth ? 0.50 : 1)
                 .allowsTightening(fillsWidth)

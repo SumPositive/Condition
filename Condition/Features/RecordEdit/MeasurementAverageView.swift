@@ -135,8 +135,8 @@ struct MeasurementAverageView: View {
 
     @State private var dateTime: Date = Date()
     @State private var dateOpt: DateOpt = AppSettings.shared.autoDateOpt(for: Date())
-    /// 血圧の測定箇所（左右）。新規は直前選択を引き継ぐ。
-    @State private var bpSide: BpSide = AppSettings.shared.lastBpSide
+    /// 血圧の測定箇所（左右）。新規は常に不明（・）で開始する。
+    @State private var bpSide: BpSide = .unknown
     @State private var showDatePicker = false
     @State private var showDeleteAlert = false
     @State private var isDateOptExpanded = false
@@ -401,7 +401,8 @@ struct MeasurementAverageView: View {
             optionSpacing: 4,
             groupPadding: 2,
             wrapsOptions: false,
-            fillsWidth: false
+            fillsWidth: false,
+            optionTint: { $0.badgeColor }
         ) { side in
             Text(side.code)
         }
@@ -1231,11 +1232,7 @@ struct MeasurementAverageView: View {
         }
 
         // 左右は血圧固有。血圧が無い記録には付けない。
-        let effectiveSide: BpSide = (target.nBpHi_mmHg > 0 || target.nBpLo_mmHg > 0) ? bpSide : .unknown
-        target.bpSide = effectiveSide
-        if effectiveSide.isDefined {
-            settings.lastBpSide = effectiveSide
-        }
+        target.bpSide = (target.nBpHi_mmHg > 0 || target.nBpLo_mmHg > 0) ? bpSide : .unknown
 
         // 空欄を含む行構成を保ち、修正時に同じ表を復元する
         target.measurementSampleSet = MeasurementSampleSet(

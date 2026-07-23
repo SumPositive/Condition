@@ -127,5 +127,4 @@ enum UDefKeys {
     static let mergeWindowMinutes        = "UDEF_MergeWindowMinutes"        // 記録をまとめる時間（分）0=しない
     static let mergeDefaultAction        = "UDEF_MergeDefaultAction"        // 衝突解決の初期選択 ConflictAction.rawValue
     static let estimateDateOpt           = "UDEF_EstimateDateOpt"           // 区分を蓄積記録から推定して初期表示する
-    static let lastBpSide                 = "UDEF_LastBpSide"                // 直前に選んだ血圧の測定箇所 BpSide.rawValue
 }

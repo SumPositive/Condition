@@ -1119,62 +1119,43 @@ struct BpSideJSONTests {
 @Suite("BpSide RecordEditViewModel Tests")
 struct BpSideViewModelTests {
 
-    /// AppSettings.lastBpSide を退避・復元してテスト間の汚染を防ぐ
+    @Test("新規追加は常に左右不明（・）で開始する")
     @MainActor
-    private func withLastBpSide(_ value: BpSide, _ body: () throws -> Void) rethrows {
-        let settings = AppSettings.shared
-        let saved = settings.lastBpSide
-        settings.lastBpSide = value
-        defer { settings.lastBpSide = saved }
-        try body()
+    func addNewStartsUnknown() throws {
+        let vm = RecordEditViewModel(mode: .addNew)
+        #expect(vm.bpSide == .unknown)
     }
 
-    @Test("新規追加は直前に選んだ左右（lastBpSide）を初期値にする")
+    @Test("血圧ありで保存すると選んだ左右が記録される")
     @MainActor
-    func addNewInheritsLastBpSide() throws {
-        try withLastBpSide(.right) {
-            let vm = RecordEditViewModel(mode: .addNew)
-            #expect(vm.bpSide == .right)
-        }
+    func savingWithBPStoresSide() throws {
+        let ctx = ModelContext(try makeInMemoryContainer())
+        let vm = RecordEditViewModel(mode: .addNew)
+        vm.bpHiEnabled = true
+        vm.bpLoEnabled = true
+        vm.nBpHi_mmHg = 120
+        vm.nBpLo_mmHg = 80
+        vm.bpSide = .left
+        try vm.save(context: ctx)
+
+        let saved = try #require(try ctx.fetch(FetchDescriptor<BodyRecord>()).first)
+        #expect(saved.bpSide == .left)
     }
 
-    @Test("血圧ありで保存すると左右が記録され lastBpSide も更新される")
-    @MainActor
-    func savingWithBPStoresSideAndUpdatesLast() throws {
-        try withLastBpSide(.unknown) {
-            let ctx = ModelContext(try makeInMemoryContainer())
-            let vm = RecordEditViewModel(mode: .addNew)
-            vm.bpHiEnabled = true
-            vm.bpLoEnabled = true
-            vm.nBpHi_mmHg = 120
-            vm.nBpLo_mmHg = 80
-            vm.bpSide = .left
-            try vm.save(context: ctx)
-
-            let saved = try #require(try ctx.fetch(FetchDescriptor<BodyRecord>()).first)
-            #expect(saved.bpSide == .left)
-            #expect(AppSettings.shared.lastBpSide == .left)
-        }
-    }
-
-    @Test("血圧を両方OFFで保存すると左右は不明になり lastBpSide も更新しない")
+    @Test("血圧を両方OFFで保存すると左右は不明になる")
     @MainActor
     func savingWithoutBPForcesUnknown() throws {
-        try withLastBpSide(.right) {
-            let ctx = ModelContext(try makeInMemoryContainer())
-            let vm = RecordEditViewModel(mode: .addNew)
-            vm.bpHiEnabled = false
-            vm.bpLoEnabled = false
-            vm.pulseEnabled = true
-            vm.nPulse_bpm = 66
-            vm.bpSide = .left   // 明示しても血圧が無いので無視される
-            try vm.save(context: ctx)
+        let ctx = ModelContext(try makeInMemoryContainer())
+        let vm = RecordEditViewModel(mode: .addNew)
+        vm.bpHiEnabled = false
+        vm.bpLoEnabled = false
+        vm.pulseEnabled = true
+        vm.nPulse_bpm = 66
+        vm.bpSide = .left   // 明示しても血圧が無いので無視される
+        try vm.save(context: ctx)
 
-            let saved = try #require(try ctx.fetch(FetchDescriptor<BodyRecord>()).first)
-            #expect(saved.bpSide == .unknown)
-            // 不明は引き継ぎに保存しない → 退避前の値のまま
-            #expect(AppSettings.shared.lastBpSide == .right)
-        }
+        let saved = try #require(try ctx.fetch(FetchDescriptor<BodyRecord>()).first)
+        #expect(saved.bpSide == .unknown)
     }
 
     @Test("既存レコードの編集は保存済みの左右を読み込む")

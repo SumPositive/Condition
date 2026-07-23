@@ -563,7 +563,8 @@ struct RecordEditView: View {
             optionSpacing: 4,
             groupPadding: 2,
             wrapsOptions: false,
-            fillsWidth: false
+            fillsWidth: false,
+            optionTint: { $0.badgeColor }
         ) { side in
             Text(side.code)
         }

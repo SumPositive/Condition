@@ -85,8 +85,8 @@ final class RecordEditViewModel {
             nWeight_10Kg = MeasureRange.weight.initVal
             nBodyFat_10p  = MeasureRange.bodyFat.initVal
             nSkMuscle_10p = MeasureRange.skMuscle.initVal
-            // 直前に選んだ左右を初期値として引き継ぐ
-            bpSide      = settings.lastBpSide
+            // 新規記録の左右は常に不明（・）で開始する
+            bpSide      = .unknown
             bpHiEnabled      = true
             bpLoEnabled      = true
             pulseEnabled     = false
@@ -471,12 +471,7 @@ final class RecordEditViewModel {
         record.nBpHi_mmHg    = bpHiEnabled      ? nBpHi_mmHg   : 0
         record.nBpLo_mmHg    = bpLoEnabled      ? nBpLo_mmHg   : 0
         // 左右は血圧固有。血圧を両方測っていない記録には付けない。
-        let effectiveSide = (bpHiEnabled || bpLoEnabled) ? bpSide : .unknown
-        record.bpSide = effectiveSide
-        // 直前に選んだ左右を次回の新規記録に引き継ぐ（不明は保存しない）
-        if effectiveSide.isDefined {
-            AppSettings.shared.lastBpSide = effectiveSide
-        }
+        record.bpSide = (bpHiEnabled || bpLoEnabled) ? bpSide : .unknown
         record.nPulse_bpm    = pulseEnabled     ? nPulse_bpm   : 0
         record.nTemp_10c     = tempEnabled      ? nTemp_10c    : 0
         record.nWeight_10Kg  = weightEnabled    ? nWeight_10Kg  : 0
