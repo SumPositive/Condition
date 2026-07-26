@@ -388,13 +388,21 @@ enum DateOptEstimator {
     ) -> Result {
         let calendar = Calendar.current
         let targetHour = calendar.component(.hour, from: targetDate)
-        let matrixDefault = matrixDateOpt(hour: targetHour, hourMap: hourMap)
         let cutoff = calendar.date(byAdding: .day, value: -historyDays, to: referenceDate) ?? referenceDate
         let targetWeekday = calendar.component(.weekday, from: targetDate)
         let targetMinutes = minutesOfDay(targetDate, calendar: calendar)
 
-        // すべての区分を0点で用意し、あとで表示用にも扱いやすくする
-        var scores = Dictionary(uniqueKeysWithValues: DateOpt.allCases.map { ($0, 0.0) })
+        // 推定対象は定義済み（名称設定済み）区分のみ。新規記録の候補と一致させる
+        let definedOpts = DateOpt.allCases.filter(\.isDefined)
+
+        // 時間帯マトリックスの既定が未定義区分を指す場合は、定義済みの先頭へ丸める
+        let rawMatrixDefault = matrixDateOpt(hour: targetHour, hourMap: hourMap)
+        let matrixDefault = rawMatrixDefault.isDefined
+            ? rawMatrixDefault
+            : (definedOpts.first ?? rawMatrixDefault)
+
+        // 定義済み区分だけ0点で用意する
+        var scores = Dictionary(uniqueKeysWithValues: definedOpts.map { ($0, 0.0) })
 
         // 時間帯マトリックスは、履歴が薄い時に戻るための土台として加点する
         scores[matrixDefault, default: 0] += matrixBias
@@ -404,6 +412,8 @@ enum DateOptEstimator {
             if bodyRecordGoalDate <= record.dateTime { continue }
             if referenceDate < record.dateTime { continue }
             if record.dateTime < cutoff { continue }
+            // 未定義区分の履歴は新規記録の候補にならないので加点しない
+            guard record.dateOpt.isDefined else { continue }
 
             let weekdayWeight = calendar.component(.weekday, from: record.dateTime) == targetWeekday
                 ? sameWeekdayMultiplier

@@ -650,6 +650,9 @@ final class AppSettings {
     // MARK: - DateOpt 自動判定
     func autoDateOpt(for date: Date) -> DateOpt {
         let hour = Calendar(identifier: .gregorian).component(.hour, from: date)
-        return DateOpt(rawValue: dateOptHourMap[hour]) ?? .cat02
+        let mapped = DateOpt(rawValue: dateOptHourMap[hour]) ?? .cat02
+        // 時間帯マップが未定義区分を指す場合は、定義済み区分（＝新規記録の候補）へ丸める
+        guard !mapped.isDefined else { return mapped }
+        return orderedDefinedDateOpts.first ?? mapped
     }
 }
