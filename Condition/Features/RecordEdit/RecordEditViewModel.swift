@@ -241,6 +241,24 @@ final class RecordEditViewModel {
         isModified = true
     }
 
+    // MARK: - フォアグラウンド復帰時の日時取り直し
+
+    /// 起動時などに開いた新規記録シートが未入力のままバックグラウンド→復帰したとき、
+    /// 日時を現在時刻へ取り直し、区分・前回値も開いた直後と同じ手順で入れ直す。
+    /// 入力済み（isModified）や新規以外では何もしない（呼び出し側でも弾く）。
+    func refreshForForeground(context: ModelContext) {
+        guard case .addNew = mode, !isModified else { return }
+        // dateTime は didSet を持たないので isModified は立たない。
+        // dateOpt は didSet で markModified するため、既定値の設定は suppressModified 下で行う。
+        suppressModified = true
+        dateTime = Date()
+        dateOpt  = AppSettings.shared.autoDateOpt(for: dateTime)   // 前回値が無い場合の既定区分
+        suppressModified = false
+        // 区分（まとめ時間内の直前区分／推定）と前回値を新しい時刻基準で取り直す。
+        // loadPreviousValues が内部で再度 suppressModified を立てるため isModified は false のまま。
+        loadPreviousValues(context: context)
+    }
+
     // MARK: - 保存（旧 actionSave 相当）
 
     func save(context: ModelContext) throws {

@@ -130,6 +130,7 @@ struct MeasurementAverageView: View {
 
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var settings = AppSettings.shared
 
@@ -159,6 +160,8 @@ struct MeasurementAverageView: View {
     /// キャンセル誤タップ防止
     @State private var isCancelArmed = false
     @State private var cancelArmTask: Task<Void, Never>? = nil
+    /// バックグラウンドを経由したか（未入力の新規シートの日時取り直し用）
+    @State private var didEnterBackground = false
 
     /// 「次へ」ボタンを左右どちらに置くか（trueで左、falseで右、デフォルト右）
     @AppStorage("measurementAvg.nextOnLeft") private var nextOnLeft: Bool = false
@@ -306,6 +309,20 @@ struct MeasurementAverageView: View {
             .onChange(of: dateOpt) { _, _ in
                 // 区分を切り替えた直後でまだ入力していなければ、新しい区分の直近値で初期化し直す
                 loadFirstTrialDefaultsFromRecent()
+            }
+            // 未入力の新規シートがバックグラウンド→復帰したら、日時と区分を現在時刻基準へ取り直す。
+            // 入力済み（値・入力途中の文字）や修正時は触らない。inactive の一過性遷移では動かさない。
+            .onChange(of: scenePhase) { _, phase in
+                switch phase {
+                case .background:
+                    didEnterBackground = true
+                case .active:
+                    guard didEnterBackground else { return }
+                    didEnterBackground = false
+                    refreshDateForForeground()
+                default:
+                    break
+                }
             }
             .onDisappear {
                 cancelArmTask?.cancel()
@@ -929,6 +946,16 @@ struct MeasurementAverageView: View {
             samples: loadedSamples,
             trialCount: trialCount
         )
+    }
+
+    /// 未入力の新規平均シートがバックグラウンド→復帰したとき、日時と区分を現在時刻基準へ取り直す。
+    /// 値入力・入力途中の文字があるとき、または修正（record != nil）では何もしない。
+    private func refreshDateForForeground() {
+        guard record == nil, !hasAnyValue, inputText.isEmpty else { return }
+        dateTime = Date()
+        dateOpt  = settings.autoDateOpt(for: dateTime)   // 前回値が無い場合の既定区分
+        // 開いた直後と同じ手順で、まとめ時間内の直前区分／推定により区分を取り直し、参考値も更新する。
+        loadInitialDateOpt()
     }
 
     /// 新規記録と同じロジックで区分の初期値を決める

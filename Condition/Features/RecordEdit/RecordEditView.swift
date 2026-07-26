@@ -20,6 +20,7 @@ struct RecordEditView: View {
 
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @Query(
         filter: #Predicate<BodyRecord> { $0.dateTime < bodyRecordGoalDate },
         sort: \BodyRecord.dateTime,
@@ -36,6 +37,8 @@ struct RecordEditView: View {
     @State private var showsFloatingAverageAddButton = false
     @State private var isCancelArmed = false
     @State private var cancelArmTask: Task<Void, Never>? = nil
+    /// バックグラウンドを経由したか（未入力の新規シートの日時取り直し用）
+    @State private var didEnterBackground = false
     @FocusState private var focusNote1: Bool
     @FocusState private var focusNote2: Bool
     @FocusState private var focusEquipment: Bool
@@ -306,6 +309,23 @@ struct RecordEditView: View {
             .onAppear {
                 if isNewRecord {
                     vm.loadPreviousValues(context: context)
+                }
+            }
+            // 未入力の新規シートがバックグラウンド→復帰したら、日時を現在時刻へ取り直す。
+            // 入力済み（isModified）のときは触らない。inactive の一過性遷移では動かさないため、
+            // 実際に background を経由したときだけ復帰処理する。
+            .onChange(of: scenePhase) { _, phase in
+                switch phase {
+                case .background:
+                    didEnterBackground = true
+                case .active:
+                    guard didEnterBackground else { return }
+                    didEnterBackground = false
+                    if isNewRecord, !vm.isModified {
+                        vm.refreshForForeground(context: context)
+                    }
+                default:
+                    break
                 }
             }
             // isModified は ViewModel の didSet で管理（View 側 onChange 不要）
