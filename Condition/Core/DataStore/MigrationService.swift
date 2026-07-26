@@ -323,7 +323,8 @@ final class MigrationService {
         // 再試行時の重複防止：既存レコードの dateTime（秒単位に正規化）を収集
         // スキップ後に新規入力したデータは別の dateTime を持つため消えない
         let existing = try context.fetch(FetchDescriptor<BodyRecord>())
-        let existingDates = Set(existing.map { Self.normalizedSecond($0.dateTime) })
+        // 挿入のたびに秒単位の日時を追加していくので var（移行元内の同一秒重複も弾く）
+        var existingDates = Set(existing.map { Self.normalizedSecond($0.dateTime) })
         if !existingDates.isEmpty {
             logger.info("既存レコード \(existingDates.count) 件を重複チェック対象に追加")
         }
@@ -342,13 +343,16 @@ final class MigrationService {
             }
 
             // 同じ dateTime（秒単位）が既にあればスキップ（重複挿入防止）
-            guard !existingDates.contains(Self.normalizedSecond(dateTime)) else {
+            let normalized = Self.normalizedSecond(dateTime)
+            guard !existingDates.contains(normalized) else {
                 skipped += 1
                 continue
             }
 
             let body = convertToBodyRecord(row, dateTime: dateTime)
             context.insert(body)
+            // 移行元に同一秒の行が複数あっても二重挿入しないよう、挿入した秒をセットへ加える
+            existingDates.insert(normalized)
             processed += 1
 
             if processed % batchSize == 0 {
