@@ -145,26 +145,61 @@ final class HealthKitService {
 
     /// 同一日時の書込を集約する safe な書込予約。
     /// 直前の同日時タスクが未完了なら cancel して、最新の値で書き直す。
-    /// 呼び出し側で `Task { await write(...) }` するより、こちらを使うと多重キューを防げる。
+    /// 呼び出し側で `Task { try await write(...) }` するより、こちらを使うと多重キューを防げる。
     func scheduleWrite(_ values: HealthKitValues) {
         let key = Date(timeIntervalSince1970: floor(values.date.timeIntervalSince1970))
         pendingWriteTasks[key]?.cancel()
         let task = Task { @MainActor [weak self] in
-            await self?.write(values)
+            do {
+                try await self?.write(values)
+            } catch is CancellationError {
+                // 後発の書込に処理を譲っただけなので無視する
+            } catch {
+                // write は失敗を握りつぶさず throw するので、ここで記録する
+                logger.error("HealthKit 書き込み失敗: \(error.localizedDescription)")
+                AppAnalytics.shared.record(error: error, name: "healthkit_write_failed")
+            }
             self?.pendingWriteTasks[key] = nil
         }
         pendingWriteTasks[key] = task
     }
 
-    func write(_ values: HealthKitValues) async {
+    /// 同日時の値を HealthKit へ上書き保存する。
+    /// 先に新サンプルを保存し、成功した後にだけ旧サンプルを削除するので、
+    /// 保存に失敗しても既存の HealthKit データを失わない。失敗は呼び出し元へ throw する。
+    func write(_ values: HealthKitValues) async throws {
         guard isAvailable, !AppSettings.shared.hkDisabledByDemo else { return }
         // cancel 済みなら即抜ける（後発の書込に処理を譲る）
         if Task.isCancelled { return }
 
-        // 同日時の既存サンプルを削除してから追加（上書き相当）
-        await deleteSamples(at: values.date)
+        let samples = buildSamples(from: values)
+
+        // 値がすべて未記録ならクリア操作。既存サンプルの削除だけ行う
+        guard !samples.isEmpty else {
+            if Task.isCancelled { return }
+            try await deleteSamples(at: values.date, excludingUUIDs: [])
+            return
+        }
+
+        // 先に新サンプルを保存する。失敗すれば旧データを削除しないまま throw される（データ喪失なし）
+        try await store.save(samples)
+        logger.info("HealthKit 書き込み完了: \(samples.count) サンプル")
+
+        // 後発の書込があれば、その最新書込の削除にまとめて委ねる（残った重複は次回掃除される）
         if Task.isCancelled { return }
 
+        // 保存できた新サンプルを除外し、同日時の旧サンプルだけ削除して上書きを完成させる。
+        // 削除に失敗しても重複が残るだけでデータ喪失ではないため、記録に留めて throw しない。
+        do {
+            try await deleteSamples(at: values.date, excludingUUIDs: newObjectUUIDs(in: samples))
+        } catch {
+            logger.error("HealthKit 旧サンプル削除失敗: \(error.localizedDescription)")
+            AppAnalytics.shared.record(error: error, name: "healthkit_stale_delete_failed")
+        }
+    }
+
+    /// HealthKitValues から保存対象の HKSample 群を組み立てる
+    private func buildSamples(from values: HealthKitValues) -> [HKSample] {
         var samples: [HKSample] = []
         let date = values.date
 
@@ -217,15 +252,20 @@ final class HealthKitService {
                 start: date, end: date))
         }
 
-        guard !samples.isEmpty else { return }
+        return samples
+    }
 
-        do {
-            try await store.save(samples)
-            logger.info("HealthKit 書き込み完了: \(samples.count) サンプル")
-        } catch {
-            logger.error("HealthKit 書き込み失敗: \(error.localizedDescription)")
-            AppAnalytics.shared.record(error: error, name: "healthkit_write_failed")
+    /// 保存した新サンプル（Correlation 配下の血圧サンプルも含む）の UUID 一覧。
+    /// 上書き時の旧サンプル削除で、保存したばかりの新サンプルを除外するために使う。
+    private func newObjectUUIDs(in samples: [HKSample]) -> Set<UUID> {
+        var uuids: Set<UUID> = []
+        for sample in samples {
+            uuids.insert(sample.uuid)
+            if let correlation = sample as? HKCorrelation {
+                correlation.objects.forEach { uuids.insert($0.uuid) }
+            }
         }
+        return uuids
     }
 
     // MARK: - 読み込み
@@ -274,17 +314,28 @@ final class HealthKitService {
 
     // MARK: - Private helpers
 
-    /// 指定日時にこのアプリが書き込んだサンプルをすべて削除する
-    private func deleteSamples(at date: Date) async {
-        let pred = NSCompoundPredicate(andPredicateWithSubpredicates: [
+    /// 指定日時にこのアプリが書き込んだサンプルを削除する。
+    /// - Parameter excludingUUIDs: 削除対象から除外する UUID（保存したばかりの新サンプルを守る）。
+    /// 一部の型が失敗しても残りの型は削除を試み、最初のエラーを呼び出し元へ返す。
+    private func deleteSamples(at date: Date, excludingUUIDs: Set<UUID>) async throws {
+        var pred: NSPredicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
             HKQuery.predicateForSamples(withStart: date, end: date.addingTimeInterval(1)),
             HKQuery.predicateForObjects(from: HKSource.default())
         ])
+        if !excludingUUIDs.isEmpty {
+            // 保存したばかりの新サンプルを削除しないよう除外する
+            let notNew = NSCompoundPredicate(
+                notPredicateWithSubpredicate: HKQuery.predicateForObjects(with: excludingUUIDs))
+            pred = NSCompoundPredicate(andPredicateWithSubpredicates: [pred, notNew])
+        }
         logger.info("deleteSamples 開始: \(date, privacy: .public)")
+
+        var firstError: Error?
         // 血圧 Correlation を先に削除（配下の systolic/diastolic も同時に削除される）
         do {
             try await store.deleteObjects(of: HKCorrelationType(.bloodPressure), predicate: pred)
         } catch {
+            firstError = firstError ?? error
             logger.error("deleteSamples[bloodPressure] エラー: \(error.localizedDescription, privacy: .public)")
         }
         // その他の量的型を削除
@@ -295,10 +346,12 @@ final class HealthKitService {
             do {
                 try await store.deleteObjects(of: HKQuantityType(id), predicate: pred)
             } catch {
+                firstError = firstError ?? error
                 logger.error("deleteSamples[\(id.rawValue, privacy: .public)] エラー: \(error.localizedDescription, privacy: .public)")
             }
         }
         logger.info("deleteSamples 完了")
+        if let firstError { throw firstError }
     }
 
     private func mostRecentQuantity(
