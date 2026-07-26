@@ -32,9 +32,13 @@ struct DateOptTests {
     @MainActor
     func autoDateOptByHourMap() {
         let settings = AppSettings.shared
-        // 6時台に cat01（起床時 既定）を割り当てる
-        var map = settings.dateOptHourMap
-        if map.count > 6 { map[6] = DateOpt.cat01.rawValue }
+        // 共有設定（UserDefaults連動）を汚さないよう、テスト後に必ず元へ戻す
+        let original = settings.dateOptHourMap
+        defer { settings.dateOptHourMap = original }
+
+        // 既存UserDefaultsに依存しないよう、24時間ぶんの既知マップを用意し6時台に cat01（起床時 既定）を割り当てる
+        var map = Array(repeating: DateOpt.cat02.rawValue, count: 24)
+        map[6] = DateOpt.cat01.rawValue
         settings.dateOptHourMap = map
 
         let cal = Calendar(identifier: .gregorian)
