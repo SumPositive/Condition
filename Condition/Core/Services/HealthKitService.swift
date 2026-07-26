@@ -51,8 +51,11 @@ final class HealthKitService {
     private let store = HKHealthStore()
 
     /// 同一日時に対する書込タスクを集約するためのキャッシュ。
-    /// 連続編集で多重キューイングされないよう、新しい書込を予約する前に既存タスクを cancel する
-    private var pendingWriteTasks: [Date: Task<Void, Never>] = [:]
+    /// 連続編集で多重キューイングされないよう、新しい書込を予約する前に既存タスクを cancel する。
+    /// 各予約に世代番号を持たせ、古いタスクの完了時に後発タスクの登録を誤って消さないようにする。
+    private var pendingWriteTasks: [Date: (generation: Int, task: Task<Void, Never>)] = [:]
+    /// 書込予約ごとに増やす世代番号（同日時の後発予約を識別する）
+    private var writeGeneration = 0
 
     var isAuthorized = false
     /// HealthKit へ書き込み許可済みの項目名一覧
@@ -148,7 +151,9 @@ final class HealthKitService {
     /// 呼び出し側で `Task { try await write(...) }` するより、こちらを使うと多重キューを防げる。
     func scheduleWrite(_ values: HealthKitValues) {
         let key = Date(timeIntervalSince1970: floor(values.date.timeIntervalSince1970))
-        pendingWriteTasks[key]?.cancel()
+        pendingWriteTasks[key]?.task.cancel()
+        writeGeneration += 1
+        let generation = writeGeneration
         let task = Task { @MainActor [weak self] in
             do {
                 try await self?.write(values)
@@ -159,9 +164,12 @@ final class HealthKitService {
                 logger.error("HealthKit 書き込み失敗: \(error.localizedDescription)")
                 AppAnalytics.shared.record(error: error, name: "healthkit_write_failed")
             }
-            self?.pendingWriteTasks[key] = nil
+            // 自分の世代がまだ最新のときだけ辞書から外す（後発タスクの登録を消さない）
+            if self?.pendingWriteTasks[key]?.generation == generation {
+                self?.pendingWriteTasks[key] = nil
+            }
         }
-        pendingWriteTasks[key] = task
+        pendingWriteTasks[key] = (generation, task)
     }
 
     /// 記録削除に伴い HealthKit から消すべき「アプリ書込分」の日時を返す。
