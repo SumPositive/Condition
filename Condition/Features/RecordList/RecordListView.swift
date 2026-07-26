@@ -905,6 +905,7 @@ private struct ExportSheetView: View {
     @State private var ascending: Bool = false
     @State private var isGenerating = false
     @State private var showExportCompletedAlert = false
+    @State private var showExportFailedAlert = false
 
     init(records: [BodyRecord], visibleKinds: [GraphKind]) {
         self.records = records
@@ -1012,6 +1013,12 @@ private struct ExportSheetView: View {
             ) {
                 Button("action.ok", role: .cancel) { }
             }
+            .alert(
+                "export.failed.file",
+                isPresented: $showExportFailedAlert
+            ) {
+                Button("action.ok", role: .cancel) { }
+            }
         }
         if settings.fontScale.followsSystem {
             content
@@ -1041,7 +1048,12 @@ private struct ExportSheetView: View {
         isGenerating = true
         try? await Task.sleep(for: .milliseconds(50))
         let items = buildShareItems()
-        guard !items.isEmpty else { isGenerating = false; return }
+        // ファイル作成に失敗（容量不足・権限等）したら共有せず、失敗を知らせる
+        guard !items.isEmpty else {
+            isGenerating = false
+            showExportFailedAlert = true
+            return
+        }
 
         guard let windowScene = UIApplication.shared.connectedScenes
                 .compactMap({ $0 as? UIWindowScene })
@@ -1089,8 +1101,14 @@ private struct ExportSheetView: View {
 
     private func tempFile(name: String, data: Data) -> URL? {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
-        try? data.write(to: url, options: .atomic)
-        return url
+        do {
+            // 容量不足・権限エラー時は URL を返さず、共有・完了表示へ進ませない
+            try data.write(to: url, options: .atomic)
+            return url
+        } catch {
+            AppAnalytics.shared.record(error: error, name: "export_file_write_failed")
+            return nil
+        }
     }
 
     // MARK: - JSON（表示項目のみ）
