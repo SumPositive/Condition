@@ -40,6 +40,83 @@ struct HealthKitValues {
     var bodyFat: Int = 0   // ×10 %       例: 235 = 23.5%
 }
 
+// MARK: - サンプル変換（store 非依存の純粋ロジック）
+
+/// HealthKitValues と HKSample の変換をまとめた純粋ロジック。
+/// HKHealthStore に依存しないので単体テストできる（値>0 の項目だけをサンプル化する）。
+enum HealthKitSampleBuilder {
+
+    /// HealthKitValues から保存対象の HKSample 群を組み立てる。値が 0（未記録）の項目は含めない。
+    static func samples(from values: HealthKitValues) -> [HKSample] {
+        var samples: [HKSample] = []
+        let date = values.date
+
+        // 血圧（Correlation）: 上下そろって初めて1件にする
+        if values.bpHi > 0 && values.bpLo > 0 {
+            let systolic = HKQuantitySample(
+                type: HKQuantityType(.bloodPressureSystolic),
+                quantity: HKQuantity(unit: .millimeterOfMercury(), doubleValue: Double(values.bpHi)),
+                start: date, end: date)
+            let diastolic = HKQuantitySample(
+                type: HKQuantityType(.bloodPressureDiastolic),
+                quantity: HKQuantity(unit: .millimeterOfMercury(), doubleValue: Double(values.bpLo)),
+                start: date, end: date)
+            let bp = HKCorrelation(
+                type: HKCorrelationType(.bloodPressure),
+                start: date, end: date,
+                objects: [systolic, diastolic])
+            samples.append(bp)
+        }
+
+        // 心拍数
+        if values.pulse > 0 {
+            samples.append(HKQuantitySample(
+                type: HKQuantityType(.heartRate),
+                quantity: HKQuantity(unit: HKUnit(from: "count/min"), doubleValue: Double(values.pulse)),
+                start: date, end: date))
+        }
+
+        // 体温（×10 保持 → ℃）
+        if values.temp > 0 {
+            samples.append(HKQuantitySample(
+                type: HKQuantityType(.bodyTemperature),
+                quantity: HKQuantity(unit: .degreeCelsius(), doubleValue: Double(values.temp) / 10.0),
+                start: date, end: date))
+        }
+
+        // 体重（×10 保持 → kg）
+        if values.weight > 0 {
+            samples.append(HKQuantitySample(
+                type: HKQuantityType(.bodyMass),
+                quantity: HKQuantity(unit: .gramUnit(with: .kilo), doubleValue: Double(values.weight) / 10.0),
+                start: date, end: date))
+        }
+
+        // 体脂肪率（×10 保持の % → HKUnit.percent() は 0–1 の割合で格納）
+        if values.bodyFat > 0 {
+            samples.append(HKQuantitySample(
+                type: HKQuantityType(.bodyFatPercentage),
+                quantity: HKQuantity(unit: .percent(), doubleValue: Double(values.bodyFat) / 10.0 / 100.0),
+                start: date, end: date))
+        }
+
+        return samples
+    }
+
+    /// 保存した新サンプル（Correlation 配下の血圧サンプルも含む）の UUID 一覧。
+    /// 上書き時の旧サンプル削除で、保存したばかりの新サンプルを除外するために使う。
+    static func objectUUIDs(in samples: [HKSample]) -> Set<UUID> {
+        var uuids: Set<UUID> = []
+        for sample in samples {
+            uuids.insert(sample.uuid)
+            if let correlation = sample as? HKCorrelation {
+                correlation.objects.forEach { uuids.insert($0.uuid) }
+            }
+        }
+        return uuids
+    }
+}
+
 // MARK: - サービス本体
 
 @Observable
@@ -191,7 +268,7 @@ final class HealthKitService {
         // cancel 済みなら即抜ける（後発の書込に処理を譲る）
         if Task.isCancelled { return }
 
-        let samples = buildSamples(from: values)
+        let samples = HealthKitSampleBuilder.samples(from: values)
 
         // 値がすべて未記録ならクリア操作。既存サンプルの削除だけ行う
         guard !samples.isEmpty else {
@@ -210,81 +287,11 @@ final class HealthKitService {
         // 保存できた新サンプルを除外し、同日時の旧サンプルだけ削除して上書きを完成させる。
         // 削除に失敗しても重複が残るだけでデータ喪失ではないため、記録に留めて throw しない。
         do {
-            try await deleteSamples(at: values.date, excludingUUIDs: newObjectUUIDs(in: samples))
+            try await deleteSamples(at: values.date, excludingUUIDs: HealthKitSampleBuilder.objectUUIDs(in: samples))
         } catch {
             logger.error("HealthKit 旧サンプル削除失敗: \(error.localizedDescription)")
             AppAnalytics.shared.record(error: error, name: "healthkit_stale_delete_failed")
         }
-    }
-
-    /// HealthKitValues から保存対象の HKSample 群を組み立てる
-    private func buildSamples(from values: HealthKitValues) -> [HKSample] {
-        var samples: [HKSample] = []
-        let date = values.date
-
-        // 血圧（Correlation）
-        if values.bpHi > 0 && values.bpLo > 0 {
-            let systolic = HKQuantitySample(
-                type: HKQuantityType(.bloodPressureSystolic),
-                quantity: HKQuantity(unit: .millimeterOfMercury(), doubleValue: Double(values.bpHi)),
-                start: date, end: date)
-            let diastolic = HKQuantitySample(
-                type: HKQuantityType(.bloodPressureDiastolic),
-                quantity: HKQuantity(unit: .millimeterOfMercury(), doubleValue: Double(values.bpLo)),
-                start: date, end: date)
-            let bp = HKCorrelation(
-                type: HKCorrelationType(.bloodPressure),
-                start: date, end: date,
-                objects: [systolic, diastolic])
-            samples.append(bp)
-        }
-
-        // 心拍数
-        if values.pulse > 0 {
-            samples.append(HKQuantitySample(
-                type: HKQuantityType(.heartRate),
-                quantity: HKQuantity(unit: HKUnit(from: "count/min"), doubleValue: Double(values.pulse)),
-                start: date, end: date))
-        }
-
-        // 体温
-        if values.temp > 0 {
-            samples.append(HKQuantitySample(
-                type: HKQuantityType(.bodyTemperature),
-                quantity: HKQuantity(unit: .degreeCelsius(), doubleValue: Double(values.temp) / 10.0),
-                start: date, end: date))
-        }
-
-        // 体重
-        if values.weight > 0 {
-            samples.append(HKQuantitySample(
-                type: HKQuantityType(.bodyMass),
-                quantity: HKQuantity(unit: .gramUnit(with: .kilo), doubleValue: Double(values.weight) / 10.0),
-                start: date, end: date))
-        }
-
-        // 体脂肪率（HKUnit.percent() は 0–100 のパーセント値）
-        if values.bodyFat > 0 {
-            samples.append(HKQuantitySample(
-                type: HKQuantityType(.bodyFatPercentage),
-                quantity: HKQuantity(unit: .percent(), doubleValue: Double(values.bodyFat) / 10.0 / 100.0),
-                start: date, end: date))
-        }
-
-        return samples
-    }
-
-    /// 保存した新サンプル（Correlation 配下の血圧サンプルも含む）の UUID 一覧。
-    /// 上書き時の旧サンプル削除で、保存したばかりの新サンプルを除外するために使う。
-    private func newObjectUUIDs(in samples: [HKSample]) -> Set<UUID> {
-        var uuids: Set<UUID> = []
-        for sample in samples {
-            uuids.insert(sample.uuid)
-            if let correlation = sample as? HKCorrelation {
-                correlation.objects.forEach { uuids.insert($0.uuid) }
-            }
-        }
-        return uuids
     }
 
     // MARK: - 読み込み

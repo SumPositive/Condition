@@ -593,7 +593,7 @@ struct RecordEditView: View {
 
     // MARK: - ダイアル行
 
-    @ViewBuilder
+    // 単一の VStack を返すため @ViewBuilder は付けない（明示 return と併用できないため）
     private func dialRow<TitleAccessory: View>(
         averageField: MeasurementAverageField,
         title: LocalizedStringKey,

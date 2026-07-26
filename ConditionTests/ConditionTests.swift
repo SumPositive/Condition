@@ -3,6 +3,7 @@
 import Testing
 import Foundation
 import SwiftData
+import HealthKit
 @testable import Condition
 
 // MARK: - 既存テスト
@@ -1169,5 +1170,164 @@ struct BpSideViewModelTests {
         let r = try seedRecord(ctx, bpSide: .right)
         let vm = RecordEditViewModel(mode: .edit(r))
         #expect(vm.bpSide == .right)
+    }
+}
+
+// MARK: - HealthKit 変換（純粋ロジック）
+
+@Suite("HealthKitSampleBuilder Tests")
+struct HealthKitSampleBuilderTests {
+
+    @Test("全項目0なら空配列")
+    func emptyValuesProduceNoSamples() {
+        #expect(HealthKitSampleBuilder.samples(from: HealthKitValues(date: Date())).isEmpty)
+    }
+
+    @Test("体脂肪率のみでも1件のサンプルになる")
+    func bodyFatOnlyProducesSample() throws {
+        let samples = HealthKitSampleBuilder.samples(from: HealthKitValues(date: Date(), bodyFat: 235))
+        #expect(samples.count == 1)
+        let q = try #require(samples.first as? HKQuantitySample)
+        #expect(q.quantityType == HKQuantityType(.bodyFatPercentage))
+        // ×10 の % (23.5%) → HKUnit.percent() は割合 0.235 で格納
+        #expect(abs(q.quantity.doubleValue(for: .percent()) - 0.235) < 1e-9)
+    }
+
+    @Test("温度・体重・心拍の単位換算")
+    func quantityConversions() throws {
+        let samples = HealthKitSampleBuilder.samples(
+            from: HealthKitValues(date: Date(), pulse: 72, temp: 365, weight: 650)
+        )
+        func value(_ id: HKQuantityTypeIdentifier, _ unit: HKUnit) throws -> Double {
+            let s = try #require(samples.compactMap { $0 as? HKQuantitySample }
+                .first { $0.quantityType == HKQuantityType(id) })
+            return s.quantity.doubleValue(for: unit)
+        }
+        #expect(try value(.heartRate, HKUnit(from: "count/min")) == 72)
+        #expect(abs(try value(.bodyTemperature, .degreeCelsius()) - 36.5) < 1e-9)   // ×10 → ℃
+        #expect(abs(try value(.bodyMass, .gramUnit(with: .kilo)) - 65.0) < 1e-9)    // ×10 → kg
+    }
+
+    @Test("血圧は上下そろって Correlation 1件になる")
+    func bloodPressureCorrelation() throws {
+        let samples = HealthKitSampleBuilder.samples(from: HealthKitValues(date: Date(), bpHi: 120, bpLo: 80))
+        #expect(samples.count == 1)
+        let corr = try #require(samples.first as? HKCorrelation)
+        let objs = corr.objects.compactMap { $0 as? HKQuantitySample }
+        let sys = try #require(objs.first { $0.quantityType == HKQuantityType(.bloodPressureSystolic) })
+        let dia = try #require(objs.first { $0.quantityType == HKQuantityType(.bloodPressureDiastolic) })
+        #expect(sys.quantity.doubleValue(for: .millimeterOfMercury()) == 120)
+        #expect(dia.quantity.doubleValue(for: .millimeterOfMercury()) == 80)
+    }
+
+    @Test("血圧は片方だけならサンプルにしない")
+    func bloodPressureNeedsBothSides() {
+        #expect(HealthKitSampleBuilder.samples(from: HealthKitValues(date: Date(), bpHi: 120)).isEmpty)
+        #expect(HealthKitSampleBuilder.samples(from: HealthKitValues(date: Date(), bpLo: 80)).isEmpty)
+    }
+
+    @Test("objectUUIDs は Correlation 配下の血圧サンプルも含む")
+    func objectUUIDsIncludeCorrelationMembers() throws {
+        let samples = HealthKitSampleBuilder.samples(
+            from: HealthKitValues(date: Date(), bpHi: 120, bpLo: 80, pulse: 72)
+        )
+        let corr = try #require(samples.compactMap { $0 as? HKCorrelation }.first)
+        let uuids = HealthKitSampleBuilder.objectUUIDs(in: samples)
+        // correlation 自身 + systolic + diastolic + heartRate = 4
+        #expect(uuids.contains(corr.uuid))
+        for obj in corr.objects { #expect(uuids.contains(obj.uuid)) }
+        #expect(uuids.count == 4)
+    }
+}
+
+// MARK: - DateOptEstimator（区分推定）
+
+@Suite("DateOptEstimator Tests")
+struct DateOptEstimatorTests {
+
+    private func date(_ y: Int, _ mo: Int, _ d: Int, _ h: Int = 12, _ mi: Int = 0) -> Date {
+        var c = DateComponents()
+        c.year = y; c.month = mo; c.day = d; c.hour = h; c.minute = mi
+        return Calendar.current.date(from: c) ?? Date()
+    }
+    private func rec(_ opt: DateOpt, _ date: Date) -> BodyRecord {
+        BodyRecord(dateTime: date, dateOpt: opt)
+    }
+    private func hourMap(all opt: DateOpt) -> [Int] {
+        Array(repeating: opt.rawValue, count: 24)
+    }
+
+    @Test("90日より古い履歴は加点されない")
+    func historyCutoffAt90Days() {
+        let reference = date(2026, 6, 15, 12, 0)
+        let cal = Calendar.current
+        let inside  = cal.date(byAdding: .day, value: -89, to: reference) ?? reference
+        let outside = cal.date(byAdding: .day, value: -91, to: reference) ?? reference
+        let result = DateOptEstimator.estimateResult(
+            from: [rec(.cat01, inside), rec(.cat03, outside)],
+            targetDate: reference, hourMap: hourMap(all: .cat02), referenceDate: reference
+        )
+        #expect((result.scores[.cat01] ?? 0) > 0)   // 89日前は加点される
+        #expect(result.scores[.cat03] == 0)          // 91日前は集計対象外
+    }
+
+    @Test("時刻差は日をまたいで最短側で評価する")
+    func timeProximityIsCircularAcrossMidnight() {
+        let reference = date(2026, 6, 15, 1, 0)   // 01:00
+        // 同一日の 23:00(cat01)と 12:00(cat03)。曜日・新しさは同条件なので時刻差だけが効く
+        let near = date(2026, 6, 10, 23, 0)
+        let far  = date(2026, 6, 10, 12, 0)
+        let result = DateOptEstimator.estimateResult(
+            from: [rec(.cat01, near), rec(.cat03, far)],
+            targetDate: reference, hourMap: hourMap(all: .cat02), referenceDate: reference
+        )
+        // 23:00 は 01:00 と circular 120分 → 12:00(660分)より高スコア
+        #expect((result.scores[.cat01] ?? 0) > (result.scores[.cat03] ?? 0))
+    }
+
+    @Test("最大区分が僅差ならマトリクスの既定へ戻す")
+    func tiedTopScoresFallBackToMatrix() {
+        let reference = date(2026, 6, 15, 9, 0)
+        let t1 = date(2026, 6, 8, 9, 0)
+        let t2 = date(2026, 6, 1, 9, 0)
+        // cat01 と cat03 を同一日時で積み、完全同点にする
+        let records = [rec(.cat01, t1), rec(.cat01, t2), rec(.cat03, t1), rec(.cat03, t2)]
+        let selected = DateOptEstimator.estimate(
+            from: records, targetDate: reference, hourMap: hourMap(all: .cat02), referenceDate: reference
+        )
+        // 僅差判定でマトリクス既定 cat02 へ戻る
+        #expect(selected == .cat02)
+    }
+
+    @Test("未定義区分の履歴は選ばれない")
+    func undefinedDivisionIsNeverSelected() {
+        // 前提: cat07 は既定で未定義（名称なし）。定義された環境ではこの前提が崩れる
+        #expect(!DateOpt.cat07.isDefined, "前提: cat07 は未定義（既定）")
+        let reference = date(2026, 6, 15, 9, 0)
+        let t = date(2026, 6, 14, 9, 0)
+        let cal = Calendar.current
+        // cat07 を大量に積んでも、未定義なので選ばれない
+        let records = (0..<5).map { rec(.cat07, cal.date(byAdding: .minute, value: -$0, to: t) ?? t) }
+        let result = DateOptEstimator.estimateResult(
+            from: records, targetDate: reference, hourMap: hourMap(all: .cat02), referenceDate: reference
+        )
+        #expect(result.selected != .cat07)
+        #expect(result.scores[.cat07] == nil)   // 未定義区分はスコア表に存在しない
+        #expect(result.selected == .cat02)       // 定義済みのマトリクス既定へ落ち着く
+    }
+
+    @Test("hourMap が不正でも未定義区分を返さない")
+    func invalidHourMapReturnsDefinedOption() {
+        let target = date(2026, 6, 15, 12, 0)
+        let invalidMaps: [[Int]] = [
+            [],                                                  // 空
+            Array(repeating: 999, count: 24),                   // 範囲外 rawValue
+            [0],                                                // 短すぎる
+            Array(repeating: DateOpt.cat07.rawValue, count: 24) // 未定義区分を指す
+        ]
+        for map in invalidMaps {
+            let opt = DateOptEstimator.estimate(from: [], targetDate: target, hourMap: map, referenceDate: target)
+            #expect(opt.isDefined, "hourMap=\(map.prefix(3)) で未定義区分が返った")
+        }
     }
 }
