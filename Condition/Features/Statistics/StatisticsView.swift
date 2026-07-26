@@ -1448,19 +1448,17 @@ struct BpLeftRightView: View {
         .sorted { $0.day < $1.day }
     }
 
-    /// 各側の期間平均（収縮期）
-    private var rightHiAvg: Double? { periodAvgHi(rightRecords) }
-    private var leftHiAvg: Double? { periodAvgHi(leftRecords) }
-    private var rightLoAvg: Double? { periodAvgLo(rightRecords) }
-    private var leftLoAvg: Double? { periodAvgLo(leftRecords) }
+    /// 各側の平均。棒グラフと同じ母集団（30分ペアの日平均）・同じ重み（1日＝1票）で出す。
+    /// 全記録の単純平均だと左右で測定時刻区分の内訳が違ったときに時刻差を左右差として拾ってしまうため、
+    /// ペアの取れた日だけを対象にして時刻をそろえる。これで L−R が棒グラフの平均バーと符号込みで一致する。
+    private var rightHiAvg: Double? { dayAvg(\.rightHi) }
+    private var leftHiAvg: Double? { dayAvg(\.leftHi) }
+    private var rightLoAvg: Double? { dayAvg(\.rightLo) }
+    private var leftLoAvg: Double? { dayAvg(\.leftLo) }
 
-    private func periodAvgHi(_ recs: [BodyRecord]) -> Double? {
-        guard !recs.isEmpty else { return nil }
-        return Double(recs.map(\.nBpHi_mmHg).reduce(0, +)) / Double(recs.count)
-    }
-    private func periodAvgLo(_ recs: [BodyRecord]) -> Double? {
-        guard !recs.isEmpty else { return nil }
-        return Double(recs.map(\.nBpLo_mmHg).reduce(0, +)) / Double(recs.count)
+    private func dayAvg(_ kp: KeyPath<DayDiff, Double>) -> Double? {
+        guard !dayDiffs.isEmpty else { return nil }
+        return dayDiffs.map { $0[keyPath: kp] }.reduce(0, +) / Double(dayDiffs.count)
     }
 
     /// 同日ペアの平均絶対差（収縮期）
@@ -1569,18 +1567,17 @@ struct BpLeftRightView: View {
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 4)
+            } else if dayDiffs.isEmpty {
+                // 記録はあるが30分ペアが1組も無い＝左右差は測れないので、案内だけ出す
+                Text("stat.bpLeftRight.needPairs")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 4)
             } else {
+                // サマリーもバーもペア母集団（30分ペアの日平均）でそろえる
                 summaryGrid
-                // 同じ日に左右そろったペアが1日でもあればバーを描く
-                if !dayDiffs.isEmpty {
-                    diffChart
-                } else {
-                    Text("stat.bpLeftRight.needPairs")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 4)
-                }
+                diffChart
                 guidanceTip
             }
         }
