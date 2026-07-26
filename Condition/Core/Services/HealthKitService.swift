@@ -513,10 +513,11 @@ final class HealthKitService {
         // 非表示でないバイタル項目のうち少なくとも1つが入力されているレコードのみ残す
         let result = byMinute.values
             .filter { v in
-                (!hiddenFields.contains(GraphKind.bp.rawValue)     && v.bpHi > 0)   ||
-                (!hiddenFields.contains(GraphKind.pulse.rawValue)  && v.pulse > 0)  ||
-                (!hiddenFields.contains(GraphKind.temp.rawValue)   && v.temp > 0)   ||
-                (!hiddenFields.contains(GraphKind.weight.rawValue) && v.weight > 0)
+                (!hiddenFields.contains(GraphKind.bp.rawValue)      && v.bpHi > 0)    ||
+                (!hiddenFields.contains(GraphKind.pulse.rawValue)   && v.pulse > 0)   ||
+                (!hiddenFields.contains(GraphKind.temp.rawValue)    && v.temp > 0)    ||
+                (!hiddenFields.contains(GraphKind.weight.rawValue)  && v.weight > 0)  ||
+                (!hiddenFields.contains(GraphKind.bodyFat.rawValue) && v.bodyFat > 0)
             }
             .sorted { $0.date < $1.date }
         logger.info("readSamples 完了: \(result.count) 件")
