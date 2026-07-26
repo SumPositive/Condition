@@ -113,9 +113,14 @@ final class MigrationService {
             // SwiftData へ挿入
             try insertRows(rows, context: context)
 
-            // 成功：旧ファイルを .done にリネーム（失敗時はリネームしない → 次回自動再試行）
-            archiveOldStore(at: oldStoreURL)
-            UserDefaults.standard.set(true, forKey: UDefKeys.migrationDone)
+            // データ移行成功。旧ファイルを .done へ退避できたときだけ移行完了フラグを立てる。
+            // 退避に失敗したらフラグを立てず、次回起動で自動再試行する
+            // （データは移行済みなので画面は先へ進める。再移行は秒単位重複チェックで冪等）
+            if archiveOldStore(at: oldStoreURL) {
+                UserDefaults.standard.set(true, forKey: UDefKeys.migrationDone)
+            } else {
+                logger.warning("旧ファイルのアーカイブに失敗 → migrationDone を立てず次回再試行")
+            }
             phase = .done
 
         } catch {
@@ -409,21 +414,37 @@ final class MigrationService {
         logger.info("目標値レコードを AppSettings へ書き出し完了")
     }
 
-    // MARK: - 旧ファイルアーカイブ（成功時のみ呼ぶ）
+    // MARK: - 旧ファイルアーカイブ（データ移行成功時のみ呼ぶ）
     //
-    // 成功 → .done にリネーム（findOldStoreURL は .sqlite のみ検索するので再検出されない）
-    // 失敗 → リネームしない（.sqlite のまま残る → 次回アップデートで自動再試行）
+    // 成功 → 主ファイル(.sqlite)を .done にリネーム（findOldStoreURL は .sqlite のみ検索するので再検出されない）
+    // 失敗 → リネームしない（.sqlite のまま残る）。呼び出し元は migrationDone を立てず、
+    //        次回アップデートで自動再試行する（再移行は秒単位重複チェックで冪等）
 
-    private func archiveOldStore(at url: URL) {
+    /// 旧ファイルを .done へリネームする。主ファイル(.sqlite)を確実に退避できたかを返す。
+    @discardableResult
+    private func archiveOldStore(at url: URL) -> Bool {
         let fm = FileManager.default
+        var mainArchived = false
         for ext in ["", "-shm", "-wal"] {
             let src = URL(fileURLWithPath: url.path + ext)
             let dst = URL(fileURLWithPath: url.path + ext + ".done")
-            if fm.fileExists(atPath: src.path) {
-                try? fm.moveItem(at: src, to: dst)
+            guard fm.fileExists(atPath: src.path) else {
+                // 主ファイルが無ければ既に退避済み扱い（.sqlite が残らないので再検出されない）
+                if ext.isEmpty { mainArchived = true }
+                continue
+            }
+            do {
+                try fm.moveItem(at: src, to: dst)
+                if ext.isEmpty { mainArchived = true }
+            } catch {
+                logger.error("旧ファイルの .done リネーム失敗: \(src.lastPathComponent, privacy: .public) - \(error.localizedDescription, privacy: .public)")
+                AppAnalytics.shared.record(error: error, name: "migration_archive_failed")
             }
         }
-        logger.info("旧ファイルを .done にリネーム完了")
+        if mainArchived {
+            logger.info("旧ファイルを .done にリネーム完了")
+        }
+        return mainArchived
     }
 }
 
