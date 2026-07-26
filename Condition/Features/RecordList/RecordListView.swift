@@ -379,6 +379,10 @@ struct RecordListView: View {
     // MARK: - 削除
 
     private func deleteRecords(in sectionRecords: [BodyRecord], offsets: IndexSet) {
+        // 削除前に「アプリが書いたHK分の日時」を控える（削除後は参照できないため）
+        let hkDeleteDates = offsets.compactMap {
+            HealthKitService.shared.appWrittenDateForDeletion(of: sectionRecords[$0])
+        }
         for index in offsets {
             let record = sectionRecords[index]
             context.delete(record)
@@ -386,6 +390,10 @@ struct RecordListView: View {
         // auto-save に頼らず明示的に保存（クラッシュ・バックグラウンド遷移前の取りこぼし防止）
         do {
             try context.save()
+            // 保存成功後にだけ、同日時のアプリ書込分を HealthKit からも削除する
+            for date in hkDeleteDates {
+                HealthKitService.shared.scheduleWrite(HealthKitValues(date: date))
+            }
         } catch {
             AppAnalytics.shared.record(error: error, name: "record_delete_save_failed")
         }

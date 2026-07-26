@@ -164,6 +164,17 @@ final class HealthKitService {
         pendingWriteTasks[key] = task
     }
 
+    /// 記録削除に伴い HealthKit から消すべき「アプリ書込分」の日時を返す。
+    /// 連携OFF・書込不可・HK由来（hkImport/hkModified）レコードは対象外で nil を返す。
+    /// 実削除は保存成功後に `scheduleWrite(HealthKitValues(date:))`（空値＝クリア）で行う。
+    func appWrittenDateForDeletion(of record: BodyRecord) -> Date? {
+        let s = AppSettings.shared
+        guard s.hkEnabled, HKSyncDirection(rawValue: s.hkDirection)?.canWrite == true else { return nil }
+        // HK から取り込んだ／HK由来の変更レコードはアプリの書込ではないので触らない
+        if record.dataSource == .hkImport || record.dataSource == .hkModified { return nil }
+        return record.dateTime
+    }
+
     /// 同日時の値を HealthKit へ上書き保存する。
     /// 先に新サンプルを保存し、成功した後にだけ旧サンプルを削除するので、
     /// 保存に失敗しても既存の HealthKit データを失わない。失敗は呼び出し元へ throw する。

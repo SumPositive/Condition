@@ -475,8 +475,14 @@ final class RecordEditViewModel {
     // MARK: - 削除
 
     func delete(record: BodyRecord, context: ModelContext) throws {
+        // 削除前に「アプリが書いたHK分の日時」を控える（削除後は参照できないため）
+        let hkDeleteDate = HealthKitService.shared.appWrittenDateForDeletion(of: record)
         context.delete(record)
         try context.save()
+        // 保存成功後にだけ、同日時のアプリ書込分を HealthKit からも削除する
+        if let hkDeleteDate {
+            HealthKitService.shared.scheduleWrite(HealthKitValues(date: hkDeleteDate))
+        }
     }
 
     // MARK: - フィールド適用

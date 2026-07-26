@@ -1217,9 +1217,15 @@ struct MeasurementAverageView: View {
     /// 修正中の平均記録を削除する
     private func deleteRecord() {
         guard let record else { return }
+        // 削除前に「アプリが書いたHK分の日時」を控える（削除後は参照できないため）
+        let hkDeleteDate = HealthKitService.shared.appWrittenDateForDeletion(of: record)
         context.delete(record)
         do {
             try context.save()
+            // 保存成功後にだけ、同日時のアプリ書込分を HealthKit からも削除する
+            if let hkDeleteDate {
+                HealthKitService.shared.scheduleWrite(HealthKitValues(date: hkDeleteDate))
+            }
             dismiss()
         } catch {
             context.rollback()

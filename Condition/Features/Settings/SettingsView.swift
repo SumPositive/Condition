@@ -2096,6 +2096,7 @@ struct HealthKitSettingsView: View {
     @State private var hkService = HealthKitService.shared
     @Environment(\.openURL) private var openURL
     @State private var showGuideAlert = false
+    @State private var isDirectionExpanded = false
 
     private var directionBinding: Binding<HKSyncDirection> {
         Binding(
@@ -2173,26 +2174,25 @@ struct HealthKitSettingsView: View {
             }
 
             Section {
-                // HealthKit連携方向はインラインの代わりにラジオPickerで選ぶ
-                AZRadioPicker(
-                    options: HKSyncDirection.allCases,
-                    selection: directionBinding,
-                    minOptionWidth: 0,
-                    maxOptionWidth: 180,
-                    horizontalPadding: 12,
-                    optionSpacing: 4,
-                    groupPadding: 2,
-                    wrapsOptions: true,
-                    fillsWidth: true
-                ) { direction in
-                    Text(LocalizedStringKey(direction.titleKey))
+                AZAdaptiveControlRow {
+                    // HealthKit連携方向はほかの設定と同じドロップダウンPickerで選ぶ
+                    SettingsHelpTitle(
+                        titleKey: "health.syncDirection",
+                        helpKey: LocalizedStringKey(directionHelpKey),
+                        storageKey: "helpDismissed.health.direction"
+                    )
+                    .font(.subheadline)
+                } control: {
+                    AZDropdownPicker(
+                        options: HKSyncDirection.allCases,
+                        selection: directionBinding,
+                        isExpanded: $isDirectionExpanded,
+                        minWidth: 200
+                    ) { direction in
+                        Text(LocalizedStringKey(direction.titleKey))
+                    }
                 }
-            } header: {
-                SettingsHelpTitle(
-                    titleKey: "health.syncDirection",
-                    helpKey: LocalizedStringKey(directionHelpKey),
-                    storageKey: "helpDismissed.health.direction"
-                )
+                .zIndex(isDirectionExpanded ? 63 : 0)
             }
 
             Section("health.syncDetails") {

@@ -3631,25 +3631,25 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Reads and writes Health data. Deletions do not sync. Imported records cannot be changed, but category and notes can be edited."
+            "value": "Reads and writes Health data. Adds, edits, and deletions sync (deletion only for records this app wrote). Imported records cannot be changed, but category and notes can be edited."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "読み込みと書き込みを行います。削除は連携しません。読み込んだ記録は変更できませんが、区分やメモの編集が可能です。"
+            "value": "読み込みと書き込みを行います。追加・編集・削除を連携します（削除はこのアプリが書き込んだ記録のみ）。読み込んだ記録は変更できませんが、区分やメモの編集が可能です。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "읽기와 쓰기를 수행합니다. 삭제는 연동되지 않습니다. 불러온 기록은 변경할 수 없지만 구분과 메모는 편집할 수 있습니다."
+            "value": "읽기와 쓰기를 수행합니다. 추가·편집·삭제가 연동됩니다(삭제는 이 앱이 기록한 항목만). 불러온 기록은 변경할 수 없지만 구분과 메모는 편집할 수 있습니다."
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "同時讀取與寫入健康資料。刪除不會同步。匯入的記錄無法變更，但可編輯類別與備註。"
+            "value": "同時讀取與寫入健康資料。新增、編輯與刪除皆會同步（刪除僅限本 App 寫入的記錄）。匯入的記錄無法變更，但可編輯類別與備註。"
           }
         }
       }
@@ -3718,25 +3718,25 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Read only (Health → App)"
+            "value": "App ← Health"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "読み込みのみ（ヘルスケア → アプリ）"
+            "value": "アプリ ← ヘルスケア"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "읽기 전용 (건강 → 앱)"
+            "value": "앱 ← 건강"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "僅讀取（健康 → App）"
+            "value": "App ← 健康"
           }
         }
       }
@@ -3747,25 +3747,25 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Write only (App → Health)"
+            "value": "App → Health"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "書き込みのみ（アプリ → ヘルスケア）"
+            "value": "アプリ → ヘルスケア"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "쓰기 전용 (앱 → 건강)"
+            "value": "앱 → 건강"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "僅寫入（App → 健康）"
+            "value": "App → 健康"
           }
         }
       }
@@ -3921,25 +3921,25 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Syncs with Apple Health. Adds and edits sync; deletions do not."
+            "value": "Syncs with Apple Health. Adds, edits, and deletions sync (deletion only for records this app wrote)."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Apple標準のヘルスケアデータと連携します。追加と編集(変更)を連携します。削除は連携しません。"
+            "value": "Apple標準のヘルスケアデータと連携します。追加・編集・削除を連携します（削除はこのアプリが書き込んだ記録のみ）。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "Apple 기본 건강 데이터와 연동합니다. 추가와 편집(변경)이 연동됩니다. 삭제는 연동되지 않습니다."
+            "value": "Apple 기본 건강 데이터와 연동합니다. 추가·편집·삭제가 연동됩니다(삭제는 이 앱이 기록한 항목만)."
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "與 Apple 健康資料同步。新增與編輯（變更）會同步；刪除不會同步。"
+            "value": "與 Apple 健康資料同步。新增、編輯與刪除皆會同步（刪除僅限本 App 寫入的記錄）。"
           }
         }
       }
@@ -4385,25 +4385,25 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "This app cannot delete Health records. Deletion is blocked. If you delete a record here, open Show All Data in Health and delete it there."
+            "value": "Deleting a record this app wrote also removes it from Health. Data recorded by other apps or devices cannot be deleted from this app—open Show All Data in Health to delete it there."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "このアプリからヘルスケアの記録は削除できません、禁止されています。ヘルスケア側で削除する場合は、ヘルスケアにある「すべてのデータを表示」画面を開いて削除してください。"
+            "value": "このアプリが書き込んだ記録は、削除するとヘルスケア側からも削除します。他のアプリや機器が記録したデータはこのアプリからは削除できないため、ヘルスケアの「すべてのデータを表示」画面を開いて削除してください。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "이 앱에서는 건강 기록을 삭제할 수 없습니다(금지되어 있습니다). 건강 앱에서 삭제하려면 「모든 데이터 보기」 화면을 열어 삭제하세요."
+            "value": "이 앱이 기록한 항목은 삭제하면 건강에서도 삭제됩니다. 다른 앱이나 기기가 기록한 데이터는 이 앱에서 삭제할 수 없으므로 건강 앱의 「모든 데이터 보기」 화면을 열어 삭제하세요."
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "此 App 無法刪除健康記錄（已被禁止）。若要刪除，請在健康 App 開啟「顯示所有資料」畫面刪除。"
+            "value": "本 App 寫入的記錄，刪除時也會從健康移除。其他 App 或裝置記錄的資料無法從本 App 刪除，請在健康 App 開啟「顯示所有資料」畫面刪除。"
           }
         }
       }
@@ -4559,25 +4559,25 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Writes to Health when you save. Deletions do not sync. If you change the time, it is added as a new record and the old one remains, so check and delete it in Health."
+            "value": "Writes to Health when you save. Deleting a record also deletes this app's matching record in Health. If you change the time, it is added as a new record and the one at the old time remains, so check and delete it in Health."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "記録を保存した時にヘルスケアへ書き込みます。削除は連携しません。編集で日時を変えた場合は新しい記録として追加されて前の記録は残りますのでヘルスケア側で確認して削除してください。"
+            "value": "記録を保存した時にヘルスケアへ書き込みます。記録を削除するとヘルスケア側のこのアプリの記録も削除します。編集で日時を変えた場合は新しい記録として追加され、前の日時の記録は残りますのでヘルスケア側で確認して削除してください。"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "기록을 저장할 때 건강에 씁니다. 삭제는 연동되지 않습니다. 편집으로 날짜·시간을 바꾸면 새 기록으로 추가되고 이전 기록은 남으므로 건강 앱에서 확인해 삭제하세요."
+            "value": "기록을 저장할 때 건강에 씁니다. 기록을 삭제하면 건강의 이 앱 기록도 삭제합니다. 편집으로 날짜·시간을 바꾸면 새 기록으로 추가되고 이전 날짜·시간의 기록은 남으므로 건강 앱에서 확인해 삭제하세요."
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "儲存記錄時寫入健康。刪除不會同步。若編輯變更了日期時間，會以新記錄新增，原記錄仍會保留，請於健康 App 確認並刪除。"
+            "value": "儲存記錄時寫入健康。刪除記錄時，也會刪除健康中本 App 的對應記錄。若編輯變更了日期時間，會以新記錄新增，原日期時間的記錄仍會保留，請於健康 App 確認並刪除。"
           }
         }
       }
