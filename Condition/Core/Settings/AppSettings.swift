@@ -316,8 +316,9 @@ final class AppSettings {
     }
 
     /// 全区分が未使用（名称なし）なら、直前まで定義済みだった区分（無ければ cat01）を
-    /// 工場出荷時の既定へ戻し、必ず1区分を定義済みにする
-    private static func ensuringAtLeastOneDefined(
+    /// 工場出荷時の既定へ戻し、必ず1区分を定義済みにする。
+    /// setter の不変条件を担う純粋ロジック（単体テスト対象）。
+    static func ensuringAtLeastOneDefined(
         _ appearances: [DateOptAppearance],
         previouslyDefined: [DateOptAppearance]
     ) -> [DateOptAppearance] {

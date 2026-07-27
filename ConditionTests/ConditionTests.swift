@@ -26,7 +26,8 @@ struct ValueFormatterTests {
     }
 }
 
-@Suite("DateOpt Tests")
+// AppSettings.shared.dateOptHourMap（UserDefaults 共有）を退避・復元するため直列化する
+@Suite("DateOpt Tests", .serialized)
 struct DateOptTests {
 
     @Test("autoDateOpt: 6時台は dateOptHourMap で設定された区分を返す")
@@ -1242,7 +1243,8 @@ struct HealthKitSampleBuilderTests {
 
 // MARK: - DateOptEstimator（区分推定）
 
-@Suite("DateOptEstimator Tests")
+// DateOptAppearanceStore（UserDefaults 共有）を退避・復元するため、並列実行での状態競合を避けて直列化する
+@Suite("DateOptEstimator Tests", .serialized)
 struct DateOptEstimatorTests {
 
     private func date(_ y: Int, _ mo: Int, _ d: Int, _ h: Int = 12, _ mi: Int = 0) -> Date {
@@ -1356,6 +1358,62 @@ struct DateOptEstimatorTests {
                 #expect(opt.isDefined, "hourMap=\(map.prefix(3)) で未定義区分が返った")
             }
         }
+    }
+}
+
+// MARK: - 全区分未使用の自動修復（AppSettings の不変条件）
+
+@Suite("ensuringAtLeastOneDefined Tests")
+@MainActor
+struct EnsuringAtLeastOneDefinedTests {
+
+    /// 指定区分だけ定義済み（既定名）にし、それ以外は名称を空にして未定義化した appearance 群
+    private func appearances(definedOnly: [DateOpt]) -> [DateOptAppearance] {
+        DateOpt.allCases.map { opt in
+            var a = opt.defaultAppearance
+            if !definedOnly.contains(opt) { a.nameJa = ""; a.nameEn = "" }
+            return a
+        }
+    }
+
+    @Test("1区分でも定義済みならそのまま返す（修復しない）")
+    func keepsWhenAtLeastOneDefined() {
+        let input = appearances(definedOnly: [.cat03])
+        let result = AppSettings.ensuringAtLeastOneDefined(input, previouslyDefined: input)
+        #expect(result == input)
+    }
+
+    @Test("全未使用なら直前まで定義済みだった区分を既定へ戻す")
+    func restoresPreviouslyDefinedWhenAllUndefined() throws {
+        let allUndefined = appearances(definedOnly: [])
+        // 直前は cat04 が定義済みだった
+        let previous = appearances(definedOnly: [.cat04])
+
+        let result = AppSettings.ensuringAtLeastOneDefined(allUndefined, previouslyDefined: previous)
+        // 少なくとも1区分が定義済みに戻る
+        #expect(result.contains { $0.isDefined })
+        // 戻ったのは cat04（直前に定義済みだった区分）で、既定名になっている
+        let restored = try #require(result.first { $0.dateOptRawValue == DateOpt.cat04.rawValue })
+        #expect(restored.isDefined)
+        #expect(restored.nameJa == DateOpt.cat04.defaultNameJa)
+    }
+
+    @Test("直前も全未使用なら cat01 を既定へ戻す")
+    func fallsBackToCat01WhenNoPreviousDefined() {
+        let allUndefined = appearances(definedOnly: [])
+        let result = AppSettings.ensuringAtLeastOneDefined(allUndefined, previouslyDefined: allUndefined)
+        #expect(result.contains { $0.isDefined })
+        let cat01 = result.first { $0.dateOptRawValue == DateOpt.cat01.rawValue }
+        #expect(cat01?.isDefined == true)
+    }
+
+    @Test("修復結果は必ず1区分以上が定義済みになる（冪等の前提）")
+    func repairedAlwaysHasDefined() {
+        let allUndefined = appearances(definedOnly: [])
+        let result = AppSettings.ensuringAtLeastOneDefined(allUndefined, previouslyDefined: allUndefined)
+        // もう一度通しても定義済みが保たれ、追加修復は起きない（＝didSet の再帰が止まる）
+        let again = AppSettings.ensuringAtLeastOneDefined(result, previouslyDefined: result)
+        #expect(again == result)
     }
 }
 
@@ -1608,7 +1666,8 @@ struct StaleHealthKitDateTests {
 
 // MARK: - HealthKit 削除対象日時の判定（記録削除・再試行の前提）
 
-@Suite("appWrittenDateForDeletion Tests")
+// AppSettings.shared（UserDefaults 共有）を退避・復元するため直列化する
+@Suite("appWrittenDateForDeletion Tests", .serialized)
 @MainActor
 struct AppWrittenDeletionTests {
 
