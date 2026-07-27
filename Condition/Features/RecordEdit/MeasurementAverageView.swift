@@ -308,7 +308,13 @@ struct MeasurementAverageView: View {
                     set: { if !$0 { deleteErrorMessage = nil } }
                 )
             ) {
-                Button("action.retry") { deleteRecord() }
+                Button("action.retry") {
+                    // アラートを一度確実に閉じてから再削除する。
+                    // 非nil→非nil のままだと SwiftUI が再表示をトリガーせず、
+                    // 再失敗時にアラートが出ないため、状態をクリアして次サイクルで実行する。
+                    deleteErrorMessage = nil
+                    Task { @MainActor in deleteRecord() }
+                }
                 Button("action.cancel", role: .cancel) { deleteErrorMessage = nil }
             } message: {
                 Text(deleteErrorMessage ?? String(localized: "record.delete.failed.message"))

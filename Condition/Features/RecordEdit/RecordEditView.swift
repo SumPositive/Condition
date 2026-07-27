@@ -322,7 +322,13 @@ struct RecordEditView: View {
                 ),
                 presenting: deleteFailedRecord
             ) { record in
-                Button("action.retry") { deleteRecord(record) }
+                Button("action.retry") {
+                    // アラートを一度確実に閉じてから再削除する。
+                    // 非nil→非nil のままだと SwiftUI が再表示をトリガーせず、
+                    // 再失敗時にアラートが出ないため、状態をクリアして次サイクルで実行する。
+                    deleteFailedRecord = nil
+                    Task { @MainActor in deleteRecord(record) }
+                }
                 Button("action.cancel", role: .cancel) { deleteFailedRecord = nil }
             } message: { _ in
                 Text(vm.errorMessage ?? String(localized: "record.delete.failed.message"))
