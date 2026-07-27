@@ -1239,6 +1239,8 @@ struct MeasurementAverageView: View {
 
         // 修正時は同じレコードを更新し、新規時だけレコードを作成する
         let target = record ?? BodyRecord(dateTime: dateTime, dateOpt: dateOpt)
+        // 日時を変えた編集では、旧日時のアプリ書込サンプルを HealthKit から消すため、上書き前の日時を控える
+        let previousHealthKitDate: Date? = record?.dateTime
         target.dateTime = dateTime
         target.dateOpt = dateOpt
         target.dataSource = record == nil ? .appInput : .appModified
@@ -1290,6 +1292,13 @@ struct MeasurementAverageView: View {
             // 通常記録と同じく HealthKit へ書き戻す（設定が有効な場合）
             if settings.hkEnabled,
                HKSyncDirection(rawValue: settings.hkDirection)?.canWrite == true {
+                // 日時を変更した編集では、旧日時のアプリ書込サンプルを HealthKit から削除する。
+                // 放置すると後のインポートで旧日時の記録が復活するため、空値クリアで消す。
+                if let staleDate = RecordEditViewModel.staleHealthKitDate(
+                    previousDate: previousHealthKitDate, newDate: target.dateTime
+                ) {
+                    HealthKitService.shared.scheduleDelete(at: staleDate)
+                }
                 HealthKitService.shared.scheduleWrite(
                     HealthKitValues(
                         date: target.dateTime,
