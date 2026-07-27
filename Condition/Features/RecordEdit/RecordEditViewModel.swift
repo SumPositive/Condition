@@ -319,11 +319,18 @@ final class RecordEditViewModel {
               HKSyncDirection(rawValue: s.hkDirection)?.canWrite == true else { return }
         // 日時を変更した編集では、旧日時のアプリ書込サンプルを HealthKit から削除する。
         // 放置すると後のインポートで旧日時の記録が復活するため、空値クリアで消す。
-        if let previousDate, previousDate != dateTime {
-            HealthKitService.shared.scheduleDelete(at: previousDate)
+        if let staleDate = Self.staleHealthKitDate(previousDate: previousDate, newDate: dateTime) {
+            HealthKitService.shared.scheduleDelete(at: staleDate)
         }
         // 連続編集での多重書込を防ぐため scheduleWrite を使う
         HealthKitService.shared.scheduleWrite(currentHealthKitValues())
+    }
+
+    /// 日時を変更した編集で、HealthKit から消すべき「旧日時」を返す純粋ロジック。
+    /// 旧日時が無い（新規追加）か、日時が変わっていない場合は削除不要で nil。
+    static func staleHealthKitDate(previousDate: Date?, newDate: Date) -> Date? {
+        guard let previousDate, previousDate != newDate else { return nil }
+        return previousDate
     }
 
     // MARK: - 直近の衝突検出と解決

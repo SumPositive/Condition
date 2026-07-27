@@ -1101,14 +1101,7 @@ private struct ExportSheetView: View {
 
     private func tempFile(name: String, data: Data) -> URL? {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
-        do {
-            // 容量不足・権限エラー時は URL を返さず、共有・完了表示へ進ませない
-            try data.write(to: url, options: .atomic)
-            return url
-        } catch {
-            AppAnalytics.shared.record(error: error, name: "export_file_write_failed")
-            return nil
-        }
+        return ExportFileWriter.write(to: url, data: data)
     }
 
     // MARK: - JSON（表示項目のみ）
@@ -1475,6 +1468,24 @@ private struct ExportPDFPageView: View {
         case .bodyFat:  return 50
         case .skMuscle: return 50
         default:        return 0
+        }
+    }
+}
+
+// MARK: - 書き出しファイル書込（テスト可能な純粋 I/O）
+
+/// 書き出しデータを指定 URL へ書き込むユーティリティ。
+/// 成功したら URL、失敗（容量不足・権限・書込先ディレクトリ不在など）なら nil を返す。
+/// nil のとき呼び出し側は共有シートや完了表示へ進まない。
+enum ExportFileWriter {
+    @MainActor
+    static func write(to url: URL, data: Data) -> URL? {
+        do {
+            try data.write(to: url, options: .atomic)
+            return url
+        } catch {
+            AppAnalytics.shared.record(error: error, name: "export_file_write_failed")
+            return nil
         }
     }
 }

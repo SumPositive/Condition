@@ -617,7 +617,15 @@ final class HealthKitService {
         }
 
         // 非表示でないバイタル項目のうち少なくとも1つが入力されているレコードのみ残す
-        let result = byMinute.values
+        let result = Self.retainedImportValues(Array(byMinute.values), hiddenFields: hiddenFields)
+        logger.info("readSamples 完了: \(result.count) 件")
+        return result
+    }
+
+    /// インポート結果のうち「表示対象の非表示でないバイタルが少なくとも1つ入っている」レコードだけを
+    /// 日時昇順で残す純粋ロジック。体脂肪率だけのレコードが落ちないことなどを単体テストできる。
+    static func retainedImportValues(_ values: [HealthKitValues], hiddenFields: Set<Int>) -> [HealthKitValues] {
+        values
             .filter { v in
                 (!hiddenFields.contains(GraphKind.bp.rawValue)      && v.bpHi > 0)    ||
                 (!hiddenFields.contains(GraphKind.pulse.rawValue)   && v.pulse > 0)   ||
@@ -626,8 +634,6 @@ final class HealthKitService {
                 (!hiddenFields.contains(GraphKind.bodyFat.rawValue) && v.bodyFat > 0)
             }
             .sorted { $0.date < $1.date }
-        logger.info("readSamples 完了: \(result.count) 件")
-        return result
     }
 
     private func allBPSamples(from start: Date, to end: Date) async -> [(Date, Int, Int)] {

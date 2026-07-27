@@ -320,56 +320,77 @@ final class MigrationService {
 
     /// CoreData→SQLite フォールバック等で発生する subsecond 精度のズレを吸収するため、
     /// 重複判定は秒単位に丸めた日時で行う
-    private static func normalizedSecond(_ date: Date) -> Date {
+    static func normalizedSecond(_ date: Date) -> Date {
         Date(timeIntervalSince1970: floor(date.timeIntervalSince1970))
+    }
+
+    /// 行群を「挿入すべき通常行」「目標値行」に振り分ける純粋ロジック（context 非依存）。
+    /// 既存の秒単位日時（`existingSeconds`）と重複する行、および移行元内で同一秒が重複する行は
+    /// 通常行から除外する（＝再試行の冪等性と、移行元内重複の排除を1箇所で保証する）。
+    /// - Returns: (挿入対象の通常行, 目標値行, スキップした重複件数)
+    static func classifyRows(
+        _ rows: [[String: Any]],
+        existingSeconds: Set<Date>
+    ) -> (toInsert: [[String: Any]], goalRows: [[String: Any]], skipped: Int) {
+        var seen = existingSeconds
+        var toInsert: [[String: Any]] = []
+        var goalRows: [[String: Any]] = []
+        var skipped = 0
+
+        for row in rows {
+            guard let dateTime = row["dateTime"] as? Date else { continue }
+
+            if dateTime >= BodyRecord.goalDate {
+                goalRows.append(row)
+                continue
+            }
+
+            let normalized = normalizedSecond(dateTime)
+            guard !seen.contains(normalized) else {
+                skipped += 1
+                continue
+            }
+            seen.insert(normalized)
+            toInsert.append(row)
+        }
+        return (toInsert, goalRows, skipped)
     }
 
     private func insertRows(_ rows: [[String: Any]], context: ModelContext) throws {
         // 再試行時の重複防止：既存レコードの dateTime（秒単位に正規化）を収集
         // スキップ後に新規入力したデータは別の dateTime を持つため消えない
         let existing = try context.fetch(FetchDescriptor<BodyRecord>())
-        // 挿入のたびに秒単位の日時を追加していくので var（移行元内の同一秒重複も弾く）
-        var existingDates = Set(existing.map { Self.normalizedSecond($0.dateTime) })
-        if !existingDates.isEmpty {
-            logger.info("既存レコード \(existingDates.count) 件を重複チェック対象に追加")
+        let existingSeconds = Set(existing.map { Self.normalizedSecond($0.dateTime) })
+        if !existingSeconds.isEmpty {
+            logger.info("既存レコード \(existingSeconds.count) 件を重複チェック対象に追加")
+        }
+
+        // 重複判定・振り分けは純粋ロジックへ委譲（テスト可能）
+        let (toInsert, goalRows, skipped) = Self.classifyRows(rows, existingSeconds: existingSeconds)
+
+        for row in goalRows {
+            migrateGoalRecord(row)
         }
 
         let batchSize = 100
         var processed = 0
-        var skipped   = 0
 
-        for row in rows {
+        for row in toInsert {
             guard let dateTime = row["dateTime"] as? Date else { continue }
-
-            if dateTime >= BodyRecord.goalDate {
-                migrateGoalRecord(row)
-                processed += 1
-                continue
-            }
-
-            // 同じ dateTime（秒単位）が既にあればスキップ（重複挿入防止）
-            let normalized = Self.normalizedSecond(dateTime)
-            guard !existingDates.contains(normalized) else {
-                skipped += 1
-                continue
-            }
-
             let body = convertToBodyRecord(row, dateTime: dateTime)
             context.insert(body)
-            // 移行元に同一秒の行が複数あっても二重挿入しないよう、挿入した秒をセットへ加える
-            existingDates.insert(normalized)
             processed += 1
 
             if processed % batchSize == 0 {
                 try context.save()
-                let progress = Double(processed) / Double(rows.count)
+                let progress = Double(processed) / Double(toInsert.count)
                 phase = .migrating(progress: progress)
-                logger.info("移行中: \(processed)/\(rows.count)")
+                logger.info("移行中: \(processed)/\(toInsert.count)")
             }
         }
 
         try context.save()
-        logger.info("移行完了: \(processed) 件挿入, \(skipped) 件スキップ（重複）")
+        logger.info("移行完了: \(processed + goalRows.count) 件処理, \(skipped) 件スキップ（重複）")
     }
 
     // MARK: - レコード変換（[String: Any] → BodyRecord）
@@ -420,19 +441,32 @@ final class MigrationService {
     // 失敗 → リネームしない（.sqlite のまま残る）。呼び出し元は migrationDone を立てず、
     //        次回アップデートで自動再試行する（再移行は秒単位重複チェックで冪等）
 
-    /// 旧ファイルを .done へリネームする。主ファイル(.sqlite)を確実に退避できたかを返す。
-    @discardableResult
-    private func archiveOldStore(at url: URL) -> Bool {
-        let fm = FileManager.default
+    /// ファイル移動を1つ抽象化するための注入点（テストで失敗を再現するために使う）。
+    /// 既定では FileManager を用い、`archiveOldStore` の順序制約だけを純粋に検証できるようにする。
+    struct FileMover: Sendable {
+        var fileExists: @Sendable (String) -> Bool
+        var move: @Sendable (URL, URL) throws -> Void
 
+        static let live = FileMover(
+            fileExists: { FileManager.default.fileExists(atPath: $0) },
+            move: { try FileManager.default.moveItem(at: $0, to: $1) }
+        )
+    }
+
+    /// 旧ファイルを .done へリネームする。主ファイル(.sqlite)を確実に退避できたかを返す。
+    ///
+    /// 順序制約: まず主ファイル(.sqlite)を移動し、**成功した場合にのみ**補助ファイル(-shm/-wal)を移動する。
+    /// （主ファイルを残したまま WAL だけ移動すると、再試行時に WAL 内の未反映データを読めなくなる）
+    /// - Parameter mover: ファイル移動の注入点。テストでは主ファイル移動を失敗させて WAL が動かないことを検証する。
+    @discardableResult
+    func archiveOldStore(at url: URL, using mover: FileMover = .live) -> Bool {
         // まず主ファイル(.sqlite)を退避する。ここが成功しない限り補助ファイルには触れない。
-        // （主ファイルを残したまま WAL だけ移動すると、再試行時に WAL 内の未反映データを読めなくなる）
         let mainSrc = URL(fileURLWithPath: url.path)
         let mainDst = URL(fileURLWithPath: url.path + ".done")
         var mainArchived = false
-        if fm.fileExists(atPath: mainSrc.path) {
+        if mover.fileExists(mainSrc.path) {
             do {
-                try fm.moveItem(at: mainSrc, to: mainDst)
+                try mover.move(mainSrc, mainDst)
                 mainArchived = true
             } catch {
                 logger.error("旧ファイルの .done リネーム失敗: \(mainSrc.lastPathComponent, privacy: .public) - \(error.localizedDescription, privacy: .public)")
@@ -448,9 +482,9 @@ final class MigrationService {
         for ext in ["-shm", "-wal"] {
             let src = URL(fileURLWithPath: url.path + ext)
             let dst = URL(fileURLWithPath: url.path + ext + ".done")
-            guard fm.fileExists(atPath: src.path) else { continue }
+            guard mover.fileExists(src.path) else { continue }
             do {
-                try fm.moveItem(at: src, to: dst)
+                try mover.move(src, dst)
             } catch {
                 // 主ファイルは .done 化済みで再検出されない（データは移行済み）ため致命ではないが記録する
                 logger.error("旧補助ファイルの .done リネーム失敗: \(src.lastPathComponent, privacy: .public) - \(error.localizedDescription, privacy: .public)")

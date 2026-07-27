@@ -1257,6 +1257,29 @@ struct DateOptEstimatorTests {
         Array(repeating: opt.rawValue, count: 24)
     }
 
+    /// 区分マスタ（定義済み/未定義）を明示的に固定してからブロックを実行し、
+    /// 端末の UserDefaults 状態に依存せずテストを安定させる。
+    /// - definedOnly: 定義済みにしたい区分。ここに無い区分は名称を空にして未定義化する。
+    private func withDateOptMaster(
+        definedOnly: [DateOpt],
+        _ body: () throws -> Void
+    ) rethrows {
+        let original = DateOptAppearanceStore.appearances()
+        defer { DateOptAppearanceStore.save(original) }
+
+        let fixed: [DateOptAppearance] = DateOpt.allCases.map { opt in
+            var appearance = opt.defaultAppearance
+            if !definedOnly.contains(opt) {
+                // 名称を空にして未定義化する（isDefined は名称の有無で判定される）
+                appearance.nameJa = ""
+                appearance.nameEn = ""
+            }
+            return appearance
+        }
+        DateOptAppearanceStore.save(fixed)
+        try body()
+    }
+
     @Test("90日より古い履歴は加点されない")
     func historyCutoffAt90Days() {
         let reference = date(2026, 6, 15, 12, 0)
@@ -1301,33 +1324,338 @@ struct DateOptEstimatorTests {
 
     @Test("未定義区分の履歴は選ばれない")
     func undefinedDivisionIsNeverSelected() {
-        // 前提: cat07 は既定で未定義（名称なし）。定義された環境ではこの前提が崩れる
-        #expect(!DateOpt.cat07.isDefined, "前提: cat07 は未定義（既定）")
-        let reference = date(2026, 6, 15, 9, 0)
-        let t = date(2026, 6, 14, 9, 0)
-        let cal = Calendar.current
-        // cat07 を大量に積んでも、未定義なので選ばれない
-        let records = (0..<5).map { rec(.cat07, cal.date(byAdding: .minute, value: -$0, to: t) ?? t) }
-        let result = DateOptEstimator.estimateResult(
-            from: records, targetDate: reference, hourMap: hourMap(all: .cat02), referenceDate: reference
-        )
-        #expect(result.selected != .cat07)
-        #expect(result.scores[.cat07] == nil)   // 未定義区分はスコア表に存在しない
-        #expect(result.selected == .cat02)       // 定義済みのマトリクス既定へ落ち着く
+        // 端末の区分マスタに依存しないよう cat01〜cat06 のみ定義済みに固定し、cat07 は未定義にする
+        withDateOptMaster(definedOnly: [.cat01, .cat02, .cat03, .cat04, .cat05, .cat06]) {
+            #expect(!DateOpt.cat07.isDefined, "前提: cat07 は未定義に固定")
+            let reference = date(2026, 6, 15, 9, 0)
+            let t = date(2026, 6, 14, 9, 0)
+            let cal = Calendar.current
+            // cat07 を大量に積んでも、未定義なので選ばれない
+            let records = (0..<5).map { rec(.cat07, cal.date(byAdding: .minute, value: -$0, to: t) ?? t) }
+            let result = DateOptEstimator.estimateResult(
+                from: records, targetDate: reference, hourMap: hourMap(all: .cat02), referenceDate: reference
+            )
+            #expect(result.selected != .cat07)
+            #expect(result.scores[.cat07] == nil)   // 未定義区分はスコア表に存在しない
+            #expect(result.selected == .cat02)       // 定義済みのマトリクス既定へ落ち着く
+        }
     }
 
     @Test("hourMap が不正でも未定義区分を返さない")
     func invalidHourMapReturnsDefinedOption() {
-        let target = date(2026, 6, 15, 12, 0)
-        let invalidMaps: [[Int]] = [
-            [],                                                  // 空
-            Array(repeating: 999, count: 24),                   // 範囲外 rawValue
-            [0],                                                // 短すぎる
-            Array(repeating: DateOpt.cat07.rawValue, count: 24) // 未定義区分を指す
-        ]
-        for map in invalidMaps {
-            let opt = DateOptEstimator.estimate(from: [], targetDate: target, hourMap: map, referenceDate: target)
-            #expect(opt.isDefined, "hourMap=\(map.prefix(3)) で未定義区分が返った")
+        withDateOptMaster(definedOnly: [.cat01, .cat02, .cat03, .cat04, .cat05, .cat06]) {
+            let target = date(2026, 6, 15, 12, 0)
+            let invalidMaps: [[Int]] = [
+                [],                                                  // 空
+                Array(repeating: 999, count: 24),                   // 範囲外 rawValue
+                [0],                                                // 短すぎる
+                Array(repeating: DateOpt.cat07.rawValue, count: 24) // 未定義区分を指す
+            ]
+            for map in invalidMaps {
+                let opt = DateOptEstimator.estimate(from: [], targetDate: target, hourMap: map, referenceDate: target)
+                #expect(opt.isDefined, "hourMap=\(map.prefix(3)) で未定義区分が返った")
+            }
         }
+    }
+}
+
+// MARK: - MigrationService（旧DB→SwiftData 移行の純粋ロジック）
+
+@Suite("MigrationService 重複判定 Tests")
+@MainActor
+struct MigrationClassifyRowsTests {
+
+    private func row(_ y: Int, _ mo: Int, _ d: Int, _ h: Int, _ mi: Int, _ s: Int = 0, subsec: Double = 0) -> [String: Any] {
+        var c = DateComponents()
+        c.year = y; c.month = mo; c.day = d; c.hour = h; c.minute = mi; c.second = s
+        let base = Calendar(identifier: .gregorian).date(from: c) ?? Date()
+        return ["dateTime": base.addingTimeInterval(subsec)]
+    }
+
+    @Test("既存の秒と重複する行はスキップされる")
+    func skipsRowsMatchingExistingSeconds() {
+        let r = row(2024, 3, 15, 8, 0, 0)
+        let existingDate = r["dateTime"] as! Date
+        let existing: Set<Date> = [MigrationService.normalizedSecond(existingDate)]
+
+        let result = MigrationService.classifyRows([r], existingSeconds: existing)
+        #expect(result.toInsert.isEmpty)
+        #expect(result.skipped == 1)
+    }
+
+    @Test("移行元内の同一秒重複は1件だけ挿入する（subsecond のズレを吸収）")
+    func dedupesWithinSourceBySecond() {
+        // 同じ 08:00:00 で subsecond だけ違う3行 → 1件だけ挿入、2件スキップ
+        let rows = [
+            row(2024, 3, 15, 8, 0, 0, subsec: 0.0),
+            row(2024, 3, 15, 8, 0, 0, subsec: 0.4),
+            row(2024, 3, 15, 8, 0, 0, subsec: 0.9),
+        ]
+        let result = MigrationService.classifyRows(rows, existingSeconds: [])
+        #expect(result.toInsert.count == 1)
+        #expect(result.skipped == 2)
+    }
+
+    @Test("異なる秒の行はすべて挿入される")
+    func keepsDistinctSeconds() {
+        let rows = [
+            row(2024, 3, 15, 8, 0, 0),
+            row(2024, 3, 15, 8, 0, 1),
+            row(2024, 3, 15, 8, 1, 0),
+        ]
+        let result = MigrationService.classifyRows(rows, existingSeconds: [])
+        #expect(result.toInsert.count == 3)
+        #expect(result.skipped == 0)
+    }
+
+    @Test("目標値レコード（goalDate 以降）は goalRows へ振り分け、重複判定の対象にしない")
+    func goalRecordsGoToGoalRows() {
+        let goal: [String: Any] = ["dateTime": BodyRecord.goalDate]
+        let normal = row(2024, 3, 15, 8, 0, 0)
+        let result = MigrationService.classifyRows([goal, normal], existingSeconds: [])
+        #expect(result.goalRows.count == 1)
+        #expect(result.toInsert.count == 1)
+        #expect(result.skipped == 0)
+    }
+
+    @Test("dateTime が無い行は無視される")
+    func rowsWithoutDateAreIgnored() {
+        let bad: [String: Any] = ["nDateOpt": 3]
+        let good = row(2024, 3, 15, 8, 0, 0)
+        let result = MigrationService.classifyRows([bad, good], existingSeconds: [])
+        #expect(result.toInsert.count == 1)
+        #expect(result.goalRows.isEmpty)
+    }
+
+    @Test("途中保存後の再試行を模した2回目の分類でも既存分は重複扱いになる")
+    func retainsIdempotencyAcrossRuns() {
+        let rows = [
+            row(2024, 3, 15, 8, 0, 0),
+            row(2024, 3, 15, 9, 0, 0),
+        ]
+        // 1回目: 何も存在しない
+        let first = MigrationService.classifyRows(rows, existingSeconds: [])
+        #expect(first.toInsert.count == 2)
+
+        // 2回目: 1件だけ挿入済み（途中でクラッシュ→再試行）を模す
+        let alreadyInserted = MigrationService.normalizedSecond(rows[0]["dateTime"] as! Date)
+        let second = MigrationService.classifyRows(rows, existingSeconds: [alreadyInserted])
+        #expect(second.toInsert.count == 1)
+        #expect(second.skipped == 1)
+    }
+}
+
+@Suite("MigrationService アーカイブ順序 Tests")
+struct MigrationArchiveTests {
+
+    /// 実ファイルは作らず、FileMover を注入して move の呼び出し順序と件数だけを検証する。
+    /// テストは @MainActor 上で直列に走るため、共有可変状態は @unchecked Sendable で扱う。
+    private final class MoveRecorder: @unchecked Sendable {
+        var moves: [(String, String)] = []
+        var failMainMove = false
+        var existing: Set<String>
+
+        init(existing: Set<String>) { self.existing = existing }
+
+        func mover(mainPath: String) -> MigrationService.FileMover {
+            MigrationService.FileMover(
+                fileExists: { [self] in existing.contains($0) },
+                move: { [self] src, dst in
+                    if failMainMove && src.path == mainPath {
+                        throw NSError(domain: "test", code: 1)
+                    }
+                    moves.append((src.lastPathComponent, dst.lastPathComponent))
+                }
+            )
+        }
+    }
+
+    @Test("主ファイル移動成功後は補助ファイル(-shm/-wal)も移動する")
+    @MainActor
+    func movesAuxWhenMainSucceeds() {
+        let base = "/tmp/AzBodyNote.sqlite"
+        let url = URL(fileURLWithPath: base)
+        let rec = MoveRecorder(existing: [base, base + "-shm", base + "-wal"])
+
+        let ok = MigrationService().archiveOldStore(at: url, using: rec.mover(mainPath: base))
+        #expect(ok)
+        // 主ファイルが最初、その後に -shm/-wal（順不同許容せず定義順）
+        #expect(rec.moves.count == 3)
+        #expect(rec.moves.first?.0 == "AzBodyNote.sqlite")
+        let auxMoved = Set(rec.moves.dropFirst().map(\.0))
+        #expect(auxMoved == ["AzBodyNote.sqlite-shm", "AzBodyNote.sqlite-wal"])
+    }
+
+    @Test("主ファイル移動失敗時は false を返し WAL/SHM を移動しない")
+    @MainActor
+    func doesNotMoveAuxWhenMainFails() {
+        let base = "/tmp/AzBodyNote.sqlite"
+        let url = URL(fileURLWithPath: base)
+        let rec = MoveRecorder(existing: [base, base + "-shm", base + "-wal"])
+        rec.failMainMove = true
+
+        let ok = MigrationService().archiveOldStore(at: url, using: rec.mover(mainPath: base))
+        #expect(!ok)
+        // 主ファイル移動が失敗したので、補助ファイルには一切触れない
+        #expect(rec.moves.isEmpty)
+    }
+
+    @Test("主ファイルが無ければ退避済み扱いで true（補助のみ追従）")
+    @MainActor
+    func treatsMissingMainAsArchived() {
+        let base = "/tmp/AzBodyNote.sqlite"
+        let url = URL(fileURLWithPath: base)
+        // 主ファイルは既に無く、WAL だけ残っているケース
+        let rec = MoveRecorder(existing: [base + "-wal"])
+
+        let ok = MigrationService().archiveOldStore(at: url, using: rec.mover(mainPath: base))
+        #expect(ok)
+        #expect(rec.moves.map(\.0) == ["AzBodyNote.sqlite-wal"])
+    }
+}
+
+// MARK: - HealthKit インポート結果の保持フィルタ（純粋ロジック）
+
+@Suite("HealthKit retainedImportValues Tests")
+@MainActor
+struct HealthKitRetainTests {
+
+    @Test("体脂肪率だけのレコードも保持される")
+    func bodyFatOnlyIsRetained() {
+        let v = HealthKitValues(date: Date(), bodyFat: 235)
+        let result = HealthKitService.retainedImportValues([v], hiddenFields: [])
+        #expect(result.count == 1)
+        #expect(result.first?.bodyFat == 235)
+    }
+
+    @Test("全項目0のレコードは落ちる")
+    func emptyRecordIsDropped() {
+        let v = HealthKitValues(date: Date())
+        #expect(HealthKitService.retainedImportValues([v], hiddenFields: []).isEmpty)
+    }
+
+    @Test("体脂肪率が非表示なら体脂肪率だけのレコードは落ちる")
+    func hiddenBodyFatDropsBodyFatOnlyRecord() {
+        let v = HealthKitValues(date: Date(), bodyFat: 235)
+        let result = HealthKitService.retainedImportValues([v], hiddenFields: [GraphKind.bodyFat.rawValue])
+        #expect(result.isEmpty)
+    }
+
+    @Test("結果は日時昇順に並ぶ")
+    func resultsSortedByDate() {
+        let cal = Calendar.current
+        let base = Date()
+        let later   = HealthKitValues(date: cal.date(byAdding: .minute, value: 10, to: base)!, pulse: 70)
+        let earlier = HealthKitValues(date: base, pulse: 72)
+        let result = HealthKitService.retainedImportValues([later, earlier], hiddenFields: [])
+        #expect(result.map(\.date) == [earlier.date, later.date])
+    }
+}
+
+// MARK: - 記録日時の編集で旧 HealthKit 日時を削除する判定（純粋ロジック）
+
+@Suite("staleHealthKitDate Tests")
+@MainActor
+struct StaleHealthKitDateTests {
+
+    @Test("日時を変更したら旧日時が削除対象になる")
+    func changedDateProducesStaleDate() {
+        let old = Date(timeIntervalSince1970: 1_000_000)
+        let new = Date(timeIntervalSince1970: 2_000_000)
+        #expect(RecordEditViewModel.staleHealthKitDate(previousDate: old, newDate: new) == old)
+    }
+
+    @Test("日時が変わらなければ削除不要（nil）")
+    func unchangedDateProducesNil() {
+        let d = Date(timeIntervalSince1970: 1_000_000)
+        #expect(RecordEditViewModel.staleHealthKitDate(previousDate: d, newDate: d) == nil)
+    }
+
+    @Test("旧日時が無い（新規追加）なら削除不要（nil）")
+    func noPreviousDateProducesNil() {
+        #expect(RecordEditViewModel.staleHealthKitDate(previousDate: nil, newDate: Date()) == nil)
+    }
+}
+
+// MARK: - HealthKit 削除対象日時の判定（記録削除・再試行の前提）
+
+@Suite("appWrittenDateForDeletion Tests")
+@MainActor
+struct AppWrittenDeletionTests {
+
+    /// HK 設定を退避・復元しつつブロックを実行する
+    private func withHKSettings(enabled: Bool, direction: HKSyncDirection, _ body: () -> Void) {
+        let s = AppSettings.shared
+        let savedEnabled = s.hkEnabled
+        let savedDirection = s.hkDirection
+        defer { s.hkEnabled = savedEnabled; s.hkDirection = savedDirection }
+        s.hkEnabled = enabled
+        s.hkDirection = direction.rawValue
+        body()
+    }
+
+    private func record(source: RecordDataSource, at date: Date = Date()) -> BodyRecord {
+        let r = BodyRecord(dateTime: date)
+        r.dataSource = source
+        return r
+    }
+
+    @Test("書込許可あり・アプリ入力レコードは日時を返す")
+    func appInputReturnsDate() {
+        let date = Date(timeIntervalSince1970: 1_500_000)
+        withHKSettings(enabled: true, direction: .both) {
+            let r = record(source: .appInput, at: date)
+            #expect(HealthKitService.shared.appWrittenDateForDeletion(of: r) == date)
+        }
+    }
+
+    @Test("HealthKit 由来レコード（hkImport/hkModified）は対象外で nil")
+    func healthKitSourcedReturnsNil() {
+        withHKSettings(enabled: true, direction: .both) {
+            #expect(HealthKitService.shared.appWrittenDateForDeletion(of: record(source: .hkImport)) == nil)
+            #expect(HealthKitService.shared.appWrittenDateForDeletion(of: record(source: .hkModified)) == nil)
+        }
+    }
+
+    @Test("連携OFFなら nil")
+    func disabledReturnsNil() {
+        withHKSettings(enabled: false, direction: .both) {
+            #expect(HealthKitService.shared.appWrittenDateForDeletion(of: record(source: .appInput)) == nil)
+        }
+    }
+
+    @Test("読み取り専用（書込不可）なら nil")
+    func readOnlyReturnsNil() {
+        withHKSettings(enabled: true, direction: .readOnly) {
+            #expect(HealthKitService.shared.appWrittenDateForDeletion(of: record(source: .appInput)) == nil)
+        }
+    }
+}
+
+// MARK: - 書き出しファイル書込の成否（共有・完了表示へ進むかの前提）
+
+@Suite("ExportFileWriter Tests")
+@MainActor
+struct ExportFileWriterTests {
+
+    @Test("書込可能なパスなら URL を返す")
+    func writableReturnsURL() throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("export-test-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let url = dir.appendingPathComponent("out.json")
+        let data = Data("{}".utf8)
+        let result = ExportFileWriter.write(to: url, data: data)
+        #expect(result == url)
+        #expect(FileManager.default.fileExists(atPath: url.path))
+    }
+
+    @Test("書込先ディレクトリが存在しなければ nil（共有・完了へ進ませない）")
+    func unwritablePathReturnsNil() {
+        // 実在しない深い親ディレクトリ配下 → atomic write が失敗する
+        let url = URL(fileURLWithPath: "/tmp/does-not-exist-\(UUID().uuidString)/sub/out.json")
+        #expect(ExportFileWriter.write(to: url, data: Data("{}".utf8)) == nil)
     }
 }
