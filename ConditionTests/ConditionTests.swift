@@ -1922,9 +1922,17 @@ private final class FakeHealthKitIO {
     /// 記録した「操作の順序」（"save" / "delete"）。直列化の検証に使う
     private(set) var operationLog: [String] = []
 
+    /// I/O（save/delete）の現在の同時実行数と、その観測された最大値。
+    /// 直列化されていれば最大値は 1 を超えない。
+    private(set) var inFlight = 0
+    private(set) var maxInFlight = 0
+
     var saveShouldFail = false
     var deleteShouldFail = false
     var useSaveGate = false
+
+    private func enter() { inFlight += 1; maxInFlight = max(maxInFlight, inFlight) }
+    private func leave() { inFlight -= 1 }
 
     /// save をここで待たせるためのゲート（非nilの間、save はこの継続が resume されるまでブロック）
     private var saveGate: CheckedContinuation<Void, Never>?
@@ -1961,7 +1969,9 @@ private final class FakeHealthKitIO {
 
     func save(_ samples: [HKSample]) async throws {
         operationLog.append("save")
-        // ゲートが要求されていれば、到達を通知してから継続を待つ（直列化・競合の順序を作るため）
+        enter(); defer { leave() }
+        // ゲートが要求されていれば、到達を通知してから継続を待つ（直列化・競合の順序を作るため）。
+        // ゲート待ちの間も in-flight として数えるので、この間に別の I/O が入れば maxInFlight が 2 以上になる。
         if useSaveGate {
             await withCheckedContinuation { cont in
                 saveGate = cont
@@ -1975,6 +1985,7 @@ private final class FakeHealthKitIO {
 
     func delete(_ date: Date, _ excluding: Set<UUID>) async throws {
         operationLog.append("delete")
+        enter(); defer { leave() }
         deleteCount += 1
         deletedDates.append(date)
         if deleteShouldFail { throw FakeError() }
@@ -2039,23 +2050,35 @@ struct HealthKitWriteQueueTests {
         #expect(store.timestamps.isEmpty)       // 非空書込成功で保留解除（write 内の removePendingDeletion）
     }
 
-    @Test("同日時へ連続予約しても直列に処理され、保存と旧サンプル掃除が交錯しない")
+    @Test("同日時の書込は直列化され、I/Oの同時実行数が1を超えない")
     func sameDateWritesAreSerialized() async {
         let store = InMemoryPendingDeletionStore()
         let io = FakeHealthKitIO()
+        io.useSaveGate = true   // 先行 save をゲートで止め、実行中の状態を作る
         let service = makeService(store: store, io: io)
 
-        // 同日時に2件を続けて予約。後発は先行の完了を待ってから開始する（直列化）
+        // 先行書込を予約 → save がゲートに到達する（＝実行中）まで確実に待つ
         let first = service.scheduleWrite(HealthKitValues(date: date(2000), pulse: 60))
+        await io.awaitSaveStarted()
+
+        // 先行が実行中のまま、同日時へ後発を予約する。
+        // 直列化されていれば、後発は先行の save→delete が終わるまで開始しない。
+        // 以降の I/O をゲートで止めないよう false に戻す（後発はブロックせず走らせる）。
+        io.useSaveGate = false
         let second = service.scheduleWrite(HealthKitValues(date: date(2000), pulse: 88))
+
+        // 先行を進ませて全体を完了させる
+        io.openSaveGate()
         await first.value
         await second.value
 
-        // 直列化されていれば、操作ログは save/delete のペアが交錯せず順番に並ぶ。
-        // 少なくとも、save の直後にその後始末の delete が来る（save,delete が隣接）構造になる。
-        // 後勝ちで先行はスキップされ得るため、最終的に最新の非空書込は必ず1回は保存される。
+        // 直列化の核心: save/delete の同時実行数の最大値が 1 を超えないこと。
+        // 2 以上なら「先行の処理中に後発の I/O が割り込んだ」＝直列化の破れ。
+        #expect(io.maxInFlight == 1, "I/O が並行実行された（同時実行数 \(io.maxInFlight)）")
+
+        // 後勝ちで先行はスキップされ得るが、最新の非空書込は必ず保存される
         #expect(io.saveCount >= 1)
-        // save と delete が交互（各 write は save→delete の順）で、delete が save より先に来ることはない
+        // 各 write は save→delete の順で、delete が save に先行しない
         var sawSave = false
         for op in io.operationLog {
             if op == "save" { sawSave = true }
