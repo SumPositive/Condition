@@ -143,6 +143,8 @@ struct MeasurementAverageView: View {
     @State private var isDateOptExpanded = false
     // 編集で日時を同じ「分」の別記録に重ねようとしたときの警告
     @State private var showSameMinuteAlert = false
+    // 削除に失敗したとき、リトライ／キャンセルを選ばせるためのエラー文言（非nilで表示）
+    @State private var deleteErrorMessage: String? = nil
 
     /// 入力済みの値（nil は未入力）
     @State private var samples: [AvgColumn: [Int?]] = [:]
@@ -298,6 +300,18 @@ struct MeasurementAverageView: View {
                 Button("action.ok", role: .cancel) { }
             } message: {
                 Text("record.sameMinute.message")
+            }
+            .alert(
+                "record.delete.failed.title",
+                isPresented: Binding(
+                    get: { deleteErrorMessage != nil },
+                    set: { if !$0 { deleteErrorMessage = nil } }
+                )
+            ) {
+                Button("action.retry") { deleteRecord() }
+                Button("action.cancel", role: .cancel) { deleteErrorMessage = nil }
+            } message: {
+                Text(deleteErrorMessage ?? String(localized: "record.delete.failed.message"))
             }
             .onAppear {
                 guard !didLoadInitialValues else { return }
@@ -1233,10 +1247,14 @@ struct MeasurementAverageView: View {
             if let hkDeleteDate {
                 HealthKitService.shared.scheduleDelete(at: hkDeleteDate)
             }
+            deleteErrorMessage = nil
             dismiss()
         } catch {
+            // 失敗時は閉じずにエラーを提示し、リトライ／キャンセルを選べるようにする。
+            // context はロールバック済みなので、リトライで再削除できる。
             context.rollback()
             AppAnalytics.shared.record(error: error, name: "measurement_average_sheet_delete_failed")
+            deleteErrorMessage = error.localizedDescription
         }
     }
 

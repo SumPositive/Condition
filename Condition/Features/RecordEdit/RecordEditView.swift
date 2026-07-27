@@ -34,6 +34,8 @@ struct RecordEditView: View {
     @State private var conflictData: RecentConflict? = nil
     // 編集で日時を同じ「分」の別記録に重ねようとしたときの警告
     @State private var showSameMinuteAlert = false
+    // 削除に失敗したレコード（非nilの間はリトライ/キャンセルのアラートを表示）
+    @State private var deleteFailedRecord: BodyRecord? = nil
     @State private var isDateOptExpanded = false
     @State private var measurementSamples: [MeasurementAverageField: [Int]] = [:]
     @State private var showsFloatingAverageAddButton = false
@@ -241,8 +243,7 @@ struct RecordEditView: View {
                             isPresented: $showDeleteAlert
                         ) {
                             Button("action.delete", role: .destructive) {
-                                try? vm.delete(record: record, context: context)
-                                dismiss()
+                                deleteRecord(record)
                             }
                             Button("action.cancel", role: .cancel) {}
                         }
@@ -312,6 +313,19 @@ struct RecordEditView: View {
                 Button("action.ok", role: .cancel) { }
             } message: {
                 Text("record.sameMinute.message")
+            }
+            .alert(
+                "record.delete.failed.title",
+                isPresented: Binding(
+                    get: { deleteFailedRecord != nil },
+                    set: { if !$0 { deleteFailedRecord = nil } }
+                ),
+                presenting: deleteFailedRecord
+            ) { record in
+                Button("action.retry") { deleteRecord(record) }
+                Button("action.cancel", role: .cancel) { deleteFailedRecord = nil }
+            } message: { _ in
+                Text(vm.errorMessage ?? String(localized: "record.delete.failed.message"))
             }
             .onAppear {
                 if isNewRecord {
@@ -1015,6 +1029,21 @@ struct RecordEditView: View {
             bodyFat: optionalValues(.bodyFat),
             skMuscle: optionalValues(.skMuscle)
         )
+    }
+
+    private func deleteRecord(_ record: BodyRecord) {
+        do {
+            try vm.delete(record: record, context: context)
+            AppAnalytics.shared.logOperation("record_delete", parameters: ["mode": vm.mode.analyticsName])
+            deleteFailedRecord = nil
+            dismiss()
+        } catch {
+            // 失敗時は閉じずにエラーを提示し、リトライ／キャンセルを選べるようにする。
+            // ViewModel 側で context はロールバック済みなので、リトライで再削除できる。
+            AppAnalytics.shared.record(error: error, name: "record_delete_failed", parameters: ["mode": vm.mode.analyticsName])
+            vm.errorMessage = error.localizedDescription
+            deleteFailedRecord = record
+        }
     }
 
     private func saveAndDismiss() {
