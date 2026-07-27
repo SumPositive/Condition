@@ -117,6 +117,25 @@ enum HealthKitSampleBuilder {
     }
 }
 
+// MARK: - 削除保留ストア（テストで差し替え可能にする）
+
+/// 削除待ち日時（timeIntervalSince1970）の集合を永続化するストア。
+/// 本番は UserDefaults、テストはインメモリ実装を注入して UserDefaults を汚さずに検証する。
+/// HealthKitService（@MainActor）からのみ使うため MainActor 隔離にする。
+@MainActor
+protocol PendingDeletionStore: AnyObject {
+    var timestamps: Set<Double> { get set }
+}
+
+/// UserDefaults 実装（本番）
+@MainActor
+final class UserDefaultsPendingDeletionStore: PendingDeletionStore {
+    var timestamps: Set<Double> {
+        get { Set(UserDefaults.standard.array(forKey: UDefKeys.hkPendingDeletionDates) as? [Double] ?? []) }
+        set { UserDefaults.standard.set(Array(newValue), forKey: UDefKeys.hkPendingDeletionDates) }
+    }
+}
+
 // MARK: - サービス本体
 
 @Observable
@@ -126,6 +145,39 @@ final class HealthKitService {
     static let shared = HealthKitService()
 
     private let store = HKHealthStore()
+
+    /// 削除保留の永続化先（テストで差し替え可能）
+    private let pendingDeletionStore: PendingDeletionStore
+
+    /// `write` が行う HealthKit I/O を注入するためのフック（テストで遅延・失敗を仕込む）。
+    /// これらを差し替えても `write` 本体（空値分岐・save→delete 順序・削除保留解除）はそのまま走るので、
+    /// キュー制御と保留解除まで含めて検証できる。nil の本番は HKHealthStore を用いる既定実装を使う。
+    /// - injectedSaveSamples: 新サンプルの保存（本番は store.save）
+    /// - injectedDeleteAppSamples: 同日時のアプリ書込サンプル削除（本番は deleteSamples）。第2引数は保護する新サンプルUUID。
+    private let injectedSaveSamples: (@MainActor ([HKSample]) async throws -> Void)?
+    private let injectedDeleteAppSamples: (@MainActor (Date, Set<UUID>) async throws -> Void)?
+
+    /// I/O が注入されている（＝テスト）か。true のとき `write` は HKHealthStore の可用性・デモ判定を
+    /// スキップし、注入された save/delete を必ず実行する（キュー制御・保留解除を実機なしで検証するため）。
+    private var usesInjectedIO: Bool { injectedSaveSamples != nil || injectedDeleteAppSamples != nil }
+
+    /// 実際に使う保存処理（注入があればそれ、なければ HKHealthStore.save）
+    private func performSave(_ samples: [HKSample]) async throws {
+        if let injectedSaveSamples {
+            try await injectedSaveSamples(samples)
+        } else {
+            try await store.save(samples)
+        }
+    }
+
+    /// 実際に使う削除処理（注入があればそれ、なければ deleteSamples）
+    private func performDelete(_ date: Date, excludingUUIDs: Set<UUID>) async throws {
+        if let injectedDeleteAppSamples {
+            try await injectedDeleteAppSamples(date, excludingUUIDs)
+        } else {
+            try await deleteSamples(at: date, excludingUUIDs: excludingUUIDs)
+        }
+    }
 
     /// 同一日時に対する書込タスクを集約するためのキャッシュ。
     /// 連続編集で多重キューイングされないよう、新しい書込を予約する前に既存タスクを cancel する。
@@ -191,7 +243,20 @@ final class HealthKitService {
 
     var isAvailable: Bool { HKHealthStore.isHealthDataAvailable() }
 
-    private init() {}
+    /// - Parameters:
+    ///   - pendingDeletionStore: 削除保留の永続化先。既定は UserDefaults。
+    ///   - saveSamples: 新サンプルの保存処理。既定（nil）は HKHealthStore.save。
+    ///   - deleteAppSamples: 同日時のアプリ書込サンプル削除処理。既定（nil）は deleteSamples。
+    ///     テストではここに遅延・失敗を仕込み、キュー制御・保留解除まで検証する（HKHealthStore は使わない）。
+    init(
+        pendingDeletionStore: PendingDeletionStore = UserDefaultsPendingDeletionStore(),
+        saveSamples: (@MainActor ([HKSample]) async throws -> Void)? = nil,
+        deleteAppSamples: (@MainActor (Date, Set<UUID>) async throws -> Void)? = nil
+    ) {
+        self.pendingDeletionStore = pendingDeletionStore
+        self.injectedSaveSamples = saveSamples
+        self.injectedDeleteAppSamples = deleteAppSamples
+    }
 
     // MARK: - 権限リクエスト
 
@@ -293,8 +358,8 @@ final class HealthKitService {
     // 削除待ちの日時を UserDefaults に永続化し、成功するまで（起動時・設定表示時・インポート前に）再試行する。
 
     private var pendingDeletionTimestamps: Set<Double> {
-        get { Set(UserDefaults.standard.array(forKey: UDefKeys.hkPendingDeletionDates) as? [Double] ?? []) }
-        set { UserDefaults.standard.set(Array(newValue), forKey: UDefKeys.hkPendingDeletionDates) }
+        get { pendingDeletionStore.timestamps }
+        set { pendingDeletionStore.timestamps = newValue }
     }
 
     private func addPendingDeletion(_ date: Date) {
@@ -311,10 +376,12 @@ final class HealthKitService {
 
     /// アプリ書込分の同日時サンプルを HealthKit から削除する（記録削除・日時変更で使う）。
     /// 削除待ちを永続化してから空値クリアを予約するので、失敗しても成功するまで再試行される。
-    func scheduleDelete(at date: Date) {
+    /// - Returns: 予約したタスク（テストで完了を待つために返す）。
+    @discardableResult
+    func scheduleDelete(at date: Date) -> Task<Void, Never> {
         addPendingDeletion(date)
         // 空値=クリア。直列化された書込経路を通す。成功すれば write が削除待ちから外す
-        scheduleWrite(HealthKitValues(date: date))
+        return scheduleWrite(HealthKitValues(date: date))
     }
 
     /// 永続化された削除待ちを再試行する（fire-and-forget）。起動時や設定画面表示時に呼ぶ。
@@ -377,7 +444,10 @@ final class HealthKitService {
     /// 先に新サンプルを保存し、成功した後にだけ旧サンプルを削除するので、
     /// 保存に失敗しても既存の HealthKit データを失わない。失敗は呼び出し元へ throw する。
     func write(_ values: HealthKitValues) async throws {
-        guard isAvailable, !AppSettings.shared.hkDisabledByDemo else { return }
+        // 本番のみ可用性・デモ判定で早期return。注入I/O（テスト）では必ず実行してキュー制御を検証する。
+        if !usesInjectedIO {
+            guard isAvailable, !AppSettings.shared.hkDisabledByDemo else { return }
+        }
         // cancel 済みなら即抜ける（後発の書込に処理を譲る）
         if Task.isCancelled { return }
 
@@ -386,14 +456,14 @@ final class HealthKitService {
         // 値がすべて未記録ならクリア操作。既存サンプルの削除だけ行う
         guard !samples.isEmpty else {
             if Task.isCancelled { return }
-            try await deleteSamples(at: values.date, excludingUUIDs: [])
+            try await performDelete(values.date, excludingUUIDs: [])
             // クリア成功。この日時の削除待ちがあれば解消する
             removePendingDeletion(values.date)
             return
         }
 
         // 先に新サンプルを保存する。失敗すれば旧データを削除しないまま throw される（データ喪失なし）
-        try await store.save(samples)
+        try await performSave(samples)
         logger.info("HealthKit 書き込み完了: \(samples.count) サンプル")
 
         // 後発の書込があれば、その最新書込の削除にまとめて委ねる（残った重複は次回掃除される）
@@ -402,7 +472,7 @@ final class HealthKitService {
         // 保存できた新サンプルを除外し、同日時の旧サンプルだけ削除して上書きを完成させる。
         // 削除に失敗しても重複が残るだけでデータ喪失ではないため、記録に留めて throw しない。
         do {
-            try await deleteSamples(at: values.date, excludingUUIDs: HealthKitSampleBuilder.objectUUIDs(in: samples))
+            try await performDelete(values.date, excludingUUIDs: HealthKitSampleBuilder.objectUUIDs(in: samples))
         } catch {
             logger.error("HealthKit 旧サンプル削除失敗: \(error.localizedDescription)")
             AppAnalytics.shared.record(error: error, name: "healthkit_stale_delete_failed")

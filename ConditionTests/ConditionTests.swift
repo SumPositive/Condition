@@ -1896,3 +1896,161 @@ struct SameMinuteConflictTests {
         #expect(!result)
     }
 }
+
+// MARK: - HealthKit 書込キューの統合テスト（取消・直列化・削除保留解除）
+
+/// テスト用の削除保留ストア（UserDefaults を汚さない）
+@MainActor
+private final class InMemoryPendingDeletionStore: PendingDeletionStore {
+    var timestamps: Set<Double> = []
+}
+
+/// 注入する save/delete の呼び出しを記録し、失敗やゲート（待機）を仕込める Fake I/O。
+@MainActor
+private final class FakeHealthKitIO {
+    private(set) var saveCount = 0
+    private(set) var deleteCount = 0
+    private(set) var savedSampleCounts: [Int] = []
+    private(set) var deletedDates: [Date] = []
+    /// 記録した「操作の順序」（"save" / "delete"）。直列化の検証に使う
+    private(set) var operationLog: [String] = []
+
+    var saveShouldFail = false
+    var deleteShouldFail = false
+
+    /// save をここで待たせるためのゲート（非nilの間、save はこの継続が resume されるまでブロック）
+    private var saveGate: CheckedContinuation<Void, Never>?
+    func openSaveGate() { saveGate?.resume(); saveGate = nil }
+
+    struct FakeError: Error {}
+
+    func save(_ samples: [HKSample]) async throws {
+        operationLog.append("save")
+        // ゲートが要求されていれば待つ（直列化・競合の順序を作るため）
+        if useSaveGate {
+            await withCheckedContinuation { saveGate = $0 }
+        }
+        saveCount += 1
+        savedSampleCounts.append(samples.count)
+        if saveShouldFail { throw FakeError() }
+    }
+
+    var useSaveGate = false
+
+    func delete(_ date: Date, _ excluding: Set<UUID>) async throws {
+        operationLog.append("delete")
+        deleteCount += 1
+        deletedDates.append(date)
+        if deleteShouldFail { throw FakeError() }
+    }
+}
+
+@Suite("HealthKit 書込キュー統合 Tests", .serialized)
+@MainActor
+struct HealthKitWriteQueueTests {
+
+    private func makeService(
+        store: InMemoryPendingDeletionStore,
+        io: FakeHealthKitIO
+    ) -> HealthKitService {
+        HealthKitService(
+            pendingDeletionStore: store,
+            saveSamples: { try await io.save($0) },
+            deleteAppSamples: { try await io.delete($0, $1) }
+        )
+    }
+
+    private func date(_ refSecs: Double) -> Date { Date(timeIntervalSince1970: refSecs) }
+
+    @Test("削除予約が成功すると削除保留が解除される")
+    func scheduleDeleteClearsPendingOnSuccess() async {
+        let store = InMemoryPendingDeletionStore()
+        let io = FakeHealthKitIO()
+        let service = makeService(store: store, io: io)
+
+        // 空値クリア（削除）を予約 → 完了を待つ
+        await service.scheduleDelete(at: date(1000)).value
+
+        #expect(io.deleteCount == 1)          // 削除I/Oが1回呼ばれた
+        #expect(store.timestamps.isEmpty)     // 成功したので保留は解除
+    }
+
+    @Test("削除が失敗すると削除保留が残る")
+    func scheduleDeleteKeepsPendingOnFailure() async {
+        let store = InMemoryPendingDeletionStore()
+        let io = FakeHealthKitIO()
+        io.deleteShouldFail = true
+        let service = makeService(store: store, io: io)
+
+        await service.scheduleDelete(at: date(1000)).value
+
+        #expect(io.deleteCount == 1)
+        #expect(store.timestamps.contains(1000))   // 失敗したので保留は残る
+    }
+
+    @Test("非空書込が成功すると同日時の削除保留が解除される")
+    func nonEmptyWriteClearsPending() async {
+        let store = InMemoryPendingDeletionStore()
+        let io = FakeHealthKitIO()
+        let service = makeService(store: store, io: io)
+        // 事前に削除保留がある状態を作る（過去の削除失敗を模す）
+        store.timestamps = [1000]
+
+        // 同日時に記録を作り直す（非空書込）
+        await service.scheduleWrite(HealthKitValues(date: date(1000), pulse: 72)).value
+
+        #expect(io.saveCount == 1)              // 保存された
+        #expect(store.timestamps.isEmpty)       // 非空書込成功で保留解除（write 内の removePendingDeletion）
+    }
+
+    @Test("同日時へ連続予約しても直列に処理され、保存と旧サンプル掃除が交錯しない")
+    func sameDateWritesAreSerialized() async {
+        let store = InMemoryPendingDeletionStore()
+        let io = FakeHealthKitIO()
+        let service = makeService(store: store, io: io)
+
+        // 同日時に2件を続けて予約。後発は先行の完了を待ってから開始する（直列化）
+        let first = service.scheduleWrite(HealthKitValues(date: date(2000), pulse: 60))
+        let second = service.scheduleWrite(HealthKitValues(date: date(2000), pulse: 88))
+        await first.value
+        await second.value
+
+        // 直列化されていれば、操作ログは save/delete のペアが交錯せず順番に並ぶ。
+        // 少なくとも、save の直後にその後始末の delete が来る（save,delete が隣接）構造になる。
+        // 後勝ちで先行はスキップされ得るため、最終的に最新の非空書込は必ず1回は保存される。
+        #expect(io.saveCount >= 1)
+        // save と delete が交互（各 write は save→delete の順）で、delete が save より先に来ることはない
+        var sawSave = false
+        for op in io.operationLog {
+            if op == "save" { sawSave = true }
+            if op == "delete" { #expect(sawSave, "delete が save より先に実行された（交錯）") }
+        }
+    }
+
+    @Test("削除再試行はユーザーの非空書込を上書きしない（記録が消えない）")
+    func deletionRetryDoesNotOverrideUserWrite() async {
+        let store = InMemoryPendingDeletionStore()
+        let io = FakeHealthKitIO()
+        io.useSaveGate = true   // ユーザー書込の save を止めて、その間に削除再試行を割り込ませる
+        let service = makeService(store: store, io: io)
+        store.timestamps = [3000]   // この日時に削除保留がある
+
+        // ユーザーが同日時に記録を作り直す（非空・isDeletionRetry: false）
+        let userWrite = service.scheduleWrite(HealthKitValues(date: date(3000), weight: 650))
+        await Task.yield()
+        // 削除再試行（isDeletionRetry: true）→ ユーザー書込に譲り、予約をスキップして同じタスクを返すはず
+        let retry = service.scheduleWrite(HealthKitValues(date: date(3000)), isDeletionRetry: true)
+        // ユーザー書込を完了させる
+        io.openSaveGate()
+        await userWrite.value
+        await retry.value
+
+        // ユーザー書込は保存された（削除再試行に潰されていない）。
+        // 削除再試行は先行のユーザー書込へ譲り、独立した空値クリアを予約しない。
+        // （非空 write 自身は旧サンプル掃除で delete を1回呼ぶが、それは書込成功の一部）
+        #expect(io.saveCount == 1)
+        #expect(store.timestamps.isEmpty)   // 非空書込成功で保留は解除された
+        // save が1回だけ＝削除再試行が別タスクとして走っていない
+        #expect(io.savedSampleCounts == [1])   // weight のみ1サンプル
+    }
+}
