@@ -304,7 +304,15 @@ final class RecordEditViewModel {
             s.goalSkMuscle  = nSkMuscle_10p
         }
 
-        try context.save()
+        do {
+            try context.save()
+        } catch {
+            // 保存に失敗したら、上書き済みのモデル（record.dateTime など）を巻き戻す。
+            // 巻き戻さないと、再保存時に「新日時」が旧日時として取得され、
+            // 実際の旧 HealthKit サンプルを削除できなくなる。
+            context.rollback()
+            throw error
+        }
         writeToHealthKitIfAutomatic(previousDate: previousHealthKitDate)
         isModified = false
     }
@@ -543,7 +551,14 @@ final class RecordEditViewModel {
         default: break
         }
 
-        try context.save()
+        do {
+            try context.save()
+        } catch {
+            // 保存に失敗したら、上書き済みの直前レコード（prev の各フィールド）を巻き戻す。
+            // 再試行時に汚染された状態から保存されるのを防ぐ。
+            context.rollback()
+            throw error
+        }
         isModified = false
         // 平均値・直前優先では実測値と異なる可能性があるため HealthKit には書き戻さない
         if mode == .preferNew {

@@ -1334,6 +1334,10 @@ struct MeasurementAverageView: View {
             }
             dismiss()
         } catch {
+            // 保存に失敗したら、上書き済みのモデル（target.dateTime など）を巻き戻す。
+            // 巻き戻さないと、再保存時に「新日時」が旧日時として取得され、
+            // 実際の旧 HealthKit サンプルを削除できなくなる（新規時は挿入も取り消される）。
+            context.rollback()
             AppAnalytics.shared.record(
                 error: error,
                 name: "measurement_average_sheet_save_failed",
