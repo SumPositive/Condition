@@ -390,9 +390,9 @@ struct RecordListView: View {
         // auto-save に頼らず明示的に保存（クラッシュ・バックグラウンド遷移前の取りこぼし防止）
         do {
             try context.save()
-            // 保存成功後にだけ、同日時のアプリ書込分を HealthKit からも削除する
+            // 保存成功後にだけ、同日時のアプリ書込分を HealthKit からも削除する（失敗時は永続再試行）
             for date in hkDeleteDates {
-                HealthKitService.shared.scheduleWrite(HealthKitValues(date: date))
+                HealthKitService.shared.scheduleDelete(at: date)
             }
         } catch {
             AppAnalytics.shared.record(error: error, name: "record_delete_save_failed")

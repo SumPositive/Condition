@@ -320,7 +320,7 @@ final class RecordEditViewModel {
         // 日時を変更した編集では、旧日時のアプリ書込サンプルを HealthKit から削除する。
         // 放置すると後のインポートで旧日時の記録が復活するため、空値クリアで消す。
         if let previousDate, previousDate != dateTime {
-            HealthKitService.shared.scheduleWrite(HealthKitValues(date: previousDate))
+            HealthKitService.shared.scheduleDelete(at: previousDate)
         }
         // 連続編集での多重書込を防ぐため scheduleWrite を使う
         HealthKitService.shared.scheduleWrite(currentHealthKitValues())
@@ -489,9 +489,9 @@ final class RecordEditViewModel {
         let hkDeleteDate = HealthKitService.shared.appWrittenDateForDeletion(of: record)
         context.delete(record)
         try context.save()
-        // 保存成功後にだけ、同日時のアプリ書込分を HealthKit からも削除する
+        // 保存成功後にだけ、同日時のアプリ書込分を HealthKit からも削除する（失敗時は永続再試行）
         if let hkDeleteDate {
-            HealthKitService.shared.scheduleWrite(HealthKitValues(date: hkDeleteDate))
+            HealthKitService.shared.scheduleDelete(at: hkDeleteDate)
         }
     }
 

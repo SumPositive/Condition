@@ -1222,9 +1222,9 @@ struct MeasurementAverageView: View {
         context.delete(record)
         do {
             try context.save()
-            // 保存成功後にだけ、同日時のアプリ書込分を HealthKit からも削除する
+            // 保存成功後にだけ、同日時のアプリ書込分を HealthKit からも削除する（失敗時は永続再試行）
             if let hkDeleteDate {
-                HealthKitService.shared.scheduleWrite(HealthKitValues(date: hkDeleteDate))
+                HealthKitService.shared.scheduleDelete(at: hkDeleteDate)
             }
             dismiss()
         } catch {

@@ -208,6 +208,8 @@ final class HealthKitService {
     func checkAuthorization() {
         guard isAvailable else { return }
         refreshAuthorizationStatus()
+        // 未反映の削除待ちがあれば、この機会に再試行する
+        retryPendingDeletions()
     }
 
     private func refreshAuthorizationStatus() {
@@ -258,13 +260,67 @@ final class HealthKitService {
 
     /// 記録削除に伴い HealthKit から消すべき「アプリ書込分」の日時を返す。
     /// 連携OFF・書込不可・HK由来（hkImport/hkModified）レコードは対象外で nil を返す。
-    /// 実削除は保存成功後に `scheduleWrite(HealthKitValues(date:))`（空値＝クリア）で行う。
+    /// 実削除は保存成功後に `scheduleDelete(at:)`（空値クリア＋削除待ち永続化）で行う。
     func appWrittenDateForDeletion(of record: BodyRecord) -> Date? {
         let s = AppSettings.shared
         guard s.hkEnabled, HKSyncDirection(rawValue: s.hkDirection)?.canWrite == true else { return nil }
         // HK から取り込んだ／HK由来の変更レコードはアプリの書込ではないので触らない
         if record.dataSource == .hkImport || record.dataSource == .hkModified { return nil }
         return record.dateTime
+    }
+
+    // MARK: - 削除待ちの永続化と再試行
+    //
+    // 双方向同期では、削除がHealthKitへ反映されないと次回インポートで記録が復活する。
+    // 削除待ちの日時を UserDefaults に永続化し、成功するまで（起動時・設定表示時・インポート前に）再試行する。
+
+    private var pendingDeletionTimestamps: Set<Double> {
+        get { Set(UserDefaults.standard.array(forKey: UDefKeys.hkPendingDeletionDates) as? [Double] ?? []) }
+        set { UserDefaults.standard.set(Array(newValue), forKey: UDefKeys.hkPendingDeletionDates) }
+    }
+
+    private func addPendingDeletion(_ date: Date) {
+        var set = pendingDeletionTimestamps
+        set.insert(date.timeIntervalSince1970)
+        pendingDeletionTimestamps = set
+    }
+
+    private func removePendingDeletion(_ date: Date) {
+        var set = pendingDeletionTimestamps
+        guard set.remove(date.timeIntervalSince1970) != nil else { return }
+        pendingDeletionTimestamps = set
+    }
+
+    /// アプリ書込分の同日時サンプルを HealthKit から削除する（記録削除・日時変更で使う）。
+    /// 削除待ちを永続化してから空値クリアを予約するので、失敗しても成功するまで再試行される。
+    func scheduleDelete(at date: Date) {
+        addPendingDeletion(date)
+        // 空値=クリア。直列化された書込経路を通す。成功すれば write が削除待ちから外す
+        scheduleWrite(HealthKitValues(date: date))
+    }
+
+    /// 永続化された削除待ちを再試行する（fire-and-forget）。起動時や設定画面表示時に呼ぶ。
+    func retryPendingDeletions() {
+        for ts in pendingDeletionTimestamps {
+            scheduleWrite(HealthKitValues(date: Date(timeIntervalSince1970: ts)))
+        }
+    }
+
+    /// 削除待ちを同期的に消化して待つ。インポート直前に呼び、削除済み記録の再登録を防ぐ。
+    private func flushPendingDeletions() async {
+        let s = AppSettings.shared
+        guard isAvailable, !s.hkDisabledByDemo,
+              HKSyncDirection(rawValue: s.hkDirection)?.canWrite == true else { return }
+        for ts in pendingDeletionTimestamps {
+            let date = Date(timeIntervalSince1970: ts)
+            do {
+                try await deleteSamples(at: date, excludingUUIDs: [])
+                removePendingDeletion(date)
+            } catch {
+                logger.error("HealthKit 削除待ちの再試行に失敗: \(error.localizedDescription)")
+                AppAnalytics.shared.record(error: error, name: "healthkit_pending_delete_failed")
+            }
+        }
     }
 
     /// 同日時の値を HealthKit へ上書き保存する。
@@ -281,6 +337,8 @@ final class HealthKitService {
         guard !samples.isEmpty else {
             if Task.isCancelled { return }
             try await deleteSamples(at: values.date, excludingUUIDs: [])
+            // クリア成功。この日時の削除待ちがあれば解消する
+            removePendingDeletion(values.date)
             return
         }
 
@@ -299,6 +357,8 @@ final class HealthKitService {
             logger.error("HealthKit 旧サンプル削除失敗: \(error.localizedDescription)")
             AppAnalytics.shared.record(error: error, name: "healthkit_stale_delete_failed")
         }
+        // 保存に成功したので、この日時の削除待ち（過去の削除失敗）は不要になった
+        removePendingDeletion(values.date)
     }
 
     // MARK: - 読み込み
@@ -368,8 +428,11 @@ final class HealthKitService {
         do {
             try await store.deleteObjects(of: HKCorrelationType(.bloodPressure), predicate: pred)
         } catch {
-            firstError = firstError ?? error
-            logger.error("deleteSamples[bloodPressure] エラー: \(error.localizedDescription, privacy: .public)")
+            // 「該当サンプル無し」（既にヘルスケア側で削除済み等）は成功扱いにし、再試行対象にしない
+            if !Self.isNoDataError(error) {
+                firstError = firstError ?? error
+                logger.error("deleteSamples[bloodPressure] エラー: \(error.localizedDescription, privacy: .public)")
+            }
         }
         // その他の量的型を削除
         let qtTypes: [HKQuantityTypeIdentifier] = [
@@ -379,12 +442,20 @@ final class HealthKitService {
             do {
                 try await store.deleteObjects(of: HKQuantityType(id), predicate: pred)
             } catch {
-                firstError = firstError ?? error
-                logger.error("deleteSamples[\(id.rawValue, privacy: .public)] エラー: \(error.localizedDescription, privacy: .public)")
+                if !Self.isNoDataError(error) {
+                    firstError = firstError ?? error
+                    logger.error("deleteSamples[\(id.rawValue, privacy: .public)] エラー: \(error.localizedDescription, privacy: .public)")
+                }
             }
         }
         logger.info("deleteSamples 完了")
         if let firstError { throw firstError }
+    }
+
+    /// HealthKit の「該当データ無し」エラーか。既に消えているサンプルの削除を成功扱いにするために使う。
+    private static func isNoDataError(_ error: Error) -> Bool {
+        let ns = error as NSError
+        return ns.domain == HKError.errorDomain && ns.code == HKError.Code.errorNoData.rawValue
     }
 
     private func mostRecentQuantity(
@@ -443,6 +514,8 @@ final class HealthKitService {
             logger.error("readSamples: HealthKit 利用不可")
             return []
         }
+        // インポート前に削除待ちを消化し、削除済み記録が再登録されるのを防ぐ
+        await flushPendingDeletions()
         logger.info("readSamples 開始: \(startDate, privacy: .public) 〜 \(endDate, privacy: .public)")
         importTimedOut = false
         let startTime = Date()

@@ -118,6 +118,7 @@ enum UDefKeys {
     static let hkDirection      = "UDEF_HKDirection"       // HKSyncDirection.rawValue
     static let hkDisabledByDemo = "UDEF_HKDisabledByDemo"  // Demo生成後は再有効化不可
     static let hkLastAutoImportAt = "UDEF_HKLastAutoImportAt" // 自動同期の最終実行日時
+    static let hkPendingDeletionDates = "UDEF_HKPendingDeletionDates" // HealthKit 削除待ちの日時（秒）一覧。成功まで再試行する
     static let appearanceMode   = "UDEF_AppearanceMode"    // 外観モード rawValue
     static let userLevel        = "UDEF_UserLevel"          // ユーザレベル rawValue
     static let fontScale        = "UDEF_FontScale"          // 文字サイズ rawValue
