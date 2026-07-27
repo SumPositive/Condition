@@ -301,10 +301,38 @@ final class AppSettings {
     var dateOptAppearanceRevision: Int = 0
     var dateOptAppearances: [DateOptAppearance] = DateOpt.allCases.map(\.defaultAppearance) {
         didSet {
+            // 全区分が未使用になると新規記録画面の候補が空になるため、最低1区分は定義済みに保つ。
+            // 全未使用なら、直前まで定義済みだった区分（無ければ cat01）を工場出荷時の既定へ戻す。
+            // UI編集・JSON取込・起動時ロードの全経路がこの setter を通る。
+            let repaired = Self.ensuringAtLeastOneDefined(dateOptAppearances, previouslyDefined: oldValue)
+            if repaired != dateOptAppearances {
+                dateOptAppearances = repaired   // 再度 didSet が走るが、修復済みなので無限ループしない
+                return
+            }
             DateOptAppearanceStore.save(dateOptAppearances)
             // 区分の表示設定だけを参照する画面にも再描画を伝える
             dateOptAppearanceRevision += 1
         }
+    }
+
+    /// 全区分が未使用（名称なし）なら、直前まで定義済みだった区分（無ければ cat01）を
+    /// 工場出荷時の既定へ戻し、必ず1区分を定義済みにする
+    private static func ensuringAtLeastOneDefined(
+        _ appearances: [DateOptAppearance],
+        previouslyDefined: [DateOptAppearance]
+    ) -> [DateOptAppearance] {
+        guard !appearances.contains(where: { $0.isDefined }) else { return appearances }
+        // 直前に定義済みだった区分を優先して戻す（利用者が最後に消した区分を復帰させる）
+        let targetRaw = previouslyDefined.first(where: { $0.isDefined })?.dateOptRawValue
+            ?? DateOpt.cat01.rawValue
+        let opt = DateOpt(rawValue: targetRaw) ?? .cat01
+        var repaired = appearances
+        if let idx = repaired.firstIndex(where: { $0.dateOptRawValue == opt.rawValue }) {
+            repaired[idx] = opt.defaultAppearance
+        } else {
+            repaired.append(opt.defaultAppearance)
+        }
+        return repaired
     }
 
     /// 区分の表示順序（rawValue の並び）。内部 index（DateOpt.rawValue）とは独立して管理する。
