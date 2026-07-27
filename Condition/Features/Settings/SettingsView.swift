@@ -633,6 +633,8 @@ struct SettingsView: View {
                     message: String(format: String(localized: "settings.share.pruneDoneMessage"), targets.count)
                 )
             } catch {
+                // 保存に失敗したら削除状態を巻き戻し、後続の autosave で一部だけ消える不整合を防ぐ
+                context.rollback()
                 AppAnalytics.shared.record(error: error, name: "old_records_prune_failed")
                 alertItem = .raw(title: String(localized: "settings.share.errorTitle"), message: error.localizedDescription)
             }

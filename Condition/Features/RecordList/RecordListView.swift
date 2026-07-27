@@ -395,6 +395,9 @@ struct RecordListView: View {
                 HealthKitService.shared.scheduleDelete(at: date)
             }
         } catch {
+            // 保存に失敗したら削除状態をコンテキストから巻き戻す。
+            // 放置すると後続の autosave で削除だけ成立し、HealthKit 側の削除予約が漏れる。
+            context.rollback()
             AppAnalytics.shared.record(error: error, name: "record_delete_save_failed")
         }
     }

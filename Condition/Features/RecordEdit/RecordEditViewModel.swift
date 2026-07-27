@@ -495,7 +495,14 @@ final class RecordEditViewModel {
         // 削除前に「アプリが書いたHK分の日時」を控える（削除後は参照できないため）
         let hkDeleteDate = HealthKitService.shared.appWrittenDateForDeletion(of: record)
         context.delete(record)
-        try context.save()
+        do {
+            try context.save()
+        } catch {
+            // 保存に失敗したら削除状態をコンテキストから巻き戻す。
+            // 放置すると後続の autosave で削除だけ成立し、HealthKit 側の削除予約が漏れる。
+            context.rollback()
+            throw error
+        }
         // 保存成功後にだけ、同日時のアプリ書込分を HealthKit からも削除する（失敗時は永続再試行）
         if let hkDeleteDate {
             HealthKitService.shared.scheduleDelete(at: hkDeleteDate)
