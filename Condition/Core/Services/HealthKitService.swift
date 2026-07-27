@@ -229,7 +229,9 @@ final class HealthKitService {
     /// 同日時では処理を直列化し、先行タスク（保存・削除）が完了してから後発を開始する。
     /// これにより、空値クリアの全削除が後発保存の直後に走って新しい値まで消す事故を防ぐ。
     /// 呼び出し側で `Task { try await write(...) }` するより、こちらを使うと多重キューを防げる。
-    func scheduleWrite(_ values: HealthKitValues) {
+    /// - Returns: 予約したタスク。同日時の処理完了を待ちたい場合に `await task.value` できる。
+    @discardableResult
+    func scheduleWrite(_ values: HealthKitValues) -> Task<Void, Never> {
         let key = Date(timeIntervalSince1970: floor(values.date.timeIntervalSince1970))
         // 先行タスクを控える。cancel は「まだ開始していない先行」を早期に譲らせる合図
         let previous = pendingWriteTasks[key]
@@ -256,6 +258,7 @@ final class HealthKitService {
             }
         }
         pendingWriteTasks[key] = (generation, task)
+        return task
     }
 
     /// 記録削除に伴い HealthKit から消すべき「アプリ書込分」の日時を返す。
@@ -306,7 +309,12 @@ final class HealthKitService {
         }
     }
 
-    /// 削除待ちを同期的に消化して待つ。インポート直前に呼び、削除済み記録の再登録を防ぐ。
+    /// 削除待ちを消化して待つ。インポート直前に呼び、削除済み記録の再登録を防ぐ。
+    ///
+    /// 削除は `deleteSamples` を直接呼ばず、必ず `scheduleWrite`（空値クリア）を通して
+    /// **日時別の書込直列化キューに載せる**。これにより、同日時への新規保存と削除が交錯して
+    /// 保存直後のサンプルを消してしまう競合を防ぐ。予約タスクの完了を待ち、
+    /// 空値クリアが成功していれば `write` 側が保留を外すので、待機後に残っている保留＝削除失敗と判定する。
     /// - Returns: 削除に失敗して保留が残った日時（秒単位に正規化した timeIntervalSince1970）。
     ///   呼び出し側（インポート）は、この秒に該当するレコードを取り込み対象から除外し、
     ///   削除しきれなかった記録が復活しないようにする。
@@ -319,18 +327,28 @@ final class HealthKitService {
               HKSyncDirection(rawValue: s.hkDirection)?.canWrite == true else {
             return Set(pendingDeletionTimestamps.map { floor($0) })
         }
+
+        // 消化対象を確定（消化中に scheduleDelete で増えた分は次回に回す）
+        let targets = pendingDeletionTimestamps
+        guard !targets.isEmpty else { return [] }
+
+        // 各日時の削除を書込キューへ予約し、その完了を待つ。
+        // 空値クリアの write は成功時に removePendingDeletion(values.date) するため、
+        // 待機後にも保留へ残っている日時＝削除失敗（未解消）と判定できる。
+        var tasks: [(ts: Double, task: Task<Void, Never>)] = []
+        for ts in targets {
+            let task = scheduleWrite(HealthKitValues(date: Date(timeIntervalSince1970: ts)))
+            tasks.append((ts, task))
+        }
+        for entry in tasks {
+            await entry.task.value
+        }
+
+        // 待機後に保留へ残っている（＝クリアに失敗した）秒だけを未解消として返す
+        let stillPending = pendingDeletionTimestamps
         var unresolved: Set<Double> = []
-        for ts in pendingDeletionTimestamps {
-            let date = Date(timeIntervalSince1970: ts)
-            do {
-                try await deleteSamples(at: date, excludingUUIDs: [])
-                removePendingDeletion(date)
-            } catch {
-                logger.error("HealthKit 削除待ちの再試行に失敗: \(error.localizedDescription)")
-                AppAnalytics.shared.record(error: error, name: "healthkit_pending_delete_failed")
-                // 削除できなかった日時はインポートから除外するため秒単位で控える
-                unresolved.insert(floor(ts))
-            }
+        for ts in targets where stillPending.contains(ts) {
+            unresolved.insert(floor(ts))
         }
         return unresolved
     }
