@@ -130,7 +130,9 @@ final class HealthKitService {
     /// 同一日時に対する書込タスクを集約するためのキャッシュ。
     /// 連続編集で多重キューイングされないよう、新しい書込を予約する前に既存タスクを cancel する。
     /// 各予約に世代番号を持たせ、古いタスクの完了時に後発タスクの登録を誤って消さないようにする。
-    private var pendingWriteTasks: [Date: (generation: Int, task: Task<Void, Never>)] = [:]
+    /// `isDeletionRetry` は「削除保留の再処理（空値クリア）」かを表す。ユーザー由来の書込（作り直し）が
+    /// 未完了のときに、削除再試行がそれを cancel して上書きするのを防ぐために使う。
+    private var pendingWriteTasks: [Date: (generation: Int, task: Task<Void, Never>, isDeletionRetry: Bool)] = [:]
     /// 書込予約ごとに増やす世代番号（同日時の後発予約を識別する）
     private var writeGeneration = 0
 
@@ -229,12 +231,25 @@ final class HealthKitService {
     /// 同日時では処理を直列化し、先行タスク（保存・削除）が完了してから後発を開始する。
     /// これにより、空値クリアの全削除が後発保存の直後に走って新しい値まで消す事故を防ぐ。
     /// 呼び出し側で `Task { try await write(...) }` するより、こちらを使うと多重キューを防げる。
-    /// - Returns: 予約したタスク。同日時の処理完了を待ちたい場合に `await task.value` できる。
+    /// - Parameter isDeletionRetry: 削除保留の再処理（空値クリア）なら true。
+    ///   このとき、同日時にユーザー由来の未完了書込（記録の作り直し）が既にキューにいれば、
+    ///   それを cancel せず予約自体をスキップし、その書込に処理を委ねる（新しい記録を消さない）。
+    /// - Returns: 予約したタスク。スキップした場合は先行タスクを返すので、`await task.value` で
+    ///   その日時の最終的な処理完了を待てる。
     @discardableResult
-    func scheduleWrite(_ values: HealthKitValues) -> Task<Void, Never> {
+    func scheduleWrite(_ values: HealthKitValues, isDeletionRetry: Bool = false) -> Task<Void, Never> {
         let key = Date(timeIntervalSince1970: floor(values.date.timeIntervalSince1970))
-        // 先行タスクを控える。cancel は「まだ開始していない先行」を早期に譲らせる合図
         let previous = pendingWriteTasks[key]
+
+        // 削除保留の再処理は、ユーザー由来の未完了書込（＝作り直し）を上書きしない。
+        // その書込が非空なら成功時に removePendingDeletion するので、削除保留はそちらで解消される。
+        if Self.deletionRetryShouldYield(isDeletionRetry: isDeletionRetry,
+                                         previousIsDeletionRetry: previous?.isDeletionRetry),
+           let previous {
+            return previous.task
+        }
+
+        // 先行タスクを控える。cancel は「まだ開始していない先行」を早期に譲らせる合図
         previous?.task.cancel()
         writeGeneration += 1
         let generation = writeGeneration
@@ -257,7 +272,7 @@ final class HealthKitService {
                 self?.pendingWriteTasks[key] = nil
             }
         }
-        pendingWriteTasks[key] = (generation, task)
+        pendingWriteTasks[key] = (generation, task, isDeletionRetry)
         return task
     }
 
@@ -303,9 +318,11 @@ final class HealthKitService {
     }
 
     /// 永続化された削除待ちを再試行する（fire-and-forget）。起動時や設定画面表示時に呼ぶ。
+    /// 再試行なので、同日時にユーザーが記録を作り直していれば（未完了の非削除書込がキューにいれば）
+    /// それを上書きしない（isDeletionRetry: true）。
     func retryPendingDeletions() {
         for ts in pendingDeletionTimestamps {
-            scheduleWrite(HealthKitValues(date: Date(timeIntervalSince1970: ts)))
+            scheduleWrite(HealthKitValues(date: Date(timeIntervalSince1970: ts)), isDeletionRetry: true)
         }
     }
 
@@ -336,9 +353,11 @@ final class HealthKitService {
         // 各日時の削除を書込キューへ予約し、その完了を待つ。
         // 空値クリアの write は成功時に removePendingDeletion(values.date) するため、
         // 待機後にも保留へ残っている日時＝削除失敗（未解消）と判定できる。
+        // 再試行なので、ユーザーが同日時に記録を作り直していればその書込を上書きしない
+        // （isDeletionRetry: true）。その書込が非空なら成功時に保留が解消される。
         var tasks: [(ts: Double, task: Task<Void, Never>)] = []
         for ts in targets {
-            let task = scheduleWrite(HealthKitValues(date: Date(timeIntervalSince1970: ts)))
+            let task = scheduleWrite(HealthKitValues(date: Date(timeIntervalSince1970: ts)), isDeletionRetry: true)
             tasks.append((ts, task))
         }
         for entry in tasks {
@@ -670,6 +689,16 @@ final class HealthKitService {
     static func minuteKey(_ d: Date) -> Double {
         let secs = d.timeIntervalSinceReferenceDate
         return (secs / 60).rounded(.down) * 60
+    }
+
+    /// 削除保留の再処理が、同日時の先行タスクに処理を譲るべきか。
+    /// 「再処理（isDeletionRetry）」かつ「先行がユーザー由来の書込（削除再試行でない）」のときだけ true。
+    /// このとき削除再処理は予約せず、先行の書込（記録の作り直し）を上書きしない。
+    /// - Parameter previousIsDeletionRetry: 先行タスクの種別。先行が無ければ nil（＝譲る必要なし）。
+    static func deletionRetryShouldYield(isDeletionRetry: Bool, previousIsDeletionRetry: Bool?) -> Bool {
+        guard isDeletionRetry else { return false }
+        guard let previousIsDeletionRetry else { return false }
+        return !previousIsDeletionRetry
     }
 
     /// インポート結果のうち「表示対象の非表示でないバイタルが少なくとも1つ入っている」レコードだけを

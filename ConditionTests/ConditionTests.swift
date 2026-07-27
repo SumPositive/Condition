@@ -1644,6 +1644,42 @@ struct HealthKitRetainTests {
     }
 }
 
+// MARK: - 削除保留の再処理が同日時の新しい書込を上書きしない判定
+
+@Suite("deletionRetryShouldYield Tests")
+@MainActor
+struct DeletionRetryYieldTests {
+
+    @Test("再処理 × 先行がユーザー書込 → 譲る（true）")
+    func retryYieldsToUserWrite() {
+        // 記録を作り直した（isDeletionRetry: false の書込）直後に削除再試行が来ても、上書きしない
+        #expect(HealthKitService.deletionRetryShouldYield(
+            isDeletionRetry: true, previousIsDeletionRetry: false))
+    }
+
+    @Test("再処理 × 先行も再処理 → 譲らない（false・重複予約でよい）")
+    func retryDoesNotYieldToAnotherRetry() {
+        #expect(!HealthKitService.deletionRetryShouldYield(
+            isDeletionRetry: true, previousIsDeletionRetry: true))
+    }
+
+    @Test("再処理 × 先行なし → 譲らない（false）")
+    func retryDoesNotYieldWhenNoPrevious() {
+        #expect(!HealthKitService.deletionRetryShouldYield(
+            isDeletionRetry: true, previousIsDeletionRetry: nil))
+    }
+
+    @Test("通常書込（再処理でない）は先行が何であれ譲らない（後勝ち）")
+    func normalWriteNeverYields() {
+        #expect(!HealthKitService.deletionRetryShouldYield(
+            isDeletionRetry: false, previousIsDeletionRetry: false))
+        #expect(!HealthKitService.deletionRetryShouldYield(
+            isDeletionRetry: false, previousIsDeletionRetry: true))
+        #expect(!HealthKitService.deletionRetryShouldYield(
+            isDeletionRetry: false, previousIsDeletionRetry: nil))
+    }
+}
+
 // MARK: - 記録日時の編集で旧 HealthKit 日時を削除する判定（純粋ロジック）
 
 @Suite("staleHealthKitDate Tests")
