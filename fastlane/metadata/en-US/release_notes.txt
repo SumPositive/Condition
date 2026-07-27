@@ -1,5 +1,4 @@
-・Multiple measurements: you can now save and edit several readings per record.
-・You can specify the blood pressure measurement site (left/right arm or wrist) as “L・R”.
-・Stats: added a left–right blood pressure difference summary.
-・Settings “Open at Launch”: choose which screen opens on launch (new record, record list, graph, or stats).
-・Unified dial and stepper increments to the smallest unit.
+・Stats “Left–Right Difference”: fixed the summary to include only measurements that form left/right pairs.
+・When the app is closed with the New Record sheet open, its date, time, and category are now refreshed on the next launch.
+・Improved bidirectional Apple Health sync and fixed an issue where deleted records could reappear.
+・Fixed potential issues.
