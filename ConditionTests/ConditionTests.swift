@@ -1550,6 +1550,35 @@ struct HealthKitRetainTests {
         let result = HealthKitService.retainedImportValues([later, earlier], hiddenFields: [])
         #expect(result.map(\.date) == [earlier.date, later.date])
     }
+
+    @Test("削除しきれなかった秒のレコードは取り込まない（記録の復活を防ぐ）")
+    func excludedSecondIsNotImported() {
+        // 08:00:00 は削除保留が残っている（削除失敗）。08:01:00 は正常。
+        let excludedDate = Date(timeIntervalSince1970: 1_700_000_000)   // 秒ちょうど
+        let keptDate     = excludedDate.addingTimeInterval(60)
+        let excluded = HealthKitValues(date: excludedDate, weight: 650)
+        let kept     = HealthKitValues(date: keptDate, weight: 651)
+
+        let result = HealthKitService.retainedImportValues(
+            [excluded, kept],
+            hiddenFields: [],
+            excludingSeconds: [floor(excludedDate.timeIntervalSince1970)]
+        )
+        #expect(result.map(\.date) == [keptDate])
+    }
+
+    @Test("除外秒は秒単位一致（subsecond のサンプルも同じ秒なら除外）")
+    func excludedSecondMatchesBySecond() {
+        let base = Date(timeIntervalSince1970: 1_700_000_000)
+        // 同じ秒だが subsecond だけ違うサンプルも除外される
+        let sample = HealthKitValues(date: base.addingTimeInterval(0.4), pulse: 70)
+        let result = HealthKitService.retainedImportValues(
+            [sample],
+            hiddenFields: [],
+            excludingSeconds: [floor(base.timeIntervalSince1970)]
+        )
+        #expect(result.isEmpty)
+    }
 }
 
 // MARK: - 記録日時の編集で旧 HealthKit 日時を削除する判定（純粋ロジック）

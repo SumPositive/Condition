@@ -307,10 +307,19 @@ final class HealthKitService {
     }
 
     /// 削除待ちを同期的に消化して待つ。インポート直前に呼び、削除済み記録の再登録を防ぐ。
-    private func flushPendingDeletions() async {
+    /// - Returns: 削除に失敗して保留が残った日時（秒単位に正規化した timeIntervalSince1970）。
+    ///   呼び出し側（インポート）は、この秒に該当するレコードを取り込み対象から除外し、
+    ///   削除しきれなかった記録が復活しないようにする。
+    @discardableResult
+    private func flushPendingDeletions() async -> Set<Double> {
         let s = AppSettings.shared
+        // 書込不可・デモ中などで削除を試せない場合は、現在の保留をすべて「未解消」として扱う。
+        // インポート側はこれらの秒を除外し、削除できていない記録の再登録を防ぐ。
         guard isAvailable, !s.hkDisabledByDemo,
-              HKSyncDirection(rawValue: s.hkDirection)?.canWrite == true else { return }
+              HKSyncDirection(rawValue: s.hkDirection)?.canWrite == true else {
+            return Set(pendingDeletionTimestamps.map { floor($0) })
+        }
+        var unresolved: Set<Double> = []
         for ts in pendingDeletionTimestamps {
             let date = Date(timeIntervalSince1970: ts)
             do {
@@ -319,8 +328,11 @@ final class HealthKitService {
             } catch {
                 logger.error("HealthKit 削除待ちの再試行に失敗: \(error.localizedDescription)")
                 AppAnalytics.shared.record(error: error, name: "healthkit_pending_delete_failed")
+                // 削除できなかった日時はインポートから除外するため秒単位で控える
+                unresolved.insert(floor(ts))
             }
         }
+        return unresolved
     }
 
     /// 同日時の値を HealthKit へ上書き保存する。
@@ -514,8 +526,9 @@ final class HealthKitService {
             logger.error("readSamples: HealthKit 利用不可")
             return []
         }
-        // インポート前に削除待ちを消化し、削除済み記録が再登録されるのを防ぐ
-        await flushPendingDeletions()
+        // インポート前に削除待ちを消化し、削除済み記録が再登録されるのを防ぐ。
+        // 削除しきれず保留が残った日時は、この回のインポートから除外して記録の復活を防ぐ。
+        let unresolvedDeletionSeconds = await flushPendingDeletions()
         logger.info("readSamples 開始: \(startDate, privacy: .public) 〜 \(endDate, privacy: .public)")
         importTimedOut = false
         let startTime = Date()
@@ -536,7 +549,11 @@ final class HealthKitService {
 
             // 実際の取得
             Task { @MainActor [self] in
-                let values = await _runImport(from: startDate, to: endDate, hiddenFields: hiddenFields)
+                let values = await _runImport(
+                    from: startDate, to: endDate,
+                    hiddenFields: hiddenFields,
+                    excludingSeconds: unresolvedDeletionSeconds
+                )
                 guard done.claim() else { return }
                 let elapsed = Int(Date().timeIntervalSince(startTime) * 1000)
                 logger.debug("readSamples 所要時間: \(elapsed) ms（\(values.count) 件）")
@@ -548,7 +565,11 @@ final class HealthKitService {
         return result
     }
 
-    private func _runImport(from startDate: Date, to endDate: Date, hiddenFields: Set<Int>) async -> [HealthKitValues] {
+    private func _runImport(
+        from startDate: Date, to endDate: Date,
+        hiddenFields: Set<Int>,
+        excludingSeconds: Set<Double> = []
+    ) async -> [HealthKitValues] {
         /// 同じ分の測定を1レコードに統合するキー
         func minuteKey(_ d: Date) -> Date {
             let secs = d.timeIntervalSinceReferenceDate
@@ -616,22 +637,39 @@ final class HealthKitService {
             }
         }
 
-        // 非表示でないバイタル項目のうち少なくとも1つが入力されているレコードのみ残す
-        let result = Self.retainedImportValues(Array(byMinute.values), hiddenFields: hiddenFields)
+        // 非表示でないバイタル項目のうち少なくとも1つが入力されているレコードのみ残す。
+        // 削除しきれなかった日時（秒単位）は除外し、削除済み記録の復活を防ぐ。
+        let result = Self.retainedImportValues(
+            Array(byMinute.values),
+            hiddenFields: hiddenFields,
+            excludingSeconds: excludingSeconds
+        )
         logger.info("readSamples 完了: \(result.count) 件")
         return result
     }
 
     /// インポート結果のうち「表示対象の非表示でないバイタルが少なくとも1つ入っている」レコードだけを
     /// 日時昇順で残す純粋ロジック。体脂肪率だけのレコードが落ちないことなどを単体テストできる。
-    static func retainedImportValues(_ values: [HealthKitValues], hiddenFields: Set<Int>) -> [HealthKitValues] {
+    /// - Parameter excludingSeconds: 除外する日時（秒単位に正規化した timeIntervalSince1970）。
+    ///   HealthKit から削除しきれなかった記録が再取り込みで復活するのを防ぐために使う。
+    static func retainedImportValues(
+        _ values: [HealthKitValues],
+        hiddenFields: Set<Int>,
+        excludingSeconds: Set<Double> = []
+    ) -> [HealthKitValues] {
         values
             .filter { v in
-                (!hiddenFields.contains(GraphKind.bp.rawValue)      && v.bpHi > 0)    ||
-                (!hiddenFields.contains(GraphKind.pulse.rawValue)   && v.pulse > 0)   ||
-                (!hiddenFields.contains(GraphKind.temp.rawValue)    && v.temp > 0)    ||
-                (!hiddenFields.contains(GraphKind.weight.rawValue)  && v.weight > 0)  ||
-                (!hiddenFields.contains(GraphKind.bodyFat.rawValue) && v.bodyFat > 0)
+                // 削除しきれなかった日時（秒単位一致）のレコードは取り込まない
+                if !excludingSeconds.isEmpty,
+                   excludingSeconds.contains(floor(v.date.timeIntervalSince1970)) {
+                    return false
+                }
+                return
+                    (!hiddenFields.contains(GraphKind.bp.rawValue)      && v.bpHi > 0)    ||
+                    (!hiddenFields.contains(GraphKind.pulse.rawValue)   && v.pulse > 0)   ||
+                    (!hiddenFields.contains(GraphKind.temp.rawValue)    && v.temp > 0)    ||
+                    (!hiddenFields.contains(GraphKind.weight.rawValue)  && v.weight > 0)  ||
+                    (!hiddenFields.contains(GraphKind.bodyFat.rawValue) && v.bodyFat > 0)
             }
             .sorted { $0.date < $1.date }
     }
