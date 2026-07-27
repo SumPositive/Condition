@@ -265,6 +265,9 @@ final class RecordEditViewModel {
         isSaving = true
         defer { isSaving = false }
 
+        // 編集で日時を変えた場合、旧日時のアプリ書込サンプルを HealthKit から消すため、上書き前の日時を控える
+        var previousHealthKitDate: Date?
+
         switch mode {
         case .addNew:
             let record = BodyRecord(dateTime: dateTime, dateOpt: dateOpt)
@@ -273,6 +276,8 @@ final class RecordEditViewModel {
             context.insert(record)
 
         case .edit(let record):
+            // 上書き前（保存済み）の日時を控える
+            previousHealthKitDate = record.dateTime
             if isHealthRecord {
                 // ヘルスケア由来は日時と値を固定し、区分・メモなどだけ保存する。
                 record.dateTime = originalRecord?.dateTime ?? record.dateTime
@@ -300,11 +305,11 @@ final class RecordEditViewModel {
         }
 
         try context.save()
-        writeToHealthKitIfAutomatic()
+        writeToHealthKitIfAutomatic(previousDate: previousHealthKitDate)
         isModified = false
     }
 
-    private func writeToHealthKitIfAutomatic() {
+    private func writeToHealthKitIfAutomatic(previousDate: Date? = nil) {
         if case .goalEdit = mode { return }
         // hkImport / hkModified レコードはヘルスケアへ書き戻さない
         if case .edit(let record) = mode,
@@ -312,6 +317,11 @@ final class RecordEditViewModel {
         let s = AppSettings.shared
         guard s.hkEnabled,
               HKSyncDirection(rawValue: s.hkDirection)?.canWrite == true else { return }
+        // 日時を変更した編集では、旧日時のアプリ書込サンプルを HealthKit から削除する。
+        // 放置すると後のインポートで旧日時の記録が復活するため、空値クリアで消す。
+        if let previousDate, previousDate != dateTime {
+            HealthKitService.shared.scheduleWrite(HealthKitValues(date: previousDate))
+        }
         // 連続編集での多重書込を防ぐため scheduleWrite を使う
         HealthKitService.shared.scheduleWrite(currentHealthKitValues())
     }
