@@ -333,6 +333,68 @@ final class RecordEditViewModel {
         return previousDate
     }
 
+    // MARK: - 同一「分」への日時変更チェック
+
+    /// 編集で日時を変更した結果、同じ「分」に別の記録が生じるかを判定する。
+    ///
+    /// HealthKit 連携ではインポートが分単位で1レコードに統合し、削除除外も分単位で行うため、
+    /// 同じ分に複数記録があると「書込の潰し合い（同一秒）」や「削除除外の巻き込み（同一分）」が起こり得る。
+    /// これを避けるため、保存前に警告して分をズラすよう促す。
+    ///
+    /// 対象は「アプリが HealthKit へ書き戻す記録（appInput/appModified）を、日時変更して保存する編集」のみ。
+    /// HK由来（hkImport/hkModified）や日時未変更、新規追加は対象外。
+    /// - Returns: 同じ分に別レコードがあれば true。
+    func hasSameMinuteConflict(context: ModelContext) -> Bool {
+        // 編集モードで、日時を実際に変更したときだけ判定する
+        guard case .edit = mode, let originalRecord else { return false }
+        guard !isHealthRecord else { return false }
+        return Self.hasSameMinuteConflict(
+            newDate: dateTime,
+            previousDate: originalRecord.dateTime,
+            editing: originalRecord,
+            context: context
+        )
+    }
+
+    /// 同一「分」への日時変更チェックの本体（画面をまたいで共有できる静的版）。
+    /// - Parameters:
+    ///   - newDate: 保存しようとしている新しい日時。
+    ///   - previousDate: 変更前の日時。newDate と同じなら（分内で秒だけ変えた場合も含め）衝突なし。
+    ///   - editing: 編集中のレコード（自分自身を衝突判定から除外するため）。
+    /// - Returns: 同じ分に自分以外の記録があれば true。
+    static func hasSameMinuteConflict(
+        newDate: Date,
+        previousDate: Date,
+        editing: BodyRecord,
+        context: ModelContext
+    ) -> Bool {
+        // 分が変わっていなければ、同じ分の別記録は元から存在しない（＝新たな衝突は生じない）
+        guard minuteStart(of: previousDate) != minuteStart(of: newDate) else { return false }
+
+        // newDate が属する「分」の範囲 [分開始, 分開始+60)
+        let start = minuteStart(of: newDate)
+        let end   = start.addingTimeInterval(60)
+
+        // 目標値レコード（特殊日時）は対象外。同じ分の記録を取得する
+        let descriptor = FetchDescriptor<BodyRecord>(
+            predicate: #Predicate { record in
+                record.dateTime >= start &&
+                record.dateTime < end &&
+                record.dateTime < bodyRecordGoalDate
+            }
+        )
+        let sameMinute = (try? context.fetch(descriptor)) ?? []
+        // 編集中の自分自身を除外し、別レコードが残れば衝突
+        let editingID = editing.persistentModelID
+        return sameMinute.contains { $0.persistentModelID != editingID }
+    }
+
+    /// 指定日時が属する「分」の開始時刻（インポート統合・削除除外と同じ分粒度）
+    private static func minuteStart(of date: Date) -> Date {
+        let secs = date.timeIntervalSinceReferenceDate
+        return Date(timeIntervalSinceReferenceDate: (secs / 60).rounded(.down) * 60)
+    }
+
     // MARK: - 直近の衝突検出と解決
 
     /// 新規追加モードのとき、設定で指定された時間内の直前記録との衝突情報を返す。

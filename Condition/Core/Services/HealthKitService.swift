@@ -315,17 +315,18 @@ final class HealthKitService {
     /// **日時別の書込直列化キューに載せる**。これにより、同日時への新規保存と削除が交錯して
     /// 保存直後のサンプルを消してしまう競合を防ぐ。予約タスクの完了を待ち、
     /// 空値クリアが成功していれば `write` 側が保留を外すので、待機後に残っている保留＝削除失敗と判定する。
-    /// - Returns: 削除に失敗して保留が残った日時（秒単位に正規化した timeIntervalSince1970）。
-    ///   呼び出し側（インポート）は、この秒に該当するレコードを取り込み対象から除外し、
-    ///   削除しきれなかった記録が復活しないようにする。
+    /// - Returns: 削除に失敗して保留が残った記録の「分キー」（`minuteKey(_:)` で正規化した値）。
+    ///   呼び出し側（インポート）は、この分に該当するレコードを取り込み対象から除外し、
+    ///   削除しきれなかった記録が復活しないようにする。分単位にするのは、インポートが分単位で
+    ///   1レコードに統合するため（秒単位だと統合で代表日時がズレて除外をすり抜ける）。
     @discardableResult
     private func flushPendingDeletions() async -> Set<Double> {
         let s = AppSettings.shared
         // 書込不可・デモ中などで削除を試せない場合は、現在の保留をすべて「未解消」として扱う。
-        // インポート側はこれらの秒を除外し、削除できていない記録の再登録を防ぐ。
+        // インポート側はこれらの分を除外し、削除できていない記録の再登録を防ぐ。
         guard isAvailable, !s.hkDisabledByDemo,
               HKSyncDirection(rawValue: s.hkDirection)?.canWrite == true else {
-            return Set(pendingDeletionTimestamps.map { floor($0) })
+            return Set(pendingDeletionTimestamps.map { Self.minuteKey(Date(timeIntervalSince1970: $0)) })
         }
 
         // 消化対象を確定（消化中に scheduleDelete で増えた分は次回に回す）
@@ -344,11 +345,11 @@ final class HealthKitService {
             await entry.task.value
         }
 
-        // 待機後に保留へ残っている（＝クリアに失敗した）秒だけを未解消として返す
+        // 待機後に保留へ残っている（＝クリアに失敗した）記録の分キーを未解消として返す
         let stillPending = pendingDeletionTimestamps
         var unresolved: Set<Double> = []
         for ts in targets where stillPending.contains(ts) {
-            unresolved.insert(floor(ts))
+            unresolved.insert(Self.minuteKey(Date(timeIntervalSince1970: ts)))
         }
         return unresolved
     }
@@ -545,8 +546,8 @@ final class HealthKitService {
             return []
         }
         // インポート前に削除待ちを消化し、削除済み記録が再登録されるのを防ぐ。
-        // 削除しきれず保留が残った日時は、この回のインポートから除外して記録の復活を防ぐ。
-        let unresolvedDeletionSeconds = await flushPendingDeletions()
+        // 削除しきれず保留が残った記録の「分」は、この回のインポートから除外して記録の復活を防ぐ。
+        let unresolvedDeletionMinutes = await flushPendingDeletions()
         logger.info("readSamples 開始: \(startDate, privacy: .public) 〜 \(endDate, privacy: .public)")
         importTimedOut = false
         let startTime = Date()
@@ -570,7 +571,7 @@ final class HealthKitService {
                 let values = await _runImport(
                     from: startDate, to: endDate,
                     hiddenFields: hiddenFields,
-                    excludingSeconds: unresolvedDeletionSeconds
+                    excludingMinuteKeys: unresolvedDeletionMinutes
                 )
                 guard done.claim() else { return }
                 let elapsed = Int(Date().timeIntervalSince(startTime) * 1000)
@@ -586,14 +587,10 @@ final class HealthKitService {
     private func _runImport(
         from startDate: Date, to endDate: Date,
         hiddenFields: Set<Int>,
-        excludingSeconds: Set<Double> = []
+        excludingMinuteKeys: Set<Double> = []
     ) async -> [HealthKitValues] {
-        /// 同じ分の測定を1レコードに統合するキー
-        func minuteKey(_ d: Date) -> Date {
-            let secs = d.timeIntervalSinceReferenceDate
-            return Date(timeIntervalSinceReferenceDate: (secs / 60).rounded(.down) * 60)
-        }
-        var byMinute: [Date: HealthKitValues] = [:]
+        // キーは分単位に丸めた timeIntervalSinceReferenceDate（minuteKey）。同じ分の測定を1件に統合する。
+        var byMinute: [Double: HealthKitValues] = [:]
 
         // 血圧
         if !hiddenFields.contains(GraphKind.bp.rawValue) {
@@ -601,7 +598,7 @@ final class HealthKitService {
             let bpSamples = await allBPSamples(from: startDate, to: endDate)
             logger.info("血圧サンプル数: \(bpSamples.count)")
             for (date, hi, lo) in bpSamples {
-                let k = minuteKey(date); var v = byMinute[k] ?? HealthKitValues(date: date)
+                let k = Self.minuteKey(date); var v = byMinute[k] ?? HealthKitValues(date: date)
                 if v.bpHi == 0 { v.bpHi = hi; v.bpLo = lo; v.date = date }
                 byMinute[k] = v
             }
@@ -613,7 +610,7 @@ final class HealthKitService {
             let hrSamples = await allQtySamples(.heartRate, from: startDate, to: endDate, unit: HKUnit(from: "count/min"))
             logger.info("心拍数サンプル数: \(hrSamples.count)")
             for (date, val) in hrSamples {
-                let k = minuteKey(date); var v = byMinute[k] ?? HealthKitValues(date: date)
+                let k = Self.minuteKey(date); var v = byMinute[k] ?? HealthKitValues(date: date)
                 if v.pulse == 0 { v.pulse = Int(val) }
                 byMinute[k] = v
             }
@@ -625,7 +622,7 @@ final class HealthKitService {
             let tempSamples = await allQtySamples(.bodyTemperature, from: startDate, to: endDate, unit: .degreeCelsius())
             logger.info("体温サンプル数: \(tempSamples.count)")
             for (date, val) in tempSamples {
-                let k = minuteKey(date); var v = byMinute[k] ?? HealthKitValues(date: date)
+                let k = Self.minuteKey(date); var v = byMinute[k] ?? HealthKitValues(date: date)
                 if v.temp == 0 { v.temp = Int(val * 10) }
                 byMinute[k] = v
             }
@@ -637,7 +634,7 @@ final class HealthKitService {
             let weightSamples = await allQtySamples(.bodyMass, from: startDate, to: endDate, unit: .gramUnit(with: .kilo))
             logger.info("体重サンプル数: \(weightSamples.count)")
             for (date, val) in weightSamples {
-                let k = minuteKey(date); var v = byMinute[k] ?? HealthKitValues(date: date)
+                let k = Self.minuteKey(date); var v = byMinute[k] ?? HealthKitValues(date: date)
                 if v.weight == 0 { v.weight = Int(val * 10) }
                 byMinute[k] = v
             }
@@ -649,37 +646,54 @@ final class HealthKitService {
             let fatSamples = await allQtySamples(.bodyFatPercentage, from: startDate, to: endDate, unit: .percent())
             logger.info("体脂肪率サンプル数: \(fatSamples.count)")
             for (date, val) in fatSamples {
-                let k = minuteKey(date); var v = byMinute[k] ?? HealthKitValues(date: date)
+                let k = Self.minuteKey(date); var v = byMinute[k] ?? HealthKitValues(date: date)
                 if v.bodyFat == 0 { v.bodyFat = Int(val * 100 * 10) }
                 byMinute[k] = v
             }
         }
 
         // 非表示でないバイタル項目のうち少なくとも1つが入力されているレコードのみ残す。
-        // 削除しきれなかった日時（秒単位）は除外し、削除済み記録の復活を防ぐ。
+        // 削除しきれなかった記録は「分単位」で除外し、削除済み記録の復活を防ぐ。
+        // （インポートは分単位で1レコードに統合されるため、除外も同じ分粒度で行う。
+        //   秒単位で判定すると、同じ分の別サンプルと統合されて代表日時がズレたとき除外をすり抜ける）
         let result = Self.retainedImportValues(
             Array(byMinute.values),
             hiddenFields: hiddenFields,
-            excludingSeconds: excludingSeconds
+            excludingMinuteKeys: excludingMinuteKeys
         )
         logger.info("readSamples 完了: \(result.count) 件")
         return result
     }
 
+    /// 同じ分の測定を1レコードに統合するためのキー（分単位に丸めた timeIntervalSinceReferenceDate）。
+    /// 削除保留の除外判定もこのキーで行い、統合とインポート除外の粒度を一致させる。
+    static func minuteKey(_ d: Date) -> Double {
+        let secs = d.timeIntervalSinceReferenceDate
+        return (secs / 60).rounded(.down) * 60
+    }
+
     /// インポート結果のうち「表示対象の非表示でないバイタルが少なくとも1つ入っている」レコードだけを
     /// 日時昇順で残す純粋ロジック。体脂肪率だけのレコードが落ちないことなどを単体テストできる。
-    /// - Parameter excludingSeconds: 除外する日時（秒単位に正規化した timeIntervalSince1970）。
+    /// - Parameter excludingMinuteKeys: 除外する分キー（`minuteKey(_:)` で正規化した値）。
     ///   HealthKit から削除しきれなかった記録が再取り込みで復活するのを防ぐために使う。
+    ///   同じ分に統合された全バイタルをまとめて除外するので、統合で代表日時がズレても取りこぼさない。
+    ///
+    /// 粒度が「分」なのは、インポートが分単位で1レコードに統合するため（統合と除外を同粒度に揃える）。
+    /// アプリの記録は実質「1分1件」前提なので通常は問題ないが、仕様上は同じ分に複数記録を作ることも可能で、
+    /// その場合「削除に失敗した記録と同じ分の別記録」も巻き込んで除外され得る。ただし除外対象は
+    /// HealthKit からの再取り込み結果だけで、アプリ側の元データは消えず、削除保留が解消すれば次回の
+    /// インポートで別記録は正常に戻る（＝一時的な取りこぼし）。「削除済みが復活する」重大側を避けるため、
+    /// この安全側（復活させない）の割り切りを採用している。UUID ベースの厳密な除外は将来の改善余地。
     static func retainedImportValues(
         _ values: [HealthKitValues],
         hiddenFields: Set<Int>,
-        excludingSeconds: Set<Double> = []
+        excludingMinuteKeys: Set<Double> = []
     ) -> [HealthKitValues] {
         values
             .filter { v in
-                // 削除しきれなかった日時（秒単位一致）のレコードは取り込まない
-                if !excludingSeconds.isEmpty,
-                   excludingSeconds.contains(floor(v.date.timeIntervalSince1970)) {
+                // 削除しきれなかった記録の「分」に該当するレコードは取り込まない
+                if !excludingMinuteKeys.isEmpty,
+                   excludingMinuteKeys.contains(minuteKey(v.date)) {
                     return false
                 }
                 return

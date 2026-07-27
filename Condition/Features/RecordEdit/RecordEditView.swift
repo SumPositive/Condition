@@ -32,6 +32,8 @@ struct RecordEditView: View {
     @State private var showDatePicker = false
     @State private var showDeleteAlert = false
     @State private var conflictData: RecentConflict? = nil
+    // 編集で日時を同じ「分」の別記録に重ねようとしたときの警告
+    @State private var showSameMinuteAlert = false
     @State private var isDateOptExpanded = false
     @State private var measurementSamples: [MeasurementAverageField: [Int]] = [:]
     @State private var showsFloatingAverageAddButton = false
@@ -305,6 +307,11 @@ struct RecordEditView: View {
                 RecentConflictSheet(conflict: conflict) { action in
                     handleConflictAction(action, previous: conflict.previous)
                 }
+            }
+            .alert("record.sameMinute.title", isPresented: $showSameMinuteAlert) {
+                Button("action.ok", role: .cancel) { }
+            } message: {
+                Text("record.sameMinute.message")
             }
             .onAppear {
                 if isNewRecord {
@@ -1013,6 +1020,11 @@ struct RecordEditView: View {
     private func saveAndDismiss() {
         // 衝突処理で別レコードへ保存する場合にも試行値を引き継ぐ
         syncMeasurementSamplesToViewModel()
+        // 編集で日時を同じ「分」の別記録へ重ねようとしたら、保存せず警告して分をズラすよう促す
+        if vm.hasSameMinuteConflict(context: context) {
+            showSameMinuteAlert = true
+            return
+        }
         // 新規追加で「記録をまとめる」時間内に衝突があればシート表示
         if let conflict = vm.findRecentConflict(context: context) {
             conflictData = conflict

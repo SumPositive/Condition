@@ -1609,32 +1609,37 @@ struct HealthKitRetainTests {
         #expect(result.map(\.date) == [earlier.date, later.date])
     }
 
-    @Test("削除しきれなかった秒のレコードは取り込まない（記録の復活を防ぐ）")
-    func excludedSecondIsNotImported() {
-        // 08:00:00 は削除保留が残っている（削除失敗）。08:01:00 は正常。
-        let excludedDate = Date(timeIntervalSince1970: 1_700_000_000)   // 秒ちょうど
-        let keptDate     = excludedDate.addingTimeInterval(60)
+    @Test("削除しきれなかった分のレコードは取り込まない（記録の復活を防ぐ）")
+    func excludedMinuteIsNotImported() {
+        // 削除保留が残る分と、別の分の正常レコード
+        let excludedDate = Date(timeIntervalSince1970: 1_700_000_000)
+        let keptDate     = excludedDate.addingTimeInterval(120)   // 2分後 → 別の分
         let excluded = HealthKitValues(date: excludedDate, weight: 650)
         let kept     = HealthKitValues(date: keptDate, weight: 651)
 
         let result = HealthKitService.retainedImportValues(
             [excluded, kept],
             hiddenFields: [],
-            excludingSeconds: [floor(excludedDate.timeIntervalSince1970)]
+            excludingMinuteKeys: [HealthKitService.minuteKey(excludedDate)]
         )
         #expect(result.map(\.date) == [keptDate])
     }
 
-    @Test("除外秒は秒単位一致（subsecond のサンプルも同じ秒なら除外）")
-    func excludedSecondMatchesBySecond() {
-        let base = Date(timeIntervalSince1970: 1_700_000_000)
-        // 同じ秒だが subsecond だけ違うサンプルも除外される
-        let sample = HealthKitValues(date: base.addingTimeInterval(0.4), pulse: 70)
+    @Test("同じ分の別秒サンプルと統合され代表日時がズレても除外される（分単位除外）")
+    func excludedMinuteMatchesDespiteRepresentativeDateShift() {
+        // 削除保留は 10:00:30 の体重。統合後の代表日時は同じ分の別秒（10:00:10 の心拍）へズレている。
+        // 代表日時が保留の秒と一致しなくても、同じ「分」なので除外されなければならない。
+        let deletedWeightDate = Date(timeIntervalSince1970: 1_700_000_030)   // 10:00:30 相当
+        let mergedRepresentative = Date(timeIntervalSince1970: 1_700_000_010) // 10:00:10 相当（統合後の代表）
+        // 統合済みレコード（代表日時 10:00:10、心拍と体重が同居）
+        let merged = HealthKitValues(date: mergedRepresentative, pulse: 72, weight: 650)
+
         let result = HealthKitService.retainedImportValues(
-            [sample],
+            [merged],
             hiddenFields: [],
-            excludingSeconds: [floor(base.timeIntervalSince1970)]
+            excludingMinuteKeys: [HealthKitService.minuteKey(deletedWeightDate)]
         )
+        // 同じ分なので、代表日時がズレていても丸ごと除外される（体重の再取り込みを防ぐ）
         #expect(result.isEmpty)
     }
 }
@@ -1745,5 +1750,113 @@ struct ExportFileWriterTests {
         // 実在しない深い親ディレクトリ配下 → atomic write が失敗する
         let url = URL(fileURLWithPath: "/tmp/does-not-exist-\(UUID().uuidString)/sub/out.json")
         #expect(ExportFileWriter.write(to: url, data: Data("{}".utf8)) == nil)
+    }
+}
+
+// MARK: - 編集で日時が別記録と同じ「分」になるかの検出
+
+@Suite("hasSameMinuteConflict Tests")
+@MainActor
+struct SameMinuteConflictTests {
+
+    /// 指定 timeIntervalSinceReferenceDate の日時でレコードを作って挿入する
+    private func insert(_ context: ModelContext, at refSecs: Double) -> BodyRecord {
+        let r = BodyRecord(dateTime: Date(timeIntervalSinceReferenceDate: refSecs))
+        r.nBpHi_mmHg = 120; r.nBpLo_mmHg = 78
+        context.insert(r)
+        return r
+    }
+
+    /// ある分の開始秒（分ちょうど）。100分ちょうど = 6000 秒を基準に使う
+    private let minuteBase: Double = 6000   // 分境界（6000/60=100 分ちょうど）
+
+    @Test("別記録と同じ分へ日時変更したら衝突（true）")
+    func conflictsWhenMovedIntoAnotherRecordsMinute() throws {
+        let container = try makeInMemoryContainer()
+        let context = ModelContext(container)
+        // 別記録は minuteBase+10 秒（同じ分）に存在
+        _ = insert(context, at: minuteBase + 10)
+        // 編集対象は別の分（minuteBase+120）にいたのを、その分へ動かす
+        let editing = insert(context, at: minuteBase + 120)
+        try context.save()
+
+        let result = RecordEditViewModel.hasSameMinuteConflict(
+            newDate: Date(timeIntervalSinceReferenceDate: minuteBase + 30), // 同じ分の別秒へ
+            previousDate: Date(timeIntervalSinceReferenceDate: minuteBase + 120),
+            editing: editing,
+            context: context
+        )
+        #expect(result)
+    }
+
+    @Test("同じ分に他の記録が無ければ衝突なし（false）")
+    func noConflictWhenMinuteIsEmpty() throws {
+        let container = try makeInMemoryContainer()
+        let context = ModelContext(container)
+        let editing = insert(context, at: minuteBase + 120)
+        try context.save()
+
+        let result = RecordEditViewModel.hasSameMinuteConflict(
+            newDate: Date(timeIntervalSinceReferenceDate: minuteBase + 30),
+            previousDate: Date(timeIntervalSinceReferenceDate: minuteBase + 120),
+            editing: editing,
+            context: context
+        )
+        #expect(!result)
+    }
+
+    @Test("自分自身は衝突に数えない（移動先の分に自分だけ）")
+    func selfDoesNotCountAsConflict() throws {
+        let container = try makeInMemoryContainer()
+        let context = ModelContext(container)
+        // 編集対象は別の分（minuteBase+120）に1件だけ。移動先の分には他の記録が無い
+        let editing = insert(context, at: minuteBase + 120)
+        try context.save()
+
+        // minuteBase の分へ動かす。分は変わるが、その分にいるのは（移動後の）自分だけ → 衝突なし
+        let result = RecordEditViewModel.hasSameMinuteConflict(
+            newDate: Date(timeIntervalSinceReferenceDate: minuteBase + 30),
+            previousDate: Date(timeIntervalSinceReferenceDate: minuteBase + 120),
+            editing: editing,
+            context: context
+        )
+        #expect(!result)
+    }
+
+    @Test("分が変わらなければ判定しない（false）")
+    func noConflictWhenMinuteUnchanged() throws {
+        let container = try makeInMemoryContainer()
+        let context = ModelContext(container)
+        _ = insert(context, at: minuteBase + 10)   // 同じ分に別記録あり
+        let editing = insert(context, at: minuteBase + 20)
+        try context.save()
+
+        // previous も new も同じ分（minuteBase）内 → 分は変わっていないので警告しない
+        let result = RecordEditViewModel.hasSameMinuteConflict(
+            newDate: Date(timeIntervalSinceReferenceDate: minuteBase + 45),
+            previousDate: Date(timeIntervalSinceReferenceDate: minuteBase + 20),
+            editing: editing,
+            context: context
+        )
+        #expect(!result)
+    }
+
+    @Test("隣の分の記録は衝突に数えない（分境界）")
+    func adjacentMinuteIsNotConflict() throws {
+        let container = try makeInMemoryContainer()
+        let context = ModelContext(container)
+        // 別記録は次の分（minuteBase+60）に存在
+        _ = insert(context, at: minuteBase + 60)
+        let editing = insert(context, at: minuteBase + 120)
+        try context.save()
+
+        // minuteBase の分へ動かす → 隣の分の記録は数えない
+        let result = RecordEditViewModel.hasSameMinuteConflict(
+            newDate: Date(timeIntervalSinceReferenceDate: minuteBase + 30),
+            previousDate: Date(timeIntervalSinceReferenceDate: minuteBase + 120),
+            editing: editing,
+            context: context
+        )
+        #expect(!result)
     }
 }

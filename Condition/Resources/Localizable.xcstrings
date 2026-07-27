@@ -8514,6 +8514,64 @@
         }
       }
     },
+    "record.sameMinute.message": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Another record already exists in the same minute. Please change the time by at least one minute before saving."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同じ分に別の記録があります。時刻（分）をずらして保存してください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "같은 분에 다른 기록이 있습니다. 시각(분)을 옮겨서 저장해 주세요."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同一分鐘內已有其他記錄。請將時間（分鐘）錯開後再儲存。"
+          }
+        }
+      }
+    },
+    "record.sameMinute.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A Record Exists at This Time"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同じ時刻に記録があります"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "같은 시각에 기록이 있습니다"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此時間已有記錄"
+          }
+        }
+      }
+    },
     "records.empty.message": {
       "extractionState": "manual",
       "localizations": {

@@ -141,6 +141,8 @@ struct MeasurementAverageView: View {
     @State private var showDatePicker = false
     @State private var showDeleteAlert = false
     @State private var isDateOptExpanded = false
+    // 編集で日時を同じ「分」の別記録に重ねようとしたときの警告
+    @State private var showSameMinuteAlert = false
 
     /// 入力済みの値（nil は未入力）
     @State private var samples: [AvgColumn: [Int?]] = [:]
@@ -291,6 +293,11 @@ struct MeasurementAverageView: View {
                     deleteRecord()
                 }
                 Button("action.cancel", role: .cancel) {}
+            }
+            .alert("record.sameMinute.title", isPresented: $showSameMinuteAlert) {
+                Button("action.ok", role: .cancel) { }
+            } message: {
+                Text("record.sameMinute.message")
             }
             .onAppear {
                 guard !didLoadInitialValues else { return }
@@ -1236,6 +1243,20 @@ struct MeasurementAverageView: View {
     private func saveAndDismiss() {
         commitInputText()
         guard hasAnyValue else { return }
+
+        // 編集で日時を同じ「分」の別記録へ重ねようとしたら、保存せず警告して分をズラすよう促す。
+        // 対象はアプリが HealthKit へ書き戻す記録のみ（HK由来は書き戻さないので除外）。
+        if let editing = record,
+           editing.dataSource != .hkImport, editing.dataSource != .hkModified,
+           RecordEditViewModel.hasSameMinuteConflict(
+               newDate: dateTime,
+               previousDate: editing.dateTime,
+               editing: editing,
+               context: context
+           ) {
+            showSameMinuteAlert = true
+            return
+        }
 
         // 修正時は同じレコードを更新し、新規時だけレコードを作成する
         let target = record ?? BodyRecord(dateTime: dateTime, dateOpt: dateOpt)
