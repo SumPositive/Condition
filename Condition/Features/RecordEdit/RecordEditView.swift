@@ -331,7 +331,7 @@ struct RecordEditView: View {
                 }
                 Button("action.cancel", role: .cancel) { deleteFailedRecord = nil }
             } message: { _ in
-                Text(vm.errorMessage ?? String(localized: "record.delete.failed.message"))
+                Text("record.delete.failed.message")
             }
             .onAppear {
                 if isNewRecord {
@@ -1046,8 +1046,8 @@ struct RecordEditView: View {
         } catch {
             // 失敗時は閉じずにエラーを提示し、リトライ／キャンセルを選べるようにする。
             // ViewModel 側で context はロールバック済みなので、リトライで再削除できる。
+            // 技術的な詳細は Analytics のみに送り、画面にはローカライズ済みの案内文だけを見せる。
             AppAnalytics.shared.record(error: error, name: "record_delete_failed", parameters: ["mode": vm.mode.analyticsName])
-            vm.errorMessage = error.localizedDescription
             deleteFailedRecord = record
         }
     }

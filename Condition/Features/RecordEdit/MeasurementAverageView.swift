@@ -143,8 +143,8 @@ struct MeasurementAverageView: View {
     @State private var isDateOptExpanded = false
     // 編集で日時を同じ「分」の別記録に重ねようとしたときの警告
     @State private var showSameMinuteAlert = false
-    // 削除に失敗したとき、リトライ／キャンセルを選ばせるためのエラー文言（非nilで表示）
-    @State private var deleteErrorMessage: String? = nil
+    // 削除に失敗したとき、リトライ／キャンセルを選ばせるためのアラート表示フラグ
+    @State private var showDeleteFailedAlert = false
 
     /// 入力済みの値（nil は未入力）
     @State private var samples: [AvgColumn: [Int?]] = [:]
@@ -303,21 +303,18 @@ struct MeasurementAverageView: View {
             }
             .alert(
                 "record.delete.failed.title",
-                isPresented: Binding(
-                    get: { deleteErrorMessage != nil },
-                    set: { if !$0 { deleteErrorMessage = nil } }
-                )
+                isPresented: $showDeleteFailedAlert
             ) {
                 Button("action.retry") {
                     // アラートを一度確実に閉じてから再削除する。
-                    // 非nil→非nil のままだと SwiftUI が再表示をトリガーせず、
-                    // 再失敗時にアラートが出ないため、状態をクリアして次サイクルで実行する。
-                    deleteErrorMessage = nil
+                    // true→true のままだと SwiftUI が再表示をトリガーせず、
+                    // 再失敗時にアラートが出ないため、フラグをクリアして次サイクルで実行する。
+                    showDeleteFailedAlert = false
                     Task { @MainActor in deleteRecord() }
                 }
-                Button("action.cancel", role: .cancel) { deleteErrorMessage = nil }
+                Button("action.cancel", role: .cancel) { showDeleteFailedAlert = false }
             } message: {
-                Text(deleteErrorMessage ?? String(localized: "record.delete.failed.message"))
+                Text("record.delete.failed.message")
             }
             .onAppear {
                 guard !didLoadInitialValues else { return }
@@ -1253,14 +1250,15 @@ struct MeasurementAverageView: View {
             if let hkDeleteDate {
                 HealthKitService.shared.scheduleDelete(at: hkDeleteDate)
             }
-            deleteErrorMessage = nil
+            showDeleteFailedAlert = false
             dismiss()
         } catch {
             // 失敗時は閉じずにエラーを提示し、リトライ／キャンセルを選べるようにする。
             // context はロールバック済みなので、リトライで再削除できる。
+            // 技術的な詳細は Analytics のみに送り、画面にはローカライズ済みの案内文だけを見せる。
             context.rollback()
             AppAnalytics.shared.record(error: error, name: "measurement_average_sheet_delete_failed")
-            deleteErrorMessage = error.localizedDescription
+            showDeleteFailedAlert = true
         }
     }
 
