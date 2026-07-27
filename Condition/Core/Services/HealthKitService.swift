@@ -224,14 +224,21 @@ final class HealthKitService {
     // MARK: - 書き込み
 
     /// 同一日時の書込を集約する safe な書込予約。
-    /// 直前の同日時タスクが未完了なら cancel して、最新の値で書き直す。
+    /// 同日時では処理を直列化し、先行タスク（保存・削除）が完了してから後発を開始する。
+    /// これにより、空値クリアの全削除が後発保存の直後に走って新しい値まで消す事故を防ぐ。
     /// 呼び出し側で `Task { try await write(...) }` するより、こちらを使うと多重キューを防げる。
     func scheduleWrite(_ values: HealthKitValues) {
         let key = Date(timeIntervalSince1970: floor(values.date.timeIntervalSince1970))
-        pendingWriteTasks[key]?.task.cancel()
+        // 先行タスクを控える。cancel は「まだ開始していない先行」を早期に譲らせる合図
+        let previous = pendingWriteTasks[key]
+        previous?.task.cancel()
         writeGeneration += 1
         let generation = writeGeneration
         let task = Task { @MainActor [weak self] in
+            // 先行タスクを必ず完了させてから開始する（削除と後発保存を交錯させない）
+            if let previous { await previous.task.value }
+            // 待機中に後発へ置き換えられていたら、処理せず後発へ譲る
+            guard self?.pendingWriteTasks[key]?.generation == generation else { return }
             do {
                 try await self?.write(values)
             } catch is CancellationError {
