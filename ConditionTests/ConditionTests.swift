@@ -1906,6 +1906,13 @@ private final class InMemoryPendingDeletionStore: PendingDeletionStore {
 }
 
 /// 注入する save/delete の呼び出しを記録し、失敗やゲート（待機）を仕込める Fake I/O。
+///
+/// ゲートの使い方（Task.yield に依存しない安定した順序制御）:
+///   1. `useSaveGate = true` にしておく。
+///   2. `await io.awaitSaveStarted()` で save がゲートに到達するのを**明示的に待つ**。
+///   3. その後 `openSaveGate()` でゲートを開ける。
+/// `awaitSaveStarted` は「save が既にゲートに入っていれば即座に」「まだなら到達まで」待つので、
+/// テストとサービス側の実行順に関わらず停止しない。
 @MainActor
 private final class FakeHealthKitIO {
     private(set) var saveCount = 0
@@ -1917,25 +1924,54 @@ private final class FakeHealthKitIO {
 
     var saveShouldFail = false
     var deleteShouldFail = false
+    var useSaveGate = false
 
     /// save をここで待たせるためのゲート（非nilの間、save はこの継続が resume されるまでブロック）
     private var saveGate: CheckedContinuation<Void, Never>?
-    func openSaveGate() { saveGate?.resume(); saveGate = nil }
+
+    /// save がゲートに到達したことを通知するための待ち合わせ。
+    /// - pendingStartSignals: 到達済みだがまだ待ち手がいない回数（取りこぼし防止のバッファ）
+    /// - startWaiter: 先に awaitSaveStarted された場合の待ち手
+    private var pendingStartSignals = 0
+    private var startWaiter: CheckedContinuation<Void, Never>?
 
     struct FakeError: Error {}
 
+    /// save がゲートに到達するまで待つ。既に到達済みなら即座に返る。
+    func awaitSaveStarted() async {
+        if pendingStartSignals > 0 {
+            pendingStartSignals -= 1
+            return
+        }
+        await withCheckedContinuation { startWaiter = $0 }
+    }
+
+    /// ゲートで待っている save を1つ進める。
+    func openSaveGate() { saveGate?.resume(); saveGate = nil }
+
+    private func signalSaveStarted() {
+        if let waiter = startWaiter {
+            startWaiter = nil
+            waiter.resume()
+        } else {
+            // まだ待ち手がいなければ取りこぼさないようバッファに積む
+            pendingStartSignals += 1
+        }
+    }
+
     func save(_ samples: [HKSample]) async throws {
         operationLog.append("save")
-        // ゲートが要求されていれば待つ（直列化・競合の順序を作るため）
+        // ゲートが要求されていれば、到達を通知してから継続を待つ（直列化・競合の順序を作るため）
         if useSaveGate {
-            await withCheckedContinuation { saveGate = $0 }
+            await withCheckedContinuation { cont in
+                saveGate = cont
+                signalSaveStarted()   // ゲートに入った＝開始したことをテストへ通知
+            }
         }
         saveCount += 1
         savedSampleCounts.append(samples.count)
         if saveShouldFail { throw FakeError() }
     }
-
-    var useSaveGate = false
 
     func delete(_ date: Date, _ excluding: Set<UUID>) async throws {
         operationLog.append("delete")
@@ -2037,7 +2073,8 @@ struct HealthKitWriteQueueTests {
 
         // ユーザーが同日時に記録を作り直す（非空・isDeletionRetry: false）
         let userWrite = service.scheduleWrite(HealthKitValues(date: date(3000), weight: 650))
-        await Task.yield()
+        // save がゲートに到達する（＝キューに載って処理開始）まで確実に待つ
+        await io.awaitSaveStarted()
         // 削除再試行（isDeletionRetry: true）→ ユーザー書込に譲り、予約をスキップして同じタスクを返すはず
         let retry = service.scheduleWrite(HealthKitValues(date: date(3000)), isDeletionRetry: true)
         // ユーザー書込を完了させる
