@@ -8313,25 +8313,25 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Enter readings one after another, tap Next to skip, then tap Save to record the average.\n\nYou can specify the arm used. Choose (L) for the left arm, (R) for the right arm, or (·) if unknown or not specified.\n\nAdd up to 5 measurements.\nYou can edit any value or remove a row.\n\nA smaller standard deviation (±SD) means the readings vary less and the average is more reliable.\n  Blue: low variation\n  Red: high variation (consider remeasuring)"
+            "value": "Enter readings one after another, tap Next to skip, then tap Save to record the average.\n\nYou can specify the arm used. Choose (L) for the left arm, (R) for the right arm, or (·) if unknown or not specified.\n\nAdd up to 5 measurements.\nYou can edit any value or remove a row.\n\nA smaller standard deviation (±SD) means the readings vary less and the average is more reliable.\n  Blue: low variation\n  Red: high variation (consider remeasuring)\n\nWhen ±SD is red, the reading causing most of the variation is also shown in red — a cue to remeasure or correct it."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "測定値を連続入力、「次へ」で飛ばし、最後に「保存」で平均値を記録します\n\n血圧の測定部位を指定できます。左腕ならば(L) 右腕ならば(R) 不明や指定しないならば(・) を選択します\n\n最大5回まで測定を追加できます\n各値を修正し、行単位で取消ができます\n\n標準偏差(±SD)は小さいほど測定値のばらつきが少なく、平均値の信頼度が高い目安です\n　青：ばらつき少\n　赤：ばらつき大（測り直しを検討）"
+            "value": "測定値を連続入力、「次へ」で飛ばし、最後に「保存」で平均値を記録します\n\n血圧の測定部位を指定できます。左腕ならば(L) 右腕ならば(R) 不明や指定しないならば(・) を選択します\n\n最大5回まで測定を追加できます\n各値を修正し、行単位で取消ができます\n\n標準偏差(±SD)は小さいほど測定値のばらつきが少なく、平均値の信頼度が高い目安です\n　青：ばらつき少\n　赤：ばらつき大（測り直しを検討）\n\n±SDが赤いときは、ばらつきの主因になっている測定値も赤く表示します。測り直しや修正の目安にしてください"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "측정값을 연속 입력하고 「다음」으로 건너뛴 뒤, 마지막에 「저장」으로 평균값을 기록합니다\n\n혈압 측정 부위를 지정할 수 있습니다. 왼팔이면 (L) 오른팔이면 (R) 불명이거나 지정하지 않으면 (·) 를 선택합니다\n\n최대 5회까지 측정을 추가할 수 있습니다\n각 값을 수정하고 행 단위로 취소할 수 있습니다\n\n표준편차(±SD)는 작을수록 측정값의 편차가 적어 평균값의 신뢰도가 높다는 기준입니다\n　파랑: 편차 적음\n　빨강: 편차 큼(재측정 검토)"
+            "value": "측정값을 연속 입력하고 「다음」으로 건너뛴 뒤, 마지막에 「저장」으로 평균값을 기록합니다\n\n혈압 측정 부위를 지정할 수 있습니다. 왼팔이면 (L) 오른팔이면 (R) 불명이거나 지정하지 않으면 (·) 를 선택합니다\n\n최대 5회까지 측정을 추가할 수 있습니다\n각 값을 수정하고 행 단위로 취소할 수 있습니다\n\n표준편차(±SD)는 작을수록 측정값의 편차가 적어 평균값의 신뢰도가 높다는 기준입니다\n　파랑: 편차 적음\n　빨강: 편차 큼(재측정 검토)\n\n±SD가 빨간색일 때는 편차의 주된 원인이 되는 측정값도 빨간색으로 표시합니다. 재측정이나 수정의 기준으로 삼으세요"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "連續輸入測量值，用「下一步」略過，最後用「儲存」記錄平均值\n\n可指定血壓的測量部位。左臂選 (L) 右臂選 (R) 不明或不指定則選 (·)\n\n最多可新增 5 次測量\n可修改各數值，並以列為單位還原\n\n標準差(±SD)越小代表測量值離散越少、平均值越可靠\n　藍：離散小\n　紅：離散大（建議重新測量）"
+            "value": "連續輸入測量值，用「下一步」略過，最後用「儲存」記錄平均值\n\n可指定血壓的測量部位。左臂選 (L) 右臂選 (R) 不明或不指定則選 (·)\n\n最多可新增 5 次測量\n可修改各數值，並以列為單位還原\n\n標準差(±SD)越小代表測量值離散越少、平均值越可靠\n　藍：離散小\n　紅：離散大（建議重新測量）\n\n當 ±SD 顯示紅色時，造成離散的主要測量值也會以紅色顯示，可作為重新測量或修正的參考"
           }
         }
       }

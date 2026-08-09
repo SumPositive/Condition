@@ -186,6 +186,51 @@ struct MeasurementSampleTests {
         #expect(typing)
     }
 
+    @Test("ばらつきが大きいとき平均から最も離れた値を主因とする")
+    func outlierDetectionPicksFarthestValue() {
+        // 血圧上（赤しきい値10）: 120,122,160 → SD約18で赤。主因は160（添字2）
+        let indices = MeasurementOutlierLogic.outlierIndices(
+            values: [120, 122, 160], redThreshold: 10
+        )
+
+        #expect(indices == [2])
+    }
+
+    @Test("ばらつきが小さければ主因を示さない")
+    func outlierDetectionSkipsSmallVariation() {
+        // 120,122,124 → SD約1.6で赤域に届かない
+        let indices = MeasurementOutlierLogic.outlierIndices(
+            values: [120, 122, 124], redThreshold: 10
+        )
+
+        #expect(indices.isEmpty)
+    }
+
+    @Test("未入力を飛ばして添字を返し、2件未満では判定しない")
+    func outlierDetectionHandlesEmptyCells() {
+        // 空セルを挟んでも、元の配列上の位置を返す
+        let withGap = MeasurementOutlierLogic.outlierIndices(
+            values: [120, nil, 122, 160], redThreshold: 10
+        )
+        // 1件だけではばらつきを論じられない
+        let single = MeasurementOutlierLogic.outlierIndices(
+            values: [120, nil, nil], redThreshold: 10
+        )
+
+        #expect(withGap == [3])
+        #expect(single.isEmpty)
+    }
+
+    @Test("同じだけ離れた値が複数あるときは全てを主因とする")
+    func outlierDetectionMarksTiedValues() {
+        // 2回測定で大きく開いた場合、どちらが誤りとも言えないので両方を示す
+        let indices = MeasurementOutlierLogic.outlierIndices(
+            values: [110, 150], redThreshold: 10
+        )
+
+        #expect(indices == [0, 1])
+    }
+
     @Test("記録編集ViewModelから平均値と各測定値を保存できる")
     @MainActor
     func recordEditViewModelStoresSamples() throws {

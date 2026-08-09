@@ -35,6 +35,9 @@ struct AZMemoEditor: View {
     @FocusState.Binding var isFocused: Bool
     var minHeight: CGFloat = 36
     var dismissOnReturn: Bool = false
+    /// この値を変えると入力を終了してキーボードを閉じる（呼び出し側からの明示的な指示）。
+    /// isFocused の false でこれを代用すると、入力中の一瞬を誤検出して閉じてしまう。
+    var dismissToken: Int = 0
     var onBeginEditing: (() -> Void)?
     @State private var editorHeight: CGFloat = 36
 
@@ -54,6 +57,7 @@ struct AZMemoEditor: View {
                 isFocused: $isFocused,
                 minHeight: minHeight,
                 dismissOnReturn: dismissOnReturn,
+                dismissToken: dismissToken,
                 onBeginEditing: onBeginEditing,
                 measuredHeight: $editorHeight
             )
@@ -68,6 +72,7 @@ private struct AZAutoSizingTextView: UIViewRepresentable {
     var isFocused: FocusState<Bool>.Binding
     let minHeight: CGFloat
     let dismissOnReturn: Bool
+    let dismissToken: Int
     let onBeginEditing: (() -> Void)?
     @Binding var measuredHeight: CGFloat
 
@@ -103,15 +108,25 @@ private struct AZAutoSizingTextView: UIViewRepresentable {
         context.coordinator.parent = self
         context.coordinator.updateHeight(textView)
 
-        if isFocused.wrappedValue {
-            if !textView.isFirstResponder {
-                textView.becomeFirstResponder()
+        if isFocused.wrappedValue, !textView.isFirstResponder {
+            textView.becomeFirstResponder()
+        }
+
+        // フォーカスを外すのは、呼び出し側が dismissToken を進めたときだけにする。
+        // isFocused の false を見て resign すると、入力中（textViewDidBeginEditing の
+        // 反映待ち）の一瞬を誤検出してキーボードが勝手に閉じてしまうため。
+        if dismissToken != context.coordinator.lastDismissToken {
+            context.coordinator.lastDismissToken = dismissToken
+            if textView.isFirstResponder {
+                textView.resignFirstResponder()
             }
         }
     }
 
     final class Coordinator: NSObject, UITextViewDelegate {
         var parent: AZAutoSizingTextView
+        /// 最後に処理した dismissToken。値が変わったときだけ resign する。
+        var lastDismissToken: Int = 0
 
         init(_ parent: AZAutoSizingTextView) {
             self.parent = parent

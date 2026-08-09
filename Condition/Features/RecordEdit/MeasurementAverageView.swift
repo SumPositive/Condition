@@ -76,6 +76,7 @@ private enum AvgColumn: Hashable, CaseIterable {
             return (5, 15)
         }
     }
+
 }
 
 private struct AvgCell: Hashable {
@@ -90,6 +91,62 @@ private struct MeasurementAverageSnapshot: Equatable {
     let bpSide: BpSide
     let samples: [AvgColumn: [Int?]]
     let trialCount: Int
+    // メモ欄（測定場所・機器／メモ1／メモ2／注意フラグ）
+    let equipment: String
+    let note1: String
+    let note2: String
+    let caution: Bool
+}
+
+/// ばらつき（標準偏差）が「赤」になっている主因の測定値を特定する。
+///
+/// 標準偏差そのものは「どの値が原因か」を教えてくれないため、
+/// 平均から最も離れた値を主因とみなして黄色で知らせ、測り直しや修正を促す。
+enum MeasurementOutlierLogic {
+
+    /// 標準偏差（母標準偏差。表示用の計算と揃える）
+    static func standardDeviation(_ values: [Int]) -> Double? {
+        guard values.count >= 2 else { return nil }
+        let mean = Double(values.reduce(0, +)) / Double(values.count)
+        let variance = values.reduce(0.0) { partial, v in
+            let d = Double(v) - mean
+            return partial + d * d
+        } / Double(values.count)
+        return sqrt(variance)
+    }
+
+    /// ばらつきが大きい（＝SDが赤域）ときに、その主因となっている値の位置を返す。
+    ///
+    /// - SDが赤のしきい値未満なら空（＝警告しない）
+    /// - 平均から最も離れた値を主因とする
+    /// - 同じだけ離れた値が複数ある（例: 2回測定で上下に開いている）場合は、
+    ///   どちらが誤りとも言えないため、その全てを対象にする
+    ///
+    /// - Parameters:
+    ///   - values: 入力済みの測定値（試行順に nil を含む）
+    ///   - redThreshold: この標準偏差以上で「赤」とみなすしきい値
+    /// - Returns: 主因となる値の添字（values 内の位置）
+    static func outlierIndices(values: [Int?], redThreshold: Int) -> Set<Int> {
+        let entered = values.enumerated().compactMap { index, value in
+            value.map { (index: index, value: $0) }
+        }
+        // 2件未満ではばらつきを論じられない
+        guard entered.count >= 2 else { return [] }
+        // 画面に出ている「赤い標準偏差」と一致させるため、表示と同じ丸めで判定する
+        guard let sd = standardDeviation(entered.map(\.value)),
+              Int(sd.rounded()) >= redThreshold else { return [] }
+
+        let mean = Double(entered.reduce(0) { $0 + $1.value }) / Double(entered.count)
+        let distances = entered.map { abs(Double($0.value) - mean) }
+        guard let maxDistance = distances.max(), maxDistance > 0 else { return [] }
+
+        // 浮動小数の誤差で取りこぼさないよう、ごく小さい許容差で「最遠」を判定する
+        return Set(
+            zip(entered, distances)
+                .filter { abs($0.1 - maxDistance) < 0.000_001 }
+                .map(\.0.index)
+        )
+    }
 }
 
 /// 空セルでダイアルを動かしたときの初回確定値を決める
@@ -145,6 +202,30 @@ struct MeasurementAverageView: View {
     @State private var showSameMinuteAlert = false
     // 削除に失敗したとき、リトライ／キャンセルを選ばせるためのアラート表示フラグ
     @State private var showDeleteFailedAlert = false
+
+    // メモ欄（ダイアル式の記録編集と同じ項目を、標準偏差の下に置く）
+    @State private var equipment: String = ""
+    @State private var note1: String = ""
+    @State private var note2: String = ""
+    @State private var caution: Bool = false
+    @FocusState private var focusEquipment: Bool
+    @FocusState private var focusNote1: Bool
+    @FocusState private var focusNote2: Bool
+    /// ソフトキーボードが表示中か（テンキーを隠す判断に使う実測値）
+    @State private var isKeyboardVisible = false
+    /// 進めるとメモ入力を終了させるトークン（AZMemoEditor への明示的な終了指示）
+    @State private var memoDismissToken = 0
+    // キーボード表示時に各メモ行を送るためのスクロールアンカー
+    private let equipmentAnchorID = "measurementAvg-equipment-anchor"
+    private let note1AnchorID = "measurementAvg-note1-anchor"
+    private let note2AnchorID = "measurementAvg-note2-anchor"
+    /// 測定場所・機器の履歴（プリセット含む）を作るための既存記録
+    @Query(
+        filter: #Predicate<BodyRecord> { $0.dateTime < bodyRecordGoalDate },
+        sort: \BodyRecord.dateTime,
+        order: .reverse
+    )
+    private var recordsForEquipmentHistory: [BodyRecord]
 
     /// 入力済みの値（nil は未入力）
     @State private var samples: [AvgColumn: [Int?]] = [:]
@@ -219,7 +300,8 @@ struct MeasurementAverageView: View {
         if record == nil {
             return MeasurementAverageChangeLogic.hasUnsavedChanges(
                 isEditing: false,
-                hasAnyValue: hasAnyValue,
+                // メモだけ書いた状態でも「入力あり」として扱い、誤操作で閉じないようにする
+                hasAnyValue: hasAnyValue || hasAnyMemoInput,
                 hasInputText: !inputText.isEmpty,
                 matchesInitialSnapshot: false
             )
@@ -240,8 +322,17 @@ struct MeasurementAverageView: View {
             dateOpt: dateOpt,
             bpSide: bpSide,
             samples: samples,
-            trialCount: trialCount
+            trialCount: trialCount,
+            equipment: equipment,
+            note1: note1,
+            note2: note2,
+            caution: caution
         )
+    }
+
+    /// メモ欄に何か入力されているか（新規シートの「変更あり」判定に使う）
+    private var hasAnyMemoInput: Bool {
+        !equipment.isEmpty || !note1.isEmpty || !note2.isEmpty || caution
     }
 
     var body: some View {
@@ -250,8 +341,25 @@ struct MeasurementAverageView: View {
                 topMetaBar
                 Divider()
                 tableScroll
-                Divider()
+                // メモ入力中はソフトキーボードが出るので、テンキーは隠して入力欄を広く使う。
+                // ここで if によりビューを取り除くと、フォーカス確定と同じフレームで
+                // レイアウトが崩れて first responder を取り逃がし、キーボードが出ないことがある。
+                // そのため subtree は残したまま高さ 0 に畳んで隠す。
+                if !hidesKeypad { Divider() }
                 keypadArea
+                    .opacity(hidesKeypad ? 0 : 1)
+                    .allowsHitTesting(!hidesKeypad)
+            }
+            // ソフトキーボードの表示／非表示を実測して、テンキーの出し分けに使う
+            .onReceive(
+                NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)
+            ) { _ in
+                isKeyboardVisible = true
+            }
+            .onReceive(
+                NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)
+            ) { _ in
+                isKeyboardVisible = false
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -260,6 +368,12 @@ struct MeasurementAverageView: View {
                         .font(.headline)
                         .foregroundStyle(Color.accentColor)
                         .accessibilityLabel(Text("record.measurementAvg.title"))
+                }
+                // メモ入力を確実に抜けてテンキーへ戻れるようにする（唯一の確実な導線）
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("action.done") { dismissMemoFocus() }
+                        .bold()
                 }
                 ToolbarItem(placement: .cancellationAction) {
                     Button {
@@ -453,41 +567,76 @@ struct MeasurementAverageView: View {
 
     private var tableScroll: some View {
         ScrollViewReader { proxy in
-            ScrollView([.vertical, .horizontal]) {
+            // 縦スクロールは画面全体、横スクロールは表だけに限定する。
+            // メモ欄は画面幅で折り返して読めるよう、横スクロールの外側に置く。
+            ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 4) {
-                    BeginnerHelpBanner(
-                        hintKey: "record.measurementAvg.hint",
-                        messageKey: "record.measurementAvg.help",
-                        storageKey: "helpDismissed.record.measurementAvg",
-                        compact: true
-                    )
-                    .padding(.leading, 40)
-                    .padding(.bottom, 2)
-                    headerRow
-                    ForEach(0..<trialCount, id: \.self) { trial in
-                        trialRow(trial: trial)
+                    ScrollView(.horizontal) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            BeginnerHelpBanner(
+                                hintKey: "record.measurementAvg.hint",
+                                messageKey: "record.measurementAvg.help",
+                                storageKey: "helpDismissed.record.measurementAvg",
+                                compact: true
+                            )
+                            .padding(.leading, 40)
+                            .padding(.bottom, 2)
+                            headerRow
+                            ForEach(0..<trialCount, id: \.self) { trial in
+                                trialRow(trial: trial)
+                            }
+                            // 「追加」ボタンと血圧の部位セグメントを同じ行に置く。
+                            // 部位は上下（収縮期・拡張期）共通なので列見出しの上に浮かせず、
+                            // 表のスクロール範囲を圧迫しないこの行にまとめる。血圧列が無ければ非表示。
+                            addTrialAndBpSideRow
+                                .padding(.leading, trialLabelWidth + 4)
+                                .padding(.top, 2)
+                            Divider().padding(.vertical, 4)
+                            summaryRow(metric: .average)
+                            summaryRow(metric: .standardDeviation)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
                     }
-                    // 「追加」ボタンと血圧の部位セグメントを同じ行に置く。
-                    // 部位は上下（収縮期・拡張期）共通なので列見出しの上に浮かせず、
-                    // 表のスクロール範囲を圧迫しないこの行にまとめる。血圧列が無ければ非表示。
-                    addTrialAndBpSideRow
-                        .padding(.leading, trialLabelWidth + 4)
-                        .padding(.top, 2)
-                    Divider().padding(.vertical, 4)
-                    summaryRow(metric: .average)
-                    summaryRow(metric: .standardDeviation)
+                    .scrollIndicators(.hidden)
+                    // 標準偏差の下に、ダイアル式の記録編集と同じメモ欄を置く
+                    memoSection
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 10)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
             }
             .scrollIndicators(.hidden)
+            .scrollDismissesKeyboard(.interactively)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .safeAreaInset(edge: .bottom) {
+                if hidesKeypad {
+                    // キーボード上へ入力行を逃がすため、フォーカス中だけ下端余白を追加する
+                    Color.clear.frame(height: 60)
+                }
+            }
             .onChange(of: focused) { _, newValue in
                 // フォーカス移動先が見切れているときだけ最小限の横スクロールで寄せる
                 guard let cell = newValue else { return }
                 withAnimation(.easeOut(duration: 0.18)) {
                     proxy.scrollTo(cell, anchor: nil)
                 }
+            }
+            // メモ欄にフォーカスが入ったら、キーボードに隠れないようその行まで送る
+            .onChange(of: focusEquipment) { _, isOn in
+                if isOn { scrollMemoIntoView(equipmentAnchorID, proxy: proxy, anchor: .top) }
+            }
+            .onChange(of: focusNote1) { _, isOn in
+                if isOn { scrollMemoIntoView(note1AnchorID, proxy: proxy) }
+            }
+            .onChange(of: focusNote2) { _, isOn in
+                if isOn { scrollMemoIntoView(note2AnchorID, proxy: proxy) }
+            }
+            // 入力で行が伸びたときも、フォーカス中の行を見えるところに保つ
+            .onChange(of: note1) { _, _ in
+                if focusNote1 { scrollMemoIntoView(note1AnchorID, proxy: proxy) }
+            }
+            .onChange(of: note2) { _, _ in
+                if focusNote2 { scrollMemoIntoView(note2AnchorID, proxy: proxy) }
             }
         }
     }
@@ -638,9 +787,32 @@ struct MeasurementAverageView: View {
     }
 
     private func cellDisplayColor(column: AvgColumn, trial: Int, focused: Bool) -> Color {
+        // ばらつき（±SD）が赤い主因の値は、その数値だけを赤くして知らせる
+        if isOutlierCell(column: column, trial: trial) { return .red }
         if focused, !inputText.isEmpty { return .primary }
         if samples[column]?[trial] != nil { return .primary }
         return Color(.tertiaryLabel)
+    }
+
+    /// 標準偏差が赤くなっている主因の値かどうか。
+    /// 該当セルを黄色で示し、どの測定値がばらつきを生んでいるかを分かるようにする。
+    private func isOutlierCell(column: AvgColumn, trial: Int) -> Bool {
+        outlierTrials(for: column).contains(trial)
+    }
+
+    /// その列で、ばらつきの主因になっている試行の位置。
+    /// 入力途中の文字列も反映して、確定前から色が追従するようにする。
+    private func outlierTrials(for column: AvgColumn) -> Set<Int> {
+        var values = samples[column] ?? []
+        // 入力中のセルは、まだ確定していない値を使って判定する
+        if let cell = focused, cell.column == column, !inputText.isEmpty,
+           cell.trial < values.count {
+            values[cell.trial] = parsedInputText(for: column)
+        }
+        return MeasurementOutlierLogic.outlierIndices(
+            values: values,
+            redThreshold: column.sdTolerance.red
+        )
     }
 
     private func canRemoveTrial(at trial: Int) -> Bool {
@@ -744,6 +916,172 @@ struct MeasurementAverageView: View {
         return Color(red: p, green: 0.48 * (1 - p), blue: (1 - p))
     }
 
+    // MARK: メモ欄
+
+    /// メモ欄にフォーカスがあるか（スクロール送りの判定に使う）
+    private var isMemoFocused: Bool {
+        focusEquipment || focusNote1 || focusNote2
+    }
+
+    /// テンキーを隠すか。
+    /// @FocusState は AZMemoEditor（UITextView）経由だと反映が1フレーム遅れることがあり、
+    /// 「キーボードが出ているのにテンキーも出ている」状態になりうる。
+    /// 実際のキーボード表示通知を真とし、フォーカス状態と OR で判定する。
+    private var hidesKeypad: Bool {
+        isKeyboardVisible || isMemoFocused
+    }
+
+    /// メモ入力を抜けてテンキー表示に戻す。
+    /// @FocusState を落とすだけでは UITextView 側が first responder を握ったままの
+    /// ことがあるため、UIKit にも明示的に終了を依頼して確実に閉じる。
+    private func dismissMemoFocus() {
+        focusEquipment = false
+        focusNote1 = false
+        focusNote2 = false
+        // AZMemoEditor（UITextView）は isFocused の false では閉じない設計なので、
+        // トークンを進めて明示的に入力終了を指示する
+        memoDismissToken &+= 1
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil
+        )
+    }
+
+    /// キーボード表示中もメモ欄の入力行が隠れないよう、少し遅らせて寄せる
+    private func scrollMemoIntoView(
+        _ anchorID: String, proxy: ScrollViewProxy, anchor: UnitPoint = .bottom
+    ) {
+        for delay in [0.05, 0.22] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                guard hidesKeypad else { return }
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    proxy.scrollTo(anchorID, anchor: anchor)
+                }
+            }
+        }
+    }
+
+    /// 測定場所・機器の候補プール（履歴 + プリセット、重複・空文字除去）
+    /// ダイアル式の記録編集と同じ並び（新しい履歴 → プリセット）にする
+    private var equipmentCandidates: [String] {
+        let presets = [
+            String(localized: "record.device.preset.home"),
+            String(localized: "record.device.preset.hospital"),
+            String(localized: "record.device.preset.gym")
+        ]
+        var values: [String] = []
+        var seen: Set<String> = []
+        for value in recordsForEquipmentHistory.map(\.sEquipment) + presets {
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty || seen.contains(trimmed) { continue }
+            seen.insert(trimmed)
+            values.append(trimmed)
+        }
+        return values
+    }
+
+    /// 入力中の文字列で絞り込んだ候補（最大10件）
+    private var shownEquipmentCandidates: [String] {
+        let keyword = equipment.trimmingCharacters(in: .whitespacesAndNewlines)
+        if keyword.isEmpty {
+            return Array(equipmentCandidates.prefix(10))
+        }
+        let filtered = equipmentCandidates.filter { $0.localizedCaseInsensitiveContains(keyword) }
+        return Array((filtered.isEmpty ? equipmentCandidates : filtered).prefix(10))
+    }
+
+    /// 標準偏差の下に置く、ダイアル式の記録編集と同じメモ欄
+    private var memoSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Divider()
+            Text("record.memo.section")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            // 測定場所・機器：TextField + インライン候補リスト
+            TextField("record.device", text: $equipment)
+                .id(equipmentAnchorID)
+                .focused($focusEquipment)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .submitLabel(.done)
+                .onSubmit { dismissMemoFocus() }
+                .onChange(of: equipment) { _, newValue in
+                    // 末尾改行を除去
+                    let trimmed = newValue.replacingOccurrences(
+                        of: "\n+$", with: "", options: .regularExpression
+                    )
+                    if trimmed != newValue { equipment = trimmed }
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 8)
+                .background(Color(.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+
+            if focusEquipment && !shownEquipmentCandidates.isEmpty {
+                VStack(spacing: 0) {
+                    ForEach(shownEquipmentCandidates, id: \.self) { candidate in
+                        Button {
+                            equipment = candidate
+                            dismissMemoFocus()
+                        } label: {
+                            HStack(spacing: 0) {
+                                Text(candidate)
+                                    .lineLimit(1)
+                                    .truncationMode(.tail)
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 8)
+                        }
+                        .buttonStyle(.plain)
+                        if candidate != shownEquipmentCandidates.last {
+                            Divider()
+                        }
+                    }
+                }
+                .background(Color(.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                // 候補リストは「大」(.xxxLarge) までに制約（縦方向の肥大化を抑制）
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+            }
+
+            AZMemoEditor(
+                placeholder: "record.memo1",
+                text: $note1,
+                isFocused: $focusNote1,
+                dismissToken: memoDismissToken
+            )
+            .padding(.horizontal, 3)
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .id(note1AnchorID)
+            AZMemoEditor(
+                placeholder: "record.memo2",
+                text: $note2,
+                isFocused: $focusNote2,
+                dismissToken: memoDismissToken
+            )
+            .padding(.horizontal, 3)
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .id(note2AnchorID)
+
+            Toggle(isOn: $caution) {
+                HStack(spacing: 6) {
+                    if caution {
+                        Image(systemName: "flag.fill")
+                            .foregroundStyle(.orange)
+                    }
+                    Text("record.cautionFlag")
+                }
+            }
+            .padding(.top, 2)
+        }
+    }
+
     // MARK: テンキー
 
     private var keypadArea: some View {
@@ -766,12 +1104,14 @@ struct MeasurementAverageView: View {
                 }
             }
         }
-        .frame(height: dialRowHeight + 16 + keypadHeight)
-        .padding(.top, 8)
+        // メモ入力中は高さ 0 に畳んで隠す（ビュー自体は残す。理由は body 側のコメント参照）
+        .frame(height: hidesKeypad ? 0 : dialRowHeight + 16 + keypadHeight)
+        .padding(.top, hidesKeypad ? 0 : 8)
         .padding(.leading, 8)
         .padding(.trailing, 8)
-        .padding(.bottom, 8)
+        .padding(.bottom, hidesKeypad ? 0 : 8)
         .background(Color(.systemBackground))
+        .clipped()
     }
 
     private let dialRowHeight: CGFloat = 44
@@ -947,6 +1287,10 @@ struct MeasurementAverageView: View {
         dateTime = record.dateTime
         dateOpt = record.dateOpt
         bpSide = record.bpSide
+        equipment = record.sEquipment
+        note1 = record.sNote1
+        note2 = record.sNote2
+        caution = record.bCaution
         guard let set = record.measurementSampleSet else {
             ensureSamplesArrays()
             initialSnapshot = currentSnapshot
@@ -968,14 +1312,18 @@ struct MeasurementAverageView: View {
             dateOpt: record.dateOpt,
             bpSide: record.bpSide,
             samples: loadedSamples,
-            trialCount: trialCount
+            trialCount: trialCount,
+            equipment: record.sEquipment,
+            note1: record.sNote1,
+            note2: record.sNote2,
+            caution: record.bCaution
         )
     }
 
     /// 未入力の新規平均シートがバックグラウンド→復帰したとき、日時と区分を現在時刻基準へ取り直す。
     /// 値入力・入力途中の文字があるとき、または修正（record != nil）では何もしない。
     private func refreshDateForForeground() {
-        guard record == nil, !hasAnyValue, inputText.isEmpty else { return }
+        guard record == nil, !hasAnyValue, !hasAnyMemoInput, inputText.isEmpty else { return }
         dateTime = Date()
         dateOpt  = settings.autoDateOpt(for: dateTime)   // 前回値が無い場合の既定区分
         // 開いた直後と同じ手順で、まとめ時間内の直前区分／推定により区分を取り直し、参考値も更新する。
@@ -1072,6 +1420,8 @@ struct MeasurementAverageView: View {
 
     private func focus(_ cell: AvgCell) {
         commitInputText()
+        // 表のセルへ移るときはメモ入力を抜けて、ソフトキーボードをテンキーに戻す
+        dismissMemoFocus()
         focused = cell
         inputText = ""
     }
@@ -1311,6 +1661,12 @@ struct MeasurementAverageView: View {
 
         // 左右は血圧固有。血圧が無い記録には付けない。
         target.bpSide = (target.nBpHi_mmHg > 0 || target.nBpLo_mmHg > 0) ? bpSide : .unknown
+
+        // メモ欄（ダイアル式の記録編集と同じく前後の改行を落として保存する）
+        target.sEquipment = equipment.trimmingCharacters(in: .newlines)
+        target.sNote1 = note1.trimmingCharacters(in: .newlines)
+        target.sNote2 = note2.trimmingCharacters(in: .newlines)
+        target.bCaution = caution
 
         // 空欄を含む行構成を保ち、修正時に同じ表を復元する
         target.measurementSampleSet = MeasurementSampleSet(
