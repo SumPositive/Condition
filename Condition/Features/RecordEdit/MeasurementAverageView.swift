@@ -1612,6 +1612,22 @@ struct MeasurementAverageView: View {
         }
     }
 
+    /// 保存対象として残す試行の位置（どこか1列でも値がある行）を、元の順序で返す
+    private func nonEmptyTrialIndices() -> [Int] {
+        (0..<trialCount).filter { trial in
+            AvgColumn.allCases.contains { column in
+                guard let arr = samples[column], trial < arr.count else { return false }
+                return arr[trial] != nil
+            }
+        }
+    }
+
+    /// 空行を取り除いた、その列の測定値配列を作る
+    private func compactedSamples(for column: AvgColumn, keeping trials: [Int]) -> [Int?] {
+        let arr = samples[column] ?? []
+        return trials.map { $0 < arr.count ? arr[$0] : nil }
+    }
+
     private func saveAndDismiss() {
         commitInputText()
         guard hasAnyValue else { return }
@@ -1668,15 +1684,18 @@ struct MeasurementAverageView: View {
         target.sNote2 = note2.trimmingCharacters(in: .newlines)
         target.bCaution = caution
 
-        // 空欄を含む行構成を保ち、修正時に同じ表を復元する
+        // 全列が空の行（＝入力せずに残った試行）は詰めて保存する。
+        // 残しても平均には影響しないが、修正時に空行として復元されて紛らわしいため。
+        // 一部の列だけ空の行は測定として有効なので残す。
+        let keptTrials = nonEmptyTrialIndices()
         target.measurementSampleSet = MeasurementSampleSet(
-            bpHi: Array((samples[.bpHi] ?? []).prefix(trialCount)),
-            bpLo: Array((samples[.bpLo] ?? []).prefix(trialCount)),
-            pulse: Array((samples[.pulse] ?? []).prefix(trialCount)),
-            weight: Array((samples[.weight] ?? []).prefix(trialCount)),
-            temp: Array((samples[.temp] ?? []).prefix(trialCount)),
-            bodyFat: Array((samples[.bodyFat] ?? []).prefix(trialCount)),
-            skMuscle: Array((samples[.skMuscle] ?? []).prefix(trialCount))
+            bpHi: compactedSamples(for: .bpHi, keeping: keptTrials),
+            bpLo: compactedSamples(for: .bpLo, keeping: keptTrials),
+            pulse: compactedSamples(for: .pulse, keeping: keptTrials),
+            weight: compactedSamples(for: .weight, keeping: keptTrials),
+            temp: compactedSamples(for: .temp, keeping: keptTrials),
+            bodyFat: compactedSamples(for: .bodyFat, keeping: keptTrials),
+            skMuscle: compactedSamples(for: .skMuscle, keeping: keptTrials)
         )
 
         if record == nil {
@@ -1686,7 +1705,8 @@ struct MeasurementAverageView: View {
             try context.save()
             AppAnalytics.shared.logOperation(
                 "measurement_average_sheet_save",
-                parameters: ["trial_count": trialCount]
+                // 画面上の行数ではなく、実際に測定値が入っていた行数を記録する
+                parameters: ["trial_count": keptTrials.count]
             )
             // 通常記録と同じく HealthKit へ書き戻す（設定が有効な場合）
             if settings.hkEnabled,

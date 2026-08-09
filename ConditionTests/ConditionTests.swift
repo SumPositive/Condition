@@ -186,6 +186,24 @@ struct MeasurementSampleTests {
         #expect(typing)
     }
 
+    @Test("保存した測定値セットは空行を含まず往復できる")
+    func measurementSampleSetRoundTripsWithoutEmptyRows() {
+        let record = BodyRecord()
+        // 2行目を空のまま保存したときに相当する、空行を詰めた状態
+        record.measurementSampleSet = MeasurementSampleSet(
+            bpHi: [120, 124],
+            bpLo: [80, 82],
+            pulse: [65, nil]
+        )
+
+        let restored = record.measurementSampleSet
+
+        #expect(restored?.trialCount == 2)
+        #expect(restored?.bpHi == [120, 124])
+        // 一部の列だけ空の行は測定として有効なので残る
+        #expect(restored?.pulse == [65, nil])
+    }
+
     @Test("ばらつきが大きいとき平均から最も離れた値を主因とする")
     func outlierDetectionPicksFarthestValue() {
         // 血圧上（赤しきい値10）: 120,122,160 → SD約18で赤。主因は160（添字2）
