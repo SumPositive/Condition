@@ -1,4 +1,3 @@
-・Stats “Left–Right Difference”: fixed the summary to include only measurements that form left/right pairs.
-・When the app is closed with the New Record sheet open, its date, time, and category are now refreshed on the next launch.
-・Improved bidirectional Apple Health sync and fixed an issue where deleted records could reappear.
+・Added a Notes section to New Record (table view).
+・New Record (table view) now shows the reading causing most of the variation in red.
 ・Fixed potential issues.
