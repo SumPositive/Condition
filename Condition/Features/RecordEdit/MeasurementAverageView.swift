@@ -211,6 +211,10 @@ struct MeasurementAverageView: View {
     @FocusState private var focusEquipment: Bool
     @FocusState private var focusNote1: Bool
     @FocusState private var focusNote2: Bool
+    /// 候補選択直後にIMEが未確定文字を書き戻すのを防ぐ
+    @State private var pendingEquipmentSelection: String?
+    /// 候補カプセル1行分の高さ
+    @ScaledMetric(relativeTo: .body) private var scaledEquipmentCandidateRowHeight: CGFloat = 34
     /// ソフトキーボードが表示中か（テンキーを隠す判断に使う実測値）
     @State private var isKeyboardVisible = false
     /// 進めるとメモ入力を終了させるトークン（AZMemoEditor への明示的な終了指示）
@@ -368,12 +372,6 @@ struct MeasurementAverageView: View {
                         .font(.headline)
                         .foregroundStyle(Color.accentColor)
                         .accessibilityLabel(Text("record.measurementAvg.title"))
-                }
-                // メモ入力を確実に抜けてテンキーへ戻れるようにする（唯一の確実な導線）
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("action.done") { dismissMemoFocus() }
-                        .bold()
                 }
                 ToolbarItem(placement: .cancellationAction) {
                     Button {
@@ -609,7 +607,10 @@ struct MeasurementAverageView: View {
             .scrollDismissesKeyboard(.interactively)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .safeAreaInset(edge: .bottom) {
-                if hidesKeypad {
+                if focusEquipment && !shownEquipmentCandidates.isEmpty {
+                    // キーボード直上へ候補バーの領域を確保する
+                    equipmentCandidateBar
+                } else if hidesKeypad {
                     // キーボード上へ入力行を逃がすため、フォーカス中だけ下端余白を追加する
                     Color.clear.frame(height: 60)
                 }
@@ -960,17 +961,36 @@ struct MeasurementAverageView: View {
         }
     }
 
-    /// 測定場所・機器の候補プール（履歴 + プリセット、重複・空文字除去）
-    /// ダイアル式の記録編集と同じ並び（新しい履歴 → プリセット）にする
+    /// 候補に表示する最大件数
+    private static let equipmentCandidateLimit = 20
+    /// キーボード上に表示する候補の行数
+    private static let equipmentCandidateRows = 2
+    /// 候補カプセルの行間
+    private let equipmentCandidateRowSpacing: CGFloat = 6
+
+    /// 測定場所・機器の候補プールを利用頻度順で作る
     private var equipmentCandidates: [String] {
         let presets = [
             String(localized: "record.device.preset.home"),
             String(localized: "record.device.preset.hospital"),
             String(localized: "record.device.preset.gym")
         ]
+        var counts: [String: Int] = [:]
+        for record in recordsForEquipmentHistory {
+            let value = record.sEquipment.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !value.isEmpty { counts[value, default: 0] += 1 }
+        }
+        let history = counts.keys.sorted { lhs, rhs in
+            let lhsCount = counts[lhs, default: 0]
+            let rhsCount = counts[rhs, default: 0]
+            if lhsCount == rhsCount {
+                return lhs.localizedStandardCompare(rhs) == .orderedAscending
+            }
+            return rhsCount < lhsCount
+        }
         var values: [String] = []
         var seen: Set<String> = []
-        for value in recordsForEquipmentHistory.map(\.sEquipment) + presets {
+        for value in history + presets {
             let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
             if trimmed.isEmpty || seen.contains(trimmed) { continue }
             seen.insert(trimmed)
@@ -979,14 +999,134 @@ struct MeasurementAverageView: View {
         return values
     }
 
-    /// 入力中の文字列で絞り込んだ候補（最大10件）
+    /// 入力語へ前方一致する候補を優先し、部分一致を続ける
     private var shownEquipmentCandidates: [String] {
         let keyword = equipment.trimmingCharacters(in: .whitespacesAndNewlines)
         if keyword.isEmpty {
-            return Array(equipmentCandidates.prefix(10))
+            return Array(equipmentCandidates.prefix(Self.equipmentCandidateLimit))
         }
-        let filtered = equipmentCandidates.filter { $0.localizedCaseInsensitiveContains(keyword) }
-        return Array((filtered.isEmpty ? equipmentCandidates : filtered).prefix(10))
+        let matchingCandidates = equipmentCandidates.filter {
+            $0.localizedCaseInsensitiveContains(keyword)
+        }
+        if matchingCandidates.count == 1,
+           matchingCandidates[0].compare(keyword, options: .caseInsensitive) == .orderedSame {
+            return []
+        }
+        var prefixMatches: [String] = []
+        var containsMatches: [String] = []
+        for candidate in equipmentCandidates {
+            if candidate.lowercased().hasPrefix(keyword.lowercased()) {
+                prefixMatches.append(candidate)
+            } else if candidate.localizedCaseInsensitiveContains(keyword) {
+                containsMatches.append(candidate)
+            }
+        }
+        return Array((prefixMatches + containsMatches).prefix(Self.equipmentCandidateLimit))
+    }
+
+    /// 候補バーを2行分へ抑える
+    private var equipmentCandidateBarHeight: CGFloat {
+        let rowHeight = min(scaledEquipmentCandidateRowHeight, 48)
+        let rows = CGFloat(Self.equipmentCandidateRows)
+        return rowHeight * rows + equipmentCandidateRowSpacing * (rows - 1)
+    }
+
+    /// キーボード直上へ測定場所・機器の候補をカプセル表示する
+    private var equipmentCandidateBar: some View {
+        GeometryReader { geometry in
+            ScrollView(.vertical) {
+                AZFlowLayout(
+                    spacing: 8,
+                    rowSpacing: equipmentCandidateRowSpacing,
+                    alignment: .leading,
+                    packToFill: true
+                ) {
+                    ForEach(shownEquipmentCandidates, id: \.self) { candidate in
+                        Button {
+                            selectEquipmentCandidate(candidate)
+                        } label: {
+                            equipmentCandidateLabel(
+                                candidate,
+                                maximumCapsuleWidth: max(0, geometry.size.width - 4)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 2)
+            }
+            .scrollIndicators(.hidden)
+            .scrollBounceBehavior(.basedOnSize)
+            // 3行目以降をスクロールしてもキーボードを閉じない
+            .scrollDismissesKeyboard(.never)
+        }
+        .frame(height: equipmentCandidateBarHeight)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.bar)
+        .overlay(alignment: .top) { Divider() }
+    }
+
+    /// IMEを閉じてから候補値を確定する
+    private func selectEquipmentCandidate(_ candidate: String) {
+        pendingEquipmentSelection = candidate
+        dismissMemoFocus()
+        DispatchQueue.main.async {
+            equipment = candidate
+        }
+    }
+
+    /// 入力語へ一致した候補部分を強調する
+    private func equipmentCandidateText(_ candidate: String) -> Text {
+        let displayCandidate = nonbreakingEquipmentCandidate(candidate)
+        let keyword = nonbreakingEquipmentCandidate(
+            equipment.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+        guard !keyword.isEmpty,
+              let range = displayCandidate.range(of: keyword, options: .caseInsensitive) else {
+            return Text(displayCandidate).foregroundStyle(.primary)
+        }
+        return Text(displayCandidate[displayCandidate.startIndex..<range.lowerBound]).foregroundStyle(.secondary)
+            + Text(displayCandidate[range]).foregroundStyle(.primary).bold()
+            + Text(displayCandidate[range.upperBound...]).foregroundStyle(.secondary)
+    }
+
+    /// 候補内の空白を改行されない空白へ置き換える
+    private func nonbreakingEquipmentCandidate(_ candidate: String) -> String {
+        candidate.map { $0.isWhitespace ? "\u{00A0}" : String($0) }.joined()
+    }
+
+    /// 自然幅を優先し、画面幅を超える候補だけ末尾を省略する
+    private func equipmentCandidateLabel(
+        _ candidate: String,
+        maximumCapsuleWidth: CGFloat
+    ) -> some View {
+        // 空白を含む文字列もUIFontで実測して早すぎる省略を防ぐ
+        let font = UIFont.systemFont(ofSize: equipmentCandidateFontSize, weight: .bold)
+        let displayCandidate = nonbreakingEquipmentCandidate(candidate)
+        let textWidth = ceil((displayCandidate as NSString).size(withAttributes: [.font: font]).width)
+        let capsuleWidth = min(maximumCapsuleWidth, textWidth + 24)
+        return equipmentCandidateText(candidate)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .frame(width: max(0, capsuleWidth - 24), alignment: .leading)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(Capsule().fill(Color(.tertiarySystemFill)))
+    }
+
+    /// アプリの文字サイズ設定に対応する候補計測用フォントサイズ
+    private var equipmentCandidateFontSize: CGFloat {
+        if settings.fontScale.followsSystem {
+            return UIFont.preferredFont(forTextStyle: .body).pointSize
+        }
+        switch settings.fontScale {
+        case .system:   return UIFont.preferredFont(forTextStyle: .body).pointSize
+        case .standard: return 17
+        case .large:    return 23
+        case .xLarge:   return 33
+        }
     }
 
     /// 標準偏差の下に置く、ダイアル式の記録編集と同じメモ欄
@@ -997,56 +1137,60 @@ struct MeasurementAverageView: View {
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(.secondary)
 
-            // 測定場所・機器：TextField + インライン候補リスト
-            TextField("record.device", text: $equipment)
-                .id(equipmentAnchorID)
-                .focused($focusEquipment)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .submitLabel(.done)
-                .onSubmit { dismissMemoFocus() }
-                .onChange(of: equipment) { _, newValue in
-                    // 末尾改行を除去
-                    let trimmed = newValue.replacingOccurrences(
-                        of: "\n+$", with: "", options: .regularExpression
-                    )
-                    if trimmed != newValue { equipment = trimmed }
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 8)
-                .background(Color(.secondarySystemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-
-            if focusEquipment && !shownEquipmentCandidates.isEmpty {
-                VStack(spacing: 0) {
-                    ForEach(shownEquipmentCandidates, id: \.self) { candidate in
-                        Button {
-                            equipment = candidate
-                            dismissMemoFocus()
-                        } label: {
-                            HStack(spacing: 0) {
-                                Text(candidate)
-                                    .lineLimit(1)
-                                    .truncationMode(.tail)
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .contentShape(Rectangle())
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 8)
-                        }
-                        .buttonStyle(.plain)
-                        if candidate != shownEquipmentCandidates.last {
-                            Divider()
-                        }
+            // 候補は入力欄ではなくキーボード直上へ表示する
+            HStack(spacing: 8) {
+                TextField("record.device", text: $equipment)
+                    .id(equipmentAnchorID)
+                    .focused($focusEquipment)
+                    .onChange(of: focusEquipment) { _, isFocused in
+                        // 再入力時は候補選択の保留値を解除する
+                        if isFocused { pendingEquipmentSelection = nil }
                     }
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .submitLabel(.done)
+                    .onSubmit { dismissMemoFocus() }
+                    .onChange(of: equipment) { _, newValue in
+                        // IMEの遅延書き戻しより候補選択を優先する
+                        if let pending = pendingEquipmentSelection {
+                            if newValue == pending {
+                                pendingEquipmentSelection = nil
+                            } else {
+                                equipment = pending
+                            }
+                            return
+                        }
+                        // 測定場所・機器は最大100文字へ制限する
+                        if 100 < newValue.count {
+                            equipment = String(newValue.prefix(100))
+                            return
+                        }
+                        // 末尾改行を除去
+                        let trimmed = newValue.replacingOccurrences(
+                            of: "\n+$", with: "", options: .regularExpression
+                        )
+                        if trimmed != newValue { equipment = trimmed }
+                    }
+
+                // 入力中だけ内容をまとめて消せるようにする
+                if !equipment.isEmpty {
+                    Button {
+                        pendingEquipmentSelection = nil
+                        equipment = ""
+                        focusEquipment = true
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Text("action.clear"))
                 }
-                .background(Color(.secondarySystemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-                // 候補リストは「大」(.xxxLarge) までに制約（縦方向の肥大化を抑制）
-                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
             }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 8)
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
 
             AZMemoEditor(
                 placeholder: "record.memo1",

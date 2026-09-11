@@ -703,35 +703,77 @@ struct AZAdaptiveRadioRow<Option: Hashable & Identifiable, Title: View, Label: V
 struct AZFlowLayout: Layout {
     var spacing: CGFloat
     var rowSpacing: CGFloat
+    /// 各行の横方向の配置
+    var alignment: HorizontalAlignment = .trailing
+    /// 行末へ収まる後続項目を繰り上げるか
+    var packToFill: Bool = false
+
+    /// 項目サイズを行分けと配置で共有する
+    private func sizes(_ subviews: Subviews) -> [CGSize] {
+        subviews.map { $0.sizeThatFits(.unspecified) }
+    }
+
+    /// 表示幅へ収まるよう項目を行単位へ分ける
+    private func makeRows(sizes: [CGSize], availableWidth: CGFloat) -> [[Int]] {
+        let count = sizes.count
+        guard 0 < count else { return [] }
+        guard 0 < availableWidth, availableWidth.isFinite else { return [Array(0..<count)] }
+
+        var placed = [Bool](repeating: false, count: count)
+        var rows: [[Int]] = []
+
+        while let start = placed.firstIndex(of: false) {
+            placed[start] = true
+            var row = [start]
+            var usedWidth = sizes[start].width
+
+            while true {
+                let availableSpace = availableWidth - usedWidth - spacing
+                if availableSpace <= 0 { break }
+                let remainingRange = (start + 1)..<count
+                let nextIndex: Int?
+                if packToFill {
+                    nextIndex = remainingRange.first {
+                        !placed[$0] && sizes[$0].width <= availableSpace
+                    }
+                } else if let next = remainingRange.first(where: { !placed[$0] }) {
+                    nextIndex = sizes[next].width <= availableSpace ? next : nil
+                } else {
+                    nextIndex = nil
+                }
+                guard let nextIndex else { break }
+                placed[nextIndex] = true
+                row.append(nextIndex)
+                usedWidth += spacing + sizes[nextIndex].width
+            }
+            rows.append(row)
+        }
+        return rows
+    }
 
     func sizeThatFits(
         proposal: ProposedViewSize,
         subviews: Subviews,
         cache: inout ()
     ) -> CGSize {
-        let availableWidth = proposal.width ?? subviews.reduce(CGFloat.zero) { partial, subview in
-            partial + subview.sizeThatFits(.unspecified).width + spacing
+        let itemSizes = sizes(subviews)
+        let availableWidth = proposal.width ?? itemSizes.reduce(CGFloat.zero) {
+            $0 + $1.width + spacing
         }
-        var x: CGFloat = 0
-        var y: CGFloat = 0
-        var rowHeight: CGFloat = 0
-        var usedWidth: CGFloat = 0
+        let rows = makeRows(sizes: itemSizes, availableWidth: availableWidth)
 
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            let nextX = x == 0 ? size.width : x + spacing + size.width
-            if availableWidth < nextX && 0 < x {
-                usedWidth = max(usedWidth, x)
-                x = 0
-                y += rowHeight + rowSpacing
-                rowHeight = 0
-            }
-            x = x == 0 ? size.width : x + spacing + size.width
-            rowHeight = max(rowHeight, size.height)
+        var totalHeight: CGFloat = 0
+        var maximumRowWidth: CGFloat = 0
+        for (index, row) in rows.enumerated() {
+            let rowWidth = row.reduce(CGFloat.zero) { $0 + itemSizes[$1].width }
+                + spacing * CGFloat(max(row.count - 1, 0))
+            let rowHeight = row.reduce(CGFloat.zero) { max($0, itemSizes[$1].height) }
+            maximumRowWidth = max(maximumRowWidth, rowWidth)
+            totalHeight += rowHeight
+            if index < rows.count - 1 { totalHeight += rowSpacing }
         }
-        usedWidth = max(usedWidth, x)
-
-        return CGSize(width: min(usedWidth, availableWidth), height: y + rowHeight)
+        let width = proposal.width ?? maximumRowWidth
+        return CGSize(width: min(maximumRowWidth, width), height: totalHeight)
     }
 
     func placeSubviews(
@@ -740,42 +782,23 @@ struct AZFlowLayout: Layout {
         subviews: Subviews,
         cache: inout ()
     ) {
-        var rows: [[(index: Int, size: CGSize)]] = []
-        var currentRow: [(index: Int, size: CGSize)] = []
-        var currentWidth: CGFloat = 0
+        let itemSizes = sizes(subviews)
+        let rows = makeRows(sizes: itemSizes, availableWidth: bounds.width)
         var y = bounds.minY
 
-        for index in subviews.indices {
-            let subview = subviews[index]
-            let size = subview.sizeThatFits(.unspecified)
-            let nextWidth = currentRow.isEmpty ? size.width : currentWidth + spacing + size.width
-            if bounds.width < nextWidth && currentRow.isEmpty == false {
-                rows.append(currentRow)
-                currentRow = []
-                currentWidth = 0
-            }
-            currentRow.append((index, size))
-            currentWidth = currentRow.count == 1 ? size.width : currentWidth + spacing + size.width
-        }
-        if currentRow.isEmpty == false {
-            rows.append(currentRow)
-        }
-
         for row in rows {
-            let rowWidth = row.reduce(CGFloat.zero) { partial, item in
-                partial + item.size.width
-            } + spacing * CGFloat(max(row.count - 1, 0))
-            let rowHeight = row.reduce(CGFloat.zero) { partial, item in
-                max(partial, item.size.height)
-            }
-            var x = bounds.maxX - rowWidth
-            for item in row {
-                let subview = subviews[item.index]
-                subview.place(
+            let rowWidth = row.reduce(CGFloat.zero) { $0 + itemSizes[$1].width }
+                + spacing * CGFloat(max(row.count - 1, 0))
+            let rowHeight = row.reduce(CGFloat.zero) { max($0, itemSizes[$1].height) }
+            var x = alignment == .leading ? bounds.minX : bounds.maxX - rowWidth
+            for index in row {
+                // 帯より長い項目は表示幅へ収める
+                let itemWidth = min(itemSizes[index].width, bounds.width)
+                subviews[index].place(
                     at: CGPoint(x: x, y: y),
-                    proposal: ProposedViewSize(item.size)
+                    proposal: ProposedViewSize(width: itemWidth, height: itemSizes[index].height)
                 )
-                x += item.size.width + spacing
+                x += itemWidth + spacing
             }
             y += rowHeight + rowSpacing
         }
