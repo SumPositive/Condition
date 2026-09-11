@@ -604,7 +604,18 @@ struct MeasurementAverageView: View {
                 }
             }
             .scrollIndicators(.hidden)
-            .scrollDismissesKeyboard(.interactively)
+            // スクロール開始時にフォーカスを外して標準アニメーションで閉じる
+            .scrollDismissesKeyboard(.never)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                // 入力欄や候補以外をタップしたらキーボードを閉じる
+                if isMemoFocused { dismissMemoFocus() }
+            }
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 8).onChanged { _ in
+                    if isMemoFocused { dismissMemoFocus() }
+                }
+            )
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .safeAreaInset(edge: .bottom) {
                 if focusEquipment && !shownEquipmentCandidates.isEmpty {

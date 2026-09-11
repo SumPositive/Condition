@@ -394,7 +394,18 @@ struct RecordEditView: View {
                 }
                 // 測定項目カード（Section）どうしの間隔を区切り線程度まで詰め、セルが密に並んで見えるようにする
                 .listSectionSpacing(2)
-                .scrollDismissesKeyboard(.interactively)
+                // スクロール開始時にフォーカスを外して標準アニメーションで閉じる
+                .scrollDismissesKeyboard(.never)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    // 入力欄や候補以外をタップしたらキーボードを閉じる
+                    if isMemoFocused { dismissMemoFocus() }
+                }
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 8).onChanged { _ in
+                        if isMemoFocused { dismissMemoFocus() }
+                    }
+                )
                 .onChange(of: vm.sNote1) { _, _ in scrollFocusedMemoIntoView(proxy) }
                 .onChange(of: vm.sNote2) { _, _ in scrollFocusedMemoIntoView(proxy) }
                 .onChange(of: vm.sEquipment) { _, _ in scrollFocusedMemoIntoView(proxy) }
@@ -1137,6 +1148,16 @@ struct RecordEditView: View {
 
     private var isMemoFocused: Bool {
         focusNote1 || focusNote2 || focusEquipment
+    }
+
+    /// メモ欄のフォーカスとソフトキーボードを閉じる
+    private func dismissMemoFocus() {
+        focusEquipment = false
+        focusNote1 = false
+        focusNote2 = false
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil
+        )
     }
 
     private func scrollFocusedMemoIntoView(_ proxy: ScrollViewProxy) {

@@ -123,10 +123,21 @@ private struct AZAutoSizingTextView: UIViewRepresentable {
         }
     }
 
-    final class Coordinator: NSObject, UITextViewDelegate {
+    static func dismantleUIView(_ textView: UITextView, coordinator: Coordinator) {
+        // 画面破棄時にウィンドウへ追加した監視を外す
+        coordinator.removeOutsideTapRecognizer()
+    }
+
+    final class Coordinator: NSObject, UITextViewDelegate, UIGestureRecognizerDelegate {
         var parent: AZAutoSizingTextView
         /// 最後に処理した dismissToken。値が変わったときだけ resign する。
         var lastDismissToken: Int = 0
+        /// 入力中のメモ欄
+        weak var activeTextView: UITextView?
+        /// メモ欄外のタップを監視する認識器
+        private var outsideTapRecognizer: UITapGestureRecognizer?
+        /// メモ欄外のスクロール開始を監視する認識器
+        private var outsidePanRecognizer: UIPanGestureRecognizer?
 
         init(_ parent: AZAutoSizingTextView) {
             self.parent = parent
@@ -153,10 +164,90 @@ private struct AZAutoSizingTextView: UIViewRepresentable {
         func textViewDidBeginEditing(_ textView: UITextView) {
             parent.isFocused.wrappedValue = true
             parent.onBeginEditing?()
+            installOutsideTapRecognizer(for: textView)
+            // SwiftUI更新直後は所属ウィンドウが未確定の場合があるため次の描画でも確認する
+            DispatchQueue.main.async { [weak self, weak textView] in
+                guard let self, let textView, textView.isFirstResponder else { return }
+                if self.outsideTapRecognizer == nil {
+                    self.installOutsideTapRecognizer(for: textView)
+                }
+            }
         }
 
         func textViewDidEndEditing(_ textView: UITextView) {
             parent.isFocused.wrappedValue = false
+            removeOutsideTapRecognizer()
+        }
+
+        /// 入力中だけ所属ウィンドウで外側タップとスクロールを監視する
+        private func installOutsideTapRecognizer(for textView: UITextView) {
+            removeOutsideTapRecognizer()
+            guard let window = textView.window else { return }
+            let tapRecognizer = UITapGestureRecognizer(
+                target: self,
+                action: #selector(handleOutsideTap)
+            )
+            tapRecognizer.cancelsTouchesInView = false
+            tapRecognizer.delegate = self
+            let panRecognizer = UIPanGestureRecognizer(
+                target: self,
+                action: #selector(handleOutsidePan(_:))
+            )
+            panRecognizer.cancelsTouchesInView = false
+            panRecognizer.delegate = self
+            activeTextView = textView
+            outsideTapRecognizer = tapRecognizer
+            outsidePanRecognizer = panRecognizer
+            window.addGestureRecognizer(tapRecognizer)
+            window.addGestureRecognizer(panRecognizer)
+        }
+
+        /// ウィンドウへ追加した外側タップ監視を解除する
+        func removeOutsideTapRecognizer() {
+            if let recognizer = outsideTapRecognizer {
+                recognizer.view?.removeGestureRecognizer(recognizer)
+            }
+            if let recognizer = outsidePanRecognizer {
+                recognizer.view?.removeGestureRecognizer(recognizer)
+            }
+            outsideTapRecognizer = nil
+            outsidePanRecognizer = nil
+            activeTextView = nil
+        }
+
+        /// メモ欄外がタップされたら標準アニメーションで閉じる
+        @objc private func handleOutsideTap() {
+            activeTextView?.resignFirstResponder()
+        }
+
+        /// スクロール開始時に標準アニメーションで閉じる
+        @objc private func handleOutsidePan(_ recognizer: UIPanGestureRecognizer) {
+            if recognizer.state == .began {
+                activeTextView?.resignFirstResponder()
+            }
+        }
+
+        func gestureRecognizer(
+            _ gestureRecognizer: UIGestureRecognizer,
+            shouldReceive touch: UITouch
+        ) -> Bool {
+            guard let textView = activeTextView else { return false }
+            // ドラッグは開始位置にかかわらずキーボードを閉じる
+            if gestureRecognizer === outsidePanRecognizer { return true }
+            var touchedView = touch.view
+            while let currentView = touchedView {
+                if currentView === textView { return false }
+                touchedView = currentView.superview
+            }
+            return true
+        }
+
+        func gestureRecognizer(
+            _ gestureRecognizer: UIGestureRecognizer,
+            shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+        ) -> Bool {
+            // 画面側のタップやスクロールを妨げず同時に監視する
+            true
         }
 
         func updateHeight(_ textView: UITextView) {
