@@ -112,6 +112,12 @@ enum LaunchAction: Int, CaseIterable, Identifiable {
     }
 }
 
+/// 新しい記録の入力方式。記録タブの再タップで「直前に使った方」を開くために覚えておく
+enum NewRecordKind: Int {
+    case single = 0   // 単発（＋）
+    case multi  = 1   // 複数回測定の平均（表形式）
+}
+
 @Observable
 @MainActor
 final class AppSettings {
@@ -431,6 +437,12 @@ final class AppSettings {
         didSet { ud.set(launchAction.rawValue, forKey: UDefKeys.launchAction) }
     }
 
+    /// 直前に使った新規記録の入力方式。記録タブを再タップしたときに開く方を決める。
+    /// 初回（未記録）は単発を既定にする
+    var lastNewRecordKind: NewRecordKind = .single {
+        didSet { ud.set(lastNewRecordKind.rawValue, forKey: UDefKeys.lastNewRecordKind) }
+    }
+
     // MARK: - 記録をまとめる（衝突検出設定）
     /// 直前記録との衝突を検出する時間しきい値（分）。0=しない
     var mergeWindowMinutes: Int = 0 {
@@ -448,12 +460,18 @@ final class AppSettings {
     }
 
     // MARK: - 新規記録シート（非永続・セッションのみ）
-    /// TabView 上位から新規記録シートを開くトリガー
-    var showNewRecordSheet: Bool = false
+    /// TabView 上位から新規記録シートを開くトリガー。
+    /// 開くたびに lastNewRecordKind を更新し、記録タブ再タップで同じ方を出せるようにする
+    var showNewRecordSheet: Bool = false {
+        didSet { if showNewRecordSheet { lastNewRecordKind = .single } }
+    }
     /// 新規記録シートに未保存の変更があるか
     var newRecordSheetModified: Bool = false
-    /// TabView 上位から複数回測定（平均）シートを開くトリガー
-    var showMeasurementAvgSheet: Bool = false
+    /// TabView 上位から複数回測定（平均）シートを開くトリガー。
+    /// こちらも開くたびに lastNewRecordKind を更新する
+    var showMeasurementAvgSheet: Bool = false {
+        didSet { if showMeasurementAvgSheet { lastNewRecordKind = .multi } }
+    }
     /// 起動時アクションでのタブ切替要求（ContentView が消費）
     var pendingLaunchTab: Int? = nil
 
@@ -495,6 +513,9 @@ final class AppSettings {
         }
         if ud.object(forKey: UDefKeys.estimateDateOpt) != nil {
             estimateDateOpt = ud.bool(forKey: UDefKeys.estimateDateOpt)
+        }
+        if ud.object(forKey: UDefKeys.lastNewRecordKind) != nil {
+            lastNewRecordKind = NewRecordKind(rawValue: ud.integer(forKey: UDefKeys.lastNewRecordKind)) ?? .single
         }
     }
 

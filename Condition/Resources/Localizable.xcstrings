@@ -294,35 +294,6 @@
         }
       }
     },
-    "action.reload": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reload"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "再読み込み"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "다시 불러오기"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "重新載入"
-          }
-        }
-      }
-    },
     "action.retry": {
       "extractionState": "manual",
       "localizations": {
@@ -12167,35 +12138,6 @@
         }
       }
     },
-    "support.adCloseHint": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Watch to the end to show the close button"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "最後まで視聴すると閉じるボタンが表示されます"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "끝까지 시청하면 닫기 버튼이 표시됩니다"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "看完後會顯示關閉按鈕"
-          }
-        }
-      }
-    },
     "support.adThanks.title": {
       "extractionState": "manual",
       "localizations": {
@@ -12254,151 +12196,6 @@
         }
       }
     },
-    "support.loadingAd": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Loading ad..."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "広告を読み込み中..."
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "광고 불러오는 중..."
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "載入廣告中..."
-          }
-        }
-      }
-    },
-    "support.noAdsAvailableRightNowPlease": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No reward ads now. Try later."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "現在、特典付きの広告がありません。後ほどお試しください"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "현재 보상형 광고가 없습니다. 나중에 다시 시도해 주세요"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "目前沒有獎勵廣告，請稍後再試。"
-          }
-        }
-      }
-    },
-    "support.noBannerAdsAvailableRightNowPlease": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No banner ad available now. Try later."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "現在、バナー広告がありません。後ほどお試しください"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "현재 배너 광고가 없습니다. 나중에 다시 시도해 주세요"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "目前沒有橫幅廣告，請稍後再試。"
-          }
-        }
-      }
-    },
-    "support.playAd": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Play Ad"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "広告を再生する"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "광고 재생"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "播放廣告"
-          }
-        }
-      }
-    },
-    "support.soundWarning": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sound will play"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "音が出ます"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "소리가 납니다"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "會發出聲音"
-          }
-        }
-      }
-    },
     "support.thanks.title": {
       "extractionState": "manual",
       "localizations": {
@@ -12424,35 +12221,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "謝謝您！"
-          }
-        }
-      }
-    },
-    "support.thankYouForWatchingTheAd": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Thanks for watching. We will keep improving!"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "広告をご覧いただきありがとうございます。これからも改善を続けてまいります！"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "광고를 시청해 주셔서 감사합니다. 앞으로도 개선을 이어가겠습니다!"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "感謝觀看廣告，我們會持續改進！"
           }
         }
       }
@@ -12542,64 +12310,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "支持開發者"
-          }
-        }
-      }
-    },
-    "support.videoAd": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Video Ad"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "動画広告"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "동영상 광고"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "影片廣告"
-          }
-        }
-      }
-    },
-    "support.watchAd": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Support with Ad"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "広告を見て応援する"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "광고 보고 응원하기"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "看廣告支持"
           }
         }
       }

@@ -834,8 +834,6 @@ private class WebViewController: UIViewController, WKNavigationDelegate {
 private struct SupportDeveloperView: View {
     @State private var store = TipStore.shared
     @State private var showTip = false
-    @State private var showAd = false
-    @State private var showAdThankYou = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -860,31 +858,9 @@ private struct SupportDeveloperView: View {
             .sheet(isPresented: $showTip) {
                 TipSheetView()
             }
-
-            Button {
-                showAd = true
-            } label: {
-                Text("support.watchAd")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(.brown)
-            .sheet(isPresented: $showAd) {
-                AdMobAdSheetView {
-                    showAdThankYou = true
-                }
-            }
         }
         .padding(.vertical, 4)
         .task { await store.loadProducts() }
-        .alert(
-            "support.thanks.title",
-            isPresented: $showAdThankYou
-        ) {
-            Button("action.ok") {}
-        } message: {
-            Text("support.thankYouForWatchingTheAd")
-        }
     }
 }
 

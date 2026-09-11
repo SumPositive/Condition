@@ -16,7 +16,7 @@ struct ContentView: View {
     private var settings: AppSettings { AppSettings.shared }
 
     var body: some View {
-        TabView(selection: $selectedTab) {
+        TabView(selection: tabSelection) {
             RecordListView()
                 .tabItem {
                     Label(
@@ -111,6 +111,37 @@ struct ContentView: View {
             }
         }
         .animation(.easeInOut(duration: 0.15), value: isPreparingLaunchSheet)
+    }
+
+    /// TabView の選択バインディング。
+    /// すでに記録タブにいる状態でもう一度「記録」を叩いたときだけ、
+    /// 直前に使った方の新規記録シートを開く（通常のタブ移動はそのまま通す）
+    private var tabSelection: Binding<RootTab> {
+        Binding(
+            get: { selectedTab },
+            set: { newTab in
+                if newTab == .records, selectedTab == .records {
+                    presentLastUsedNewRecordSheet()
+                } else {
+                    selectedTab = newTab
+                }
+            }
+        )
+    }
+
+    /// 記録タブ再タップで、直前に使った方の新規記録シートを開く
+    private func presentLastUsedNewRecordSheet() {
+        // すでに新規記録シートが開いているなら二重に開かない
+        guard !settings.showNewRecordSheet,
+              !settings.showMeasurementAvgSheet else { return }
+        switch settings.lastNewRecordKind {
+        case .single:
+            AppAnalytics.shared.logOperation("records_tab_retap_new_single")
+            settings.showNewRecordSheet = true
+        case .multi:
+            AppAnalytics.shared.logOperation("records_tab_retap_new_multi")
+            settings.showMeasurementAvgSheet = true
+        }
     }
 
     /// 起動（フォアグラウンド復帰）時アクションを実行する

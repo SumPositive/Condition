@@ -80,6 +80,11 @@ struct RecordListView: View {
                     listContent
                 }
             }
+            // アプリ内で出す広告はこの1本だけ。ナビゲーションバー直下に
+            // 画面幅いっぱいの帯として敷く（一覧の外側なので左右は端まで届く）
+            .safeAreaInset(edge: .top, spacing: 0) {
+                adBandHeader
+            }
             // ヘッダはタイトルを持たず、中央にアプリ名を控えめに表示する
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
@@ -267,6 +272,13 @@ struct RecordListView: View {
             .filter { $0.isRecordField && !hidden.contains($0.rawValue) }
     }
 
+    /// ナビゲーションバーの下に敷く広告帯。
+    /// 中身が空だとインセットが確定しないため、高さ0の実体を必ず返す
+    @ViewBuilder private var adBandHeader: some View {
+        InlineAdBanner()
+            .frame(minHeight: 0)
+    }
+
     private var listContent: some View {
         VStack(spacing: 0) {
             BeginnerHelpBanner(
@@ -291,21 +303,10 @@ struct RecordListView: View {
                         .onDelete { offsets in
                             deleteRecords(in: section.records, offsets: offsets)
                         }
-
-                        // 広告は月セクションの末尾セルとして表示する。
-                        // タップ可能な記録行との誤タップ（クリック誘導）を避けるため、
-                        // 直前の行との間に十分な余白を確保して明確に分離する。
-                        InlineAdBanner(height: 60)
-                            .padding(.top, 12)
-                            .padding(.bottom, 8)
-                            .listRowInsets(EdgeInsets())
-                            .listRowSeparator(.hidden)
                     }
                 }
             }
             .listStyle(.plain)
-            // 月末広告と次月見出しの間隔を小さく保つ
-            .listSectionSpacing(.custom(4))
         }
     }
 
