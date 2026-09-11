@@ -140,6 +140,9 @@ struct AZPickerStyle {
     var dropdownTextFitMode: AZPickerTextFitMode = .wrap
     /// ラベル内で指定した色をそのまま使う
     var preservesLabelForegroundStyle: Bool = false
+    /// 折りたたみ時に表示する選択値の文字色。
+    /// 候補一覧の選択中項目と同じアクセント色にして、現在値が一目で分かるようにする
+    var dropdownSelectedValueColor: Color = .accentColor
     /// 選択ボタン右端のインジケータデフォルトは非表示
     var dropdownIndicator: AZDropdownIndicator = .none
 
@@ -244,7 +247,7 @@ struct AZDropdownPicker<Option: Hashable & Identifiable, Label: View>: View {
         } else {
             label(selection)
                 .font(.subheadline)
-                .foregroundStyle(Color.primary)
+                .foregroundStyle(style.dropdownSelectedValueColor)
                 .azPickerTextFit(style.dropdownTextFitMode, alignment: .center)
         }
     }
@@ -776,5 +779,21 @@ struct AZFlowLayout: Layout {
             }
             y += rowHeight + rowSpacing
         }
+    }
+}
+
+// MARK: - 本文の最大幅
+
+/// 設定など一般的な本文の最大幅。
+/// iPad 13インチで全幅に伸ばすと行が長くなりすぎて目線の移動が大きいが、
+/// Pro Max 相当まで絞ると今度は狭く見えるため、その中間に置く。
+let azReadableContentWidth: CGFloat = 700
+
+extension View {
+    /// 画面が広いときだけ本文幅を制限して中央寄せする。
+    /// iPhone では画面幅が上限を下回るので、見た目は従来どおり変わらない。
+    func azReadableWidth(_ maxWidth: CGFloat = azReadableContentWidth) -> some View {
+        frame(maxWidth: maxWidth)
+            .frame(maxWidth: .infinity)
     }
 }

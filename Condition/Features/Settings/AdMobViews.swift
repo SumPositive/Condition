@@ -65,6 +65,8 @@ final class AdReadyState {
 /// アプリ内で表示する広告はこれ1本だけ。
 struct InlineAdBanner: View {
     @State private var ready = AdReadyState.shared
+    /// 縦方向の余裕。.compact は iPhone 横向きのように画面が低い状態を指す
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
 
     var body: some View {
         Group {
@@ -74,12 +76,37 @@ struct InlineAdBanner: View {
             if UserDefaults.standard.bool(forKey: "FASTLANE_SNAPSHOT") {
                 Color.clear.frame(height: 0)
             } else {
-                bannerBody
+                heightAwareBody
             }
             #else
-            bannerBody
+            heightAwareBody
             #endif
         }
+    }
+
+    /// 画面の高さが足りないときだけ広告と帯を畳む。
+    ///
+    /// 判定は向きではなく verticalSizeClass で行う。.compact になるのは
+    /// iPhone の横向きのように縦が詰まった状態だけで、iPad は横向きでも
+    /// .regular のままなので広告はそのまま出る（Split View や Slide Over も同様）。
+    private var isHeightConstrained: Bool {
+        verticalSizeClass == .compact
+    }
+
+    /// 高さが足りないときは高さ0にして safeAreaInset ごと畳む。
+    /// 50pt＋上下余白の帯が、低い画面では一覧を大きく圧迫するため。
+    ///
+    /// バナー自体は破棄せず畳むだけにする。作り直すと Coordinator の
+    /// 「1バナーにつき1リクエスト」ガードも一緒に消え、回転を往復するたびに
+    /// 新しいリクエストが飛んで無効トラフィックとみなされ得るため。
+    private var heightAwareBody: some View {
+        bannerBody
+            .frame(height: isHeightConstrained ? 0 : nil)
+            .opacity(isHeightConstrained ? 0 : 1)
+            .clipped()
+            // 畳んでいる間は広告に触れないようにする
+            .allowsHitTesting(!isHeightConstrained)
+            .accessibilityHidden(isHeightConstrained)
     }
 
     @ViewBuilder

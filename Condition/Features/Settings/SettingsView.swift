@@ -30,32 +30,6 @@ private struct SettingsHelpTitle: View {
     }
 }
 
-private struct SettingsAdaptivePickerRow<Title: View, Control: View>: View {
-    @ViewBuilder let title: () -> Title
-    @ViewBuilder let control: () -> Control
-
-    init(
-        @ViewBuilder _ title: @escaping () -> Title,
-        @ViewBuilder control: @escaping () -> Control
-    ) {
-        self.title = title
-        self.control = control
-    }
-
-    var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 8) {
-                title()
-                control()
-            }
-            VStack(alignment: .leading, spacing: 6) {
-                title()
-                control()
-            }
-        }
-    }
-}
-
 struct SettingsView: View {
 
     @Environment(\.modelContext) private var context
@@ -74,6 +48,10 @@ struct SettingsView: View {
     @State private var isMergeWindowExpanded = false
     @State private var isMergeDefaultActionExpanded = false
     @State private var isLaunchActionExpanded = false
+    @State private var isUserLevelExpanded = false
+    @State private var isAppearanceModeExpanded = false
+    @State private var isFontScaleExpanded = false
+    @State private var isExportFormatExpanded = false
 
     private static let mergeWindowOptions = [
         SettingsPickerOption(id: 0, titleKey: "settings.merge.off"),
@@ -161,7 +139,7 @@ struct SettingsView: View {
                 // MARK: - 表示
                 Section("settings.display") {
                     VStack(alignment: .leading, spacing: 8) {
-                        SettingsAdaptivePickerRow {
+                        AZAdaptiveControlRow {
                             SettingsHelpTitle(
                                 titleKey: "settings.userLevel",
                                 helpKey: "settings.help.userLevel",
@@ -169,45 +147,37 @@ struct SettingsView: View {
                             )
                             .font(.subheadline)
                         } control: {
-                            // ユーザレベルはDynamic Typeに強いラジオPickerで選ぶ
-                            AZRadioPicker(
+                            // ユーザレベルも共通のドロップダウンPickerで選ぶ
+                            AZDropdownPicker(
                                 options: AppUserLevel.allCases,
                                 selection: $settings.userLevel,
-                                minOptionWidth: 0,
-                                maxOptionWidth: 120,
-                                horizontalPadding: 12,
-                                optionSpacing: 4,
-                                groupPadding: 2,
-                                wrapsOptions: false,
-                                fillsWidth: true
+                                isExpanded: $isUserLevelExpanded,
+                                minWidth: 150
                             ) { level in
                                 Text(LocalizedStringKey(level.titleKey))
                             }
                         }
+                        .zIndex(isUserLevelExpanded ? 66 : 0)
                     }
 
-                    SettingsAdaptivePickerRow {
+                    AZAdaptiveControlRow {
                         Text("appearance.mode")
                             .font(.subheadline)
                     } control: {
-                        // 外観モードも同じラジオPickerで揃える
-                        AZRadioPicker(
+                        // 外観モードも同じドロップダウンPickerで揃える
+                        AZDropdownPicker(
                             options: AppAppearanceMode.allCases,
                             selection: $settings.appearanceMode,
-                            minOptionWidth: 0,
-                            maxOptionWidth: 120,
-                            horizontalPadding: 12,
-                            optionSpacing: 4,
-                            groupPadding: 2,
-                            wrapsOptions: false,
-                            fillsWidth: true
+                            isExpanded: $isAppearanceModeExpanded,
+                            minWidth: 150
                         ) { mode in
                             Text(LocalizedStringKey(mode.titleKey))
                         }
                     }
+                    .zIndex(isAppearanceModeExpanded ? 65 : 0)
 
                     VStack(alignment: .leading, spacing: 8) {
-                        SettingsAdaptivePickerRow {
+                        AZAdaptiveControlRow {
                             SettingsHelpTitle(
                                 titleKey: "settings.fontScale",
                                 helpKey: "settings.help.fontScale",
@@ -215,21 +185,17 @@ struct SettingsView: View {
                             )
                             .font(.subheadline)
                         } control: {
-                            // 文字サイズは選択肢が欠けないようラジオPickerで表示する
-                            AZRadioPicker(
+                            // 文字サイズも同じドロップダウンPickerで選ぶ
+                            AZDropdownPicker(
                                 options: AppFontScale.allCases,
                                 selection: $settings.fontScale,
-                                minOptionWidth: 0,
-                                maxOptionWidth: 120,
-                                horizontalPadding: 12,
-                                optionSpacing: 4,
-                                groupPadding: 2,
-                                wrapsOptions: false,
-                                fillsWidth: true
+                                isExpanded: $isFontScaleExpanded,
+                                minWidth: 150
                             ) { scale in
                                 Text(LocalizedStringKey(scale.titleKey))
                             }
                         }
+                        .zIndex(isFontScaleExpanded ? 64 : 0)
                     }
 
                     Button {
@@ -349,6 +315,12 @@ struct SettingsView: View {
                         isMergeDefaultActionExpanded = false
                     }
                 }
+                .onChange(of: settings.userLevel) { _, newValue in
+                    // 初心者へ戻すとJSON形式の行が消えるので、開いたままのドロップダウンを閉じる
+                    if newValue == .beginner {
+                        isExportFormatExpanded = false
+                    }
+                }
                 .onAppear { if healthKit.isAvailable { healthKit.checkAuthorization() } }
                 .navigationDestination(isPresented: $showHKSettings) {
                     HealthKitSettingsView()
@@ -377,25 +349,21 @@ struct SettingsView: View {
                         }
 
                         if settings.userLevel != .beginner {
-                            SettingsAdaptivePickerRow {
+                            AZAdaptiveControlRow {
                                 Text("settings.exportFormat.title")
                                     .font(.subheadline)
                             } control: {
-                                // JSON形式はラジオPickerで現在値を明示する
-                                AZRadioPicker(
+                                // JSON形式も同じドロップダウンPickerで選ぶ
+                                AZDropdownPicker(
                                     options: RecordJSONExportStyle.allCases,
                                     selection: exportFormatBinding,
-                                    minOptionWidth: 0,
-                                    maxOptionWidth: 120,
-                                    horizontalPadding: 12,
-                                    optionSpacing: 4,
-                                    groupPadding: 2,
-                                    wrapsOptions: false,
-                                    fillsWidth: true
+                                    isExpanded: $isExportFormatExpanded,
+                                    minWidth: 150
                                 ) { style in
                                     Text(LocalizedStringKey(style.titleKey))
                                 }
                             }
+                            .zIndex(isExportFormatExpanded ? 59 : 0)
                         }
 
                     }
@@ -446,6 +414,10 @@ struct SettingsView: View {
                     .listRowSeparator(.hidden)
             }
             .scrollIndicators(.hidden)
+            // iPad などの広い画面で設定行を全幅に伸ばさず、読みやすい幅で中央に置く。
+            // 背景は全幅のまま残したいので、幅の制限は Form 自身に掛ける
+            .azReadableWidth()
+            .background(Color(uiColor: .systemGroupedBackground))
             .navigationTitle("tab.settings")
             // タブ画面のタイトルは中央固定表示に揃える
             .navigationBarTitleDisplayMode(.inline)

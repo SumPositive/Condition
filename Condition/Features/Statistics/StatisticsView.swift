@@ -136,10 +136,17 @@ private struct StatisticsContentView: View {
         NavigationStack {
             Group {
                 if records.isEmpty {
-                    ContentUnavailableView(
-                        "empty.noData",
-                        systemImage: "chart.dots.scatter"
-                    )
+                    // 対象期間に記録が無いだけなので、期間ピッカーは残して
+                    // その場で期間を広げられるようにする（隠すと操作の行き止まりになる）
+                    VStack(spacing: 0) {
+                        periodPicker
+                            .padding(.top, 8)
+                        ContentUnavailableView(
+                            "empty.noDataInPeriod",
+                            systemImage: "chart.dots.scatter"
+                        )
+                        .frame(maxHeight: .infinity)
+                    }
                 } else {
                     scrollContent
                 }
@@ -211,6 +218,29 @@ private struct StatisticsContentView: View {
             + Text(LocalizedStringKey("help.statistics.export"))
     }
 
+    /// 対象期間の選択。データの有無にかかわらず常に出す
+    /// （空表示のときこそ期間を広げる操作が要る）
+    private var periodPicker: some View {
+        // 対象期間はグラフ画面と同じラジオPickerで揃える
+        AZRadioPicker(
+            options: GraphPeriod.allCases,
+            selection: periodBinding,
+            minOptionWidth: 0,
+            maxOptionWidth: 120,
+            horizontalPadding: 12,
+            optionSpacing: 4,
+            groupPadding: 2,
+            wrapsOptions: false,
+            fillsWidth: true
+        ) { p in
+            // 期間ラジオはLargeでも1行に収めるため短縮表記を使う
+            Text(LocalizedStringKey(p.shortLabel))
+        }
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+        .padding(.horizontal)
+        .padding(.bottom, 8)
+    }
+
     private var scrollContent: some View {
         ScrollView {
             VStack(spacing: 0) {
@@ -220,24 +250,7 @@ private struct StatisticsContentView: View {
                     storageKey: "helpDismissed.statistics"
                 )
                 LazyVStack(spacing: 0) {
-                    // 対象期間はグラフ画面と同じラジオPickerで揃える
-                    AZRadioPicker(
-                        options: GraphPeriod.allCases,
-                        selection: periodBinding,
-                        minOptionWidth: 0,
-                        maxOptionWidth: 120,
-                        horizontalPadding: 12,
-                        optionSpacing: 4,
-                        groupPadding: 2,
-                        wrapsOptions: false,
-                        fillsWidth: true
-                    ) { p in
-                        // 期間ラジオはLargeでも1行に収めるため短縮表記を使う
-                        Text(LocalizedStringKey(p.shortLabel))
-                    }
-                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-                    .padding(.horizontal)
-                    .padding(.bottom, 8)
+                    periodPicker
 
                     ForEach(stagedStatSections) { section in
                         statSectionPanel(section)

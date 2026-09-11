@@ -29,6 +29,36 @@ struct RecordListView: View {
     private var settings: AppSettings { AppSettings.shared }
     private var hkService: HealthKitService { HealthKitService.shared }
 
+    // 一覧の必要幅を測るため、見出し・行と同じ基準・同じ初期値で列幅を持つ
+    @ScaledMetric(relativeTo: .title3) private var dateColW: CGFloat = 76
+    @ScaledMetric(relativeTo: .title3) private var bpW:      CGFloat = 42
+    @ScaledMetric(relativeTo: .title3) private var pulseW:   CGFloat = 42
+    @ScaledMetric(relativeTo: .title3) private var weightW:  CGFloat = 60
+    @ScaledMetric(relativeTo: .title3) private var otherW:   CGFloat = 52
+
+    /// 表示中の全項目がちょうど収まる幅。
+    /// 文字サイズを大きくすると列も @ScaledMetric で広がるので、
+    /// 固定値ではなく実際の列幅から毎回組み立てる。
+    private var recordTableWidth: CGFloat {
+        // 日付列＋右余白＋区切り線
+        var width = dateColW + 4 + 1
+        // 種別ごとのセル幅（血圧だけ上下2列）
+        for kind in visibleRecordKinds {
+            switch kind {
+            case .bp:       width += bpW * 2 + 4
+            case .pulse:    width += pulseW
+            case .weight:   width += weightW
+            default:        width += otherW
+            }
+        }
+        // 種別間の区切り線とセル間隔
+        let gaps = max(visibleRecordKinds.count - 1, 0)
+        width += CGFloat(gaps) * (1 + 8)
+        // 先頭の余白と List の行インセット（左右16pt）
+        width += 4 + 32
+        return width
+    }
+
     // MARK: - 可視フィールドにデータがあるレコードのみ抽出
     /// 区分フィルターのみ適用した記録（可視フィールド有無では絞らない）。
     /// 一覧の絞り込みとエクスポート対象を共通化する。
@@ -71,15 +101,23 @@ struct RecordListView: View {
         NavigationStack {
             Group {
                 if visibleRecords.isEmpty {
+                    // 空状態は表ではないので、一般的な本文幅で中央に置く
                     ContentUnavailableView(
                         "records.empty.title",
                         systemImage: "heart.text.square",
                         description: Text("records.empty.message")
                     )
+                    .azReadableWidth()
                 } else {
+                    // iPad などの広い画面で表を全幅に伸ばすと列が散って読みにくいので、
+                    // 全項目がちょうど収まる幅に絞って中央に置く。
+                    // 幅は文字サイズに追従するので、どの設定でも列が切れない
                     listContent
+                        .azReadableWidth(recordTableWidth)
                 }
             }
+            // 余った左右はグループ背景で埋め、中央の列を一枚の面として見せる
+            .background(Color(uiColor: .systemGroupedBackground))
             // アプリ内で出す広告はこの1本だけ。ナビゲーションバー直下に
             // 画面幅いっぱいの帯として敷く（一覧の外側なので左右は端まで届く）
             .safeAreaInset(edge: .top, spacing: 0) {
