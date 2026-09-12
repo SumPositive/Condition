@@ -230,6 +230,8 @@ struct MeasurementAverageView: View {
         order: .reverse
     )
     private var recordsForEquipmentHistory: [BodyRecord]
+    /// 測定場所・機器の候補プール。履歴が変わったときだけ作り直す
+    @State private var equipmentCandidateStore = EquipmentCandidateStore()
 
     /// 入力済みの値（nil は未入力）
     @State private var samples: [AvgColumn: [Int?]] = [:]
@@ -429,6 +431,7 @@ struct MeasurementAverageView: View {
                 Text("record.delete.failed.message")
             }
             .onAppear {
+                equipmentCandidateStore.refresh(with: recordsForEquipmentHistory)
                 guard !didLoadInitialValues else { return }
                 didLoadInitialValues = true
                 if let record {
@@ -445,6 +448,12 @@ struct MeasurementAverageView: View {
             .onChange(of: dateOpt) { _, _ in
                 // 区分を切り替えた直後でまだ入力していなければ、新しい区分の直近値で初期化し直す
                 loadFirstTrialDefaultsFromRecent()
+            }
+            // 履歴が変わったときだけ候補プールを作り直す（入力のたびの再集計を避ける）。
+            // @Model は同一性で比較されるため、既存記録の測定場所を書き換えただけでは
+            // 配列自体は変化しない。中身の並びを見て判定する。
+            .onChange(of: equipmentHistorySignature) { _, _ in
+                equipmentCandidateStore.refresh(with: recordsForEquipmentHistory)
             }
             // 未入力の新規シートがバックグラウンド→復帰したら、日時と区分を現在時刻基準へ取り直す。
             // 入力済み（値・入力途中の文字）や修正時は触らない。inactive の一過性遷移では動かさない。
@@ -975,67 +984,20 @@ struct MeasurementAverageView: View {
         }
     }
 
-    /// 候補に表示する最大件数
-    private static let equipmentCandidateLimit = 20
     /// キーボード上に表示する候補の行数
     private static let equipmentCandidateRows = 2
     /// 候補カプセルの行間
     private let equipmentCandidateRowSpacing: CGFloat = 6
 
-    /// 測定場所・機器の候補プールを利用頻度順で作る
-    private var equipmentCandidates: [String] {
-        let presets = [
-            String(localized: "record.device.preset.home"),
-            String(localized: "record.device.preset.hospital"),
-            String(localized: "record.device.preset.gym")
-        ]
-        var counts: [String: Int] = [:]
-        for record in recordsForEquipmentHistory {
-            let value = record.sEquipment.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !value.isEmpty { counts[value, default: 0] += 1 }
-        }
-        let history = counts.keys.sorted { lhs, rhs in
-            let lhsCount = counts[lhs, default: 0]
-            let rhsCount = counts[rhs, default: 0]
-            if lhsCount == rhsCount {
-                return lhs.localizedStandardCompare(rhs) == .orderedAscending
-            }
-            return rhsCount < lhsCount
-        }
-        var values: [String] = []
-        var seen: Set<String> = []
-        for value in history + presets {
-            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-            if trimmed.isEmpty || seen.contains(trimmed) { continue }
-            seen.insert(trimmed)
-            values.append(trimmed)
-        }
-        return values
+    /// 候補プールを作り直すべきかの判定材料（測定場所・機器の並び）
+    private var equipmentHistorySignature: [String] {
+        recordsForEquipmentHistory.map(\.sEquipment)
     }
 
     /// 入力語へ前方一致する候補を優先し、部分一致を続ける
+    /// （候補プールの集計は履歴変更時のみ。equipmentCandidateStore を参照）
     private var shownEquipmentCandidates: [String] {
-        let keyword = equipment.trimmingCharacters(in: .whitespacesAndNewlines)
-        if keyword.isEmpty {
-            return Array(equipmentCandidates.prefix(Self.equipmentCandidateLimit))
-        }
-        let matchingCandidates = equipmentCandidates.filter {
-            $0.localizedCaseInsensitiveContains(keyword)
-        }
-        if matchingCandidates.count == 1,
-           matchingCandidates[0].compare(keyword, options: .caseInsensitive) == .orderedSame {
-            return []
-        }
-        var prefixMatches: [String] = []
-        var containsMatches: [String] = []
-        for candidate in equipmentCandidates {
-            if candidate.lowercased().hasPrefix(keyword.lowercased()) {
-                prefixMatches.append(candidate)
-            } else if candidate.localizedCaseInsensitiveContains(keyword) {
-                containsMatches.append(candidate)
-            }
-        }
-        return Array((prefixMatches + containsMatches).prefix(Self.equipmentCandidateLimit))
+        equipmentCandidateStore.shownCandidates(matching: equipment)
     }
 
     /// 候補バーを2行分へ抑える
