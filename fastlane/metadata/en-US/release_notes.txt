@@ -1,3 +1,7 @@
-・Added a Notes section to New Record (table view).
-・New Record (table view) now shows the reading causing most of the variation in red.
-・Fixed potential issues.
+・Added suggestion lists for device and location fields to make entry easier.
+・Tapping the Records tab again now opens the sheet for adding a new record.
+・Improved an issue where the keyboard closed while typing notes.
+・Ads are now limited to a single banner in the header area.
+・Improved the layout on iPad.
+・Rows with no readings at all are now removed and closed up in multiple measurements.
+・Fixed a layout issue with long item names.
