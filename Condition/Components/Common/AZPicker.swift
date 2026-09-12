@@ -765,7 +765,8 @@ struct AZFlowLayout: Layout {
         var totalHeight: CGFloat = 0
         var maximumRowWidth: CGFloat = 0
         for (index, row) in rows.enumerated() {
-            let rowWidth = row.reduce(CGFloat.zero) { $0 + itemSizes[$1].width }
+            // 配置時と同じく、表示幅へ収めた後の幅で行幅を測る
+            let rowWidth = row.reduce(CGFloat.zero) { $0 + min(itemSizes[$1].width, availableWidth) }
                 + spacing * CGFloat(max(row.count - 1, 0))
             let rowHeight = row.reduce(CGFloat.zero) { max($0, itemSizes[$1].height) }
             maximumRowWidth = max(maximumRowWidth, rowWidth)
@@ -787,13 +788,14 @@ struct AZFlowLayout: Layout {
         var y = bounds.minY
 
         for row in rows {
-            let rowWidth = row.reduce(CGFloat.zero) { $0 + itemSizes[$1].width }
+            // 帯より長い項目は表示幅へ収めるので、行幅も収めた後の幅で測る
+            let itemWidths = row.map { min(itemSizes[$0].width, bounds.width) }
+            let rowWidth = itemWidths.reduce(CGFloat.zero, +)
                 + spacing * CGFloat(max(row.count - 1, 0))
             let rowHeight = row.reduce(CGFloat.zero) { max($0, itemSizes[$1].height) }
             var x = alignment == .leading ? bounds.minX : bounds.maxX - rowWidth
-            for index in row {
-                // 帯より長い項目は表示幅へ収める
-                let itemWidth = min(itemSizes[index].width, bounds.width)
+            for (offset, index) in row.enumerated() {
+                let itemWidth = itemWidths[offset]
                 subviews[index].place(
                     at: CGPoint(x: x, y: y),
                     proposal: ProposedViewSize(width: itemWidth, height: itemSizes[index].height)
