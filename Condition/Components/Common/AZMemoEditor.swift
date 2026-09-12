@@ -136,8 +136,6 @@ private struct AZAutoSizingTextView: UIViewRepresentable {
         weak var activeTextView: UITextView?
         /// メモ欄外のタップを監視する認識器
         private var outsideTapRecognizer: UITapGestureRecognizer?
-        /// メモ欄外のスクロール開始を監視する認識器
-        private var outsidePanRecognizer: UIPanGestureRecognizer?
 
         init(_ parent: AZAutoSizingTextView) {
             self.parent = parent
@@ -164,14 +162,9 @@ private struct AZAutoSizingTextView: UIViewRepresentable {
         func textViewDidBeginEditing(_ textView: UITextView) {
             parent.isFocused.wrappedValue = true
             parent.onBeginEditing?()
+            // first responder になった時点でウィンドウは確定しているので、
+            // ここで設置すれば取りこぼさない
             installOutsideTapRecognizer(for: textView)
-            // SwiftUI更新直後は所属ウィンドウが未確定の場合があるため次の描画でも確認する
-            DispatchQueue.main.async { [weak self, weak textView] in
-                guard let self, let textView, textView.isFirstResponder else { return }
-                if self.outsideTapRecognizer == nil {
-                    self.installOutsideTapRecognizer(for: textView)
-                }
-            }
         }
 
         func textViewDidEndEditing(_ textView: UITextView) {
@@ -179,39 +172,27 @@ private struct AZAutoSizingTextView: UIViewRepresentable {
             removeOutsideTapRecognizer()
         }
 
-        /// 入力中だけ所属ウィンドウで外側タップとスクロールを監視する
+        /// 入力中だけ所属ウィンドウで外側タップを監視する
         private func installOutsideTapRecognizer(for textView: UITextView) {
             removeOutsideTapRecognizer()
             guard let window = textView.window else { return }
-            let tapRecognizer = UITapGestureRecognizer(
+            let recognizer = UITapGestureRecognizer(
                 target: self,
                 action: #selector(handleOutsideTap)
             )
-            tapRecognizer.cancelsTouchesInView = false
-            tapRecognizer.delegate = self
-            let panRecognizer = UIPanGestureRecognizer(
-                target: self,
-                action: #selector(handleOutsidePan(_:))
-            )
-            panRecognizer.cancelsTouchesInView = false
-            panRecognizer.delegate = self
+            recognizer.cancelsTouchesInView = false
+            recognizer.delegate = self
             activeTextView = textView
-            outsideTapRecognizer = tapRecognizer
-            outsidePanRecognizer = panRecognizer
-            window.addGestureRecognizer(tapRecognizer)
-            window.addGestureRecognizer(panRecognizer)
+            outsideTapRecognizer = recognizer
+            window.addGestureRecognizer(recognizer)
         }
 
         /// ウィンドウへ追加した外側タップ監視を解除する
         func removeOutsideTapRecognizer() {
-            if let recognizer = outsideTapRecognizer {
-                recognizer.view?.removeGestureRecognizer(recognizer)
-            }
-            if let recognizer = outsidePanRecognizer {
-                recognizer.view?.removeGestureRecognizer(recognizer)
+            if let outsideTapRecognizer {
+                outsideTapRecognizer.view?.removeGestureRecognizer(outsideTapRecognizer)
             }
             outsideTapRecognizer = nil
-            outsidePanRecognizer = nil
             activeTextView = nil
         }
 
@@ -220,57 +201,30 @@ private struct AZAutoSizingTextView: UIViewRepresentable {
             activeTextView?.resignFirstResponder()
         }
 
-        /// メモ欄外でスクロールが始まったら標準アニメーションで閉じる
-        @objc private func handleOutsidePan(_ recognizer: UIPanGestureRecognizer) {
-            if recognizer.state == .began {
-                activeTextView?.resignFirstResponder()
-            }
-        }
-
         func gestureRecognizer(
             _ gestureRecognizer: UIGestureRecognizer,
             shouldReceive touch: UITouch
         ) -> Bool {
-            guard let textView = activeTextView else { return false }
-            // メモ欄内のドラッグはカーソル移動や文字選択なので、タップ・スクロールとも受け取らない
-            if isTouchInsideMemo(touch, textView: textView) { return false }
-            // スクロール監視は実際にスクロールできる領域の操作だけを対象にする
-            if gestureRecognizer === outsidePanRecognizer {
-                return isTouchInsideScrollableView(touch, textView: textView)
-            }
-            return true
-        }
-
-        /// タッチがスクロール可能なビュー上で始まったかを調べる
-        /// （メモ欄自身は isScrollEnabled = false なので対象にならない）
-        private func isTouchInsideScrollableView(_ touch: UITouch, textView: UITextView) -> Bool {
+            // 入力欄どうしの移動、およびメモ欄内のカーソル移動や文字選択では閉じない。
+            // 候補バーなど明示的に除外した領域のタップでも閉じない。
             var touchedView = touch.view
             while let currentView = touchedView {
-                if let scrollView = currentView as? UIScrollView,
-                   scrollView.isScrollEnabled,
-                   scrollView !== textView {
-                    return true
+                if currentView is UITextField || currentView is UITextView {
+                    return false
+                }
+                if currentView.subviews.contains(where: { $0 is AZKeyboardDismissExcludedMarker }) {
+                    return false
                 }
                 touchedView = currentView.superview
             }
-            return false
-        }
-
-        /// タッチがメモ欄（およびその内部ビュー）で始まったかを調べる
-        private func isTouchInsideMemo(_ touch: UITouch, textView: UITextView) -> Bool {
-            var touchedView = touch.view
-            while let currentView = touchedView {
-                if currentView === textView { return true }
-                touchedView = currentView.superview
-            }
-            return false
+            return true
         }
 
         func gestureRecognizer(
             _ gestureRecognizer: UIGestureRecognizer,
             shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
         ) -> Bool {
-            // 画面側のタップやスクロールを妨げず同時に監視する
+            // 画面本来のタップ操作を妨げない
             true
         }
 
@@ -290,6 +244,27 @@ private struct AZAutoSizingTextView: UIViewRepresentable {
                 }
             }
         }
+    }
+}
+
+/// キーボードを閉じる監視の対象外にしたい領域へ付ける目印
+struct AZKeyboardDismissExclusion: UIViewRepresentable {
+    func makeUIView(context: Context) -> UIView {
+        let view = AZKeyboardDismissExcludedMarker(frame: .zero)
+        view.isUserInteractionEnabled = false
+        return view
+    }
+
+    func updateUIView(_ view: UIView, context: Context) {}
+}
+
+/// 除外領域の目印。祖先をたどって見つかったら監視しない
+final class AZKeyboardDismissExcludedMarker: UIView {}
+
+extension View {
+    /// この領域の操作ではキーボードを閉じない
+    func azKeyboardDismissExcluded() -> some View {
+        background { AZKeyboardDismissExclusion() }
     }
 }
 

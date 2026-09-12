@@ -219,6 +219,8 @@ struct MeasurementAverageView: View {
     @State private var isKeyboardVisible = false
     /// 進めるとメモ入力を終了させるトークン（AZMemoEditor への明示的な終了指示）
     @State private var memoDismissToken = 0
+    /// メモ欄の自動スクロールを最新の対象だけに限定する
+    @State private var memoScrollTask: Task<Void, Never>? = nil
     // キーボード表示時に各メモ行を送るためのスクロールアンカー
     private let equipmentAnchorID = "measurementAvg-equipment-anchor"
     private let note1AnchorID = "measurementAvg-note1-anchor"
@@ -366,6 +368,9 @@ struct MeasurementAverageView: View {
                 NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)
             ) { _ in
                 isKeyboardVisible = false
+                // スクロールでの終了は UIKit 側が閉じるため @FocusState が残る。
+                // テンキー表示へ戻すために、ここで揃える。
+                if isMemoFocused { dismissMemoFocus() }
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -471,6 +476,7 @@ struct MeasurementAverageView: View {
             }
             .onDisappear {
                 cancelArmTask?.cancel()
+                memoScrollTask?.cancel()
             }
         }
         if settings.fontScale.followsSystem {
@@ -613,29 +619,25 @@ struct MeasurementAverageView: View {
                 }
             }
             .scrollIndicators(.hidden)
-            // スクロール開始時にフォーカスを外して標準アニメーションで閉じる
-            .scrollDismissesKeyboard(.never)
+            // スクロールでの終了は標準の挙動に任せる（指の動きに追従して閉じる）
+            .scrollDismissesKeyboard(.interactively)
+            // メモ欄（AZMemoEditor）外のタップは AZMemoEditor 側のウィンドウ監視が閉じる。
+            // ここは UITextView を持たない測定場所欄のための保険。
             .contentShape(Rectangle())
             .onTapGesture {
-                // 入力欄や候補以外をタップしたらキーボードを閉じる
-                if isMemoFocused { dismissMemoFocus() }
+                if focusEquipment { dismissMemoFocus() }
             }
-            .simultaneousGesture(
-                // メモ欄（AZMemoEditor）内のドラッグはカーソル移動や文字選択なので対象外。
-                // メモ欄外のスクロールは AZMemoEditor 側のウィンドウ監視が閉じるため、
-                // ここでは UITextView を持たない測定場所欄の入力中だけを見る。
-                DragGesture(minimumDistance: 8).onChanged { _ in
-                    if focusEquipment { dismissMemoFocus() }
-                }
-            )
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .safeAreaInset(edge: .bottom) {
-                if focusEquipment && !shownEquipmentCandidates.isEmpty {
-                    // キーボード直上へ候補バーの領域を確保する
-                    equipmentCandidateBar
-                } else if hidesKeypad {
-                    // キーボード上へ入力行を逃がすため、フォーカス中だけ下端余白を追加する
-                    Color.clear.frame(height: 60)
+                if hidesKeypad {
+                    ZStack(alignment: .bottom) {
+                        Color.clear
+                        if focusEquipment && !shownEquipmentCandidates.isEmpty {
+                            // 確保領域の下端に候補バーを表示する
+                            equipmentCandidateBar
+                        }
+                    }
+                    .frame(height: memoInputReservedHeight)
                 }
             }
             .onChange(of: focused) { _, newValue in
@@ -959,6 +961,7 @@ struct MeasurementAverageView: View {
     /// @FocusState を落とすだけでは UITextView 側が first responder を握ったままの
     /// ことがあるため、UIKit にも明示的に終了を依頼して確実に閉じる。
     private func dismissMemoFocus() {
+        memoScrollTask?.cancel()
         focusEquipment = false
         focusNote1 = false
         focusNote2 = false
@@ -974,13 +977,24 @@ struct MeasurementAverageView: View {
     private func scrollMemoIntoView(
         _ anchorID: String, proxy: ScrollViewProxy, anchor: UnitPoint = .bottom
     ) {
-        for delay in [0.05, 0.22] {
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-                guard hidesKeypad else { return }
-                withAnimation(.easeInOut(duration: 0.18)) {
-                    proxy.scrollTo(anchorID, anchor: anchor)
-                }
+        memoScrollTask?.cancel()
+        // キーボードのレイアウト確定後に最新の入力欄へ1度だけ寄せる
+        memoScrollTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(140))
+            guard !Task.isCancelled, isFocusedMemoAnchor(anchorID) else { return }
+            withAnimation(.easeInOut(duration: 0.18)) {
+                proxy.scrollTo(anchorID, anchor: anchor)
             }
+        }
+    }
+
+    /// 遅延中にフォーカス先が変わっていないか確認する
+    private func isFocusedMemoAnchor(_ anchorID: String) -> Bool {
+        switch anchorID {
+        case equipmentAnchorID: focusEquipment
+        case note1AnchorID: focusNote1
+        case note2AnchorID: focusNote2
+        default: false
         }
     }
 
@@ -1005,6 +1019,11 @@ struct MeasurementAverageView: View {
         let rowHeight = min(scaledEquipmentCandidateRowHeight, 48)
         let rows = CGFloat(Self.equipmentCandidateRows)
         return rowHeight * rows + equipmentCandidateRowSpacing * (rows - 1)
+    }
+
+    /// 入力欄を切り替えても変化させないキーボード上の確保高さ
+    private var memoInputReservedHeight: CGFloat {
+        max(60, equipmentCandidateBarHeight + 16)
     }
 
     /// キーボード直上へ測定場所・機器の候補をカプセル表示する
@@ -1042,6 +1061,8 @@ struct MeasurementAverageView: View {
         .padding(.vertical, 8)
         .background(.bar)
         .overlay(alignment: .top) { Divider() }
+        // 候補の選択やスクロールでキーボードを閉じない
+        .azKeyboardDismissExcluded()
     }
 
     /// IMEを閉じてから候補値を確定する

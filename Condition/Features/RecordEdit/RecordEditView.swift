@@ -43,6 +43,10 @@ struct RecordEditView: View {
     @State private var showsFloatingAverageAddButton = false
     @State private var isCancelArmed = false
     @State private var cancelArmTask: Task<Void, Never>? = nil
+    /// メモ欄の自動スクロールを最新の対象だけに限定する
+    @State private var memoScrollTask: Task<Void, Never>? = nil
+    /// ソフトキーボードが表示中か
+    @State private var isKeyboardVisible = false
     /// バックグラウンドを経由したか（未入力の新規シートの日時取り直し用）
     @State private var didEnterBackground = false
     @FocusState private var focusNote1: Bool
@@ -119,6 +123,11 @@ struct RecordEditView: View {
         return rowHeight * rows + equipmentCandidateRowSpacing * (rows - 1)
     }
 
+    /// 入力欄を切り替えても変化させないキーボード上の確保高さ
+    private var memoInputReservedHeight: CGFloat {
+        max(180, equipmentCandidateBarHeight + 16)
+    }
+
     /// キーボード直上へ測定場所・機器の候補をカプセル表示する
     @ViewBuilder private var equipmentCandidateBar: some View {
         GeometryReader { geometry in
@@ -154,6 +163,8 @@ struct RecordEditView: View {
         .padding(.vertical, 8)
         .background(.bar)
         .overlay(alignment: .top) { Divider() }
+        // 候補の選択やスクロールでキーボードを閉じない
+        .azKeyboardDismissExcluded()
     }
 
     /// IMEを閉じてから候補値を確定する
@@ -349,21 +360,14 @@ struct RecordEditView: View {
                 }
                 // 測定項目カード（Section）どうしの間隔を区切り線程度まで詰め、セルが密に並んで見えるようにする
                 .listSectionSpacing(2)
-                // スクロール開始時にフォーカスを外して標準アニメーションで閉じる
-                .scrollDismissesKeyboard(.never)
+                // スクロールでの終了は標準の挙動に任せる（指の動きに追従して閉じる）
+                .scrollDismissesKeyboard(.interactively)
+                // メモ欄（AZMemoEditor）外のタップは AZMemoEditor 側のウィンドウ監視が閉じる。
+                // ここは UITextView を持たない測定場所欄のための保険。
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    // 入力欄や候補以外をタップしたらキーボードを閉じる
-                    if isMemoFocused { dismissMemoFocus() }
+                    if focusEquipment { dismissMemoFocus() }
                 }
-                .simultaneousGesture(
-                    // メモ欄（AZMemoEditor）内のドラッグはカーソル移動や文字選択なので対象外。
-                    // メモ欄外のスクロールは AZMemoEditor 側のウィンドウ監視が閉じるため、
-                    // ここでは UITextView を持たない測定場所欄の入力中だけを見る。
-                    DragGesture(minimumDistance: 8).onChanged { _ in
-                        if focusEquipment { dismissMemoFocus() }
-                    }
-                )
                 .onChange(of: vm.sNote1) { _, _ in scrollFocusedMemoIntoView(proxy) }
                 .onChange(of: vm.sNote2) { _, _ in scrollFocusedMemoIntoView(proxy) }
                 .onChange(of: vm.sEquipment) { _, _ in scrollFocusedMemoIntoView(proxy) }
@@ -373,13 +377,29 @@ struct RecordEditView: View {
                     if isFocused { scrollMemoIntoView(equipmentAnchorID, proxy: proxy, anchor: .top) }
                 }
                 .safeAreaInset(edge: .bottom) {
-                    if focusEquipment && !shownEquipmentCandidates.isEmpty {
-                        // キーボード直上へ候補バーの領域を確保する
-                        equipmentCandidateBar
-                    } else if focusNote1 || focusNote2 {
-                        // キーボード上へ入力行を逃がすため、フォーカス中だけ下端余白を追加する
-                        Color.clear.frame(height: 180)
+                    if isKeyboardVisible || isMemoFocused {
+                        ZStack(alignment: .bottom) {
+                            Color.clear
+                            if focusEquipment && !shownEquipmentCandidates.isEmpty {
+                                // 確保領域の下端に候補バーを表示する
+                                equipmentCandidateBar
+                            }
+                        }
+                        .frame(height: memoInputReservedHeight)
                     }
+                }
+                .onReceive(
+                    NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)
+                ) { _ in
+                    isKeyboardVisible = true
+                }
+                .onReceive(
+                    NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)
+                ) { _ in
+                    isKeyboardVisible = false
+                    // スクロールでの終了は UIKit 側が閉じるため @FocusState が残る。
+                    // 確保していた下端余白を戻すために、ここで揃える。
+                    if isMemoFocused { dismissMemoFocus() }
                 }
             }
             .navigationTitle(title)
@@ -488,6 +508,7 @@ struct RecordEditView: View {
             .interactiveDismissDisabled(hasAverageSamples)
             .onDisappear {
                 cancelArmTask?.cancel()
+                memoScrollTask?.cancel()
             }
         }
         .overlay(alignment: .top) {
@@ -1117,6 +1138,7 @@ struct RecordEditView: View {
 
     /// メモ欄のフォーカスとソフトキーボードを閉じる
     private func dismissMemoFocus() {
+        memoScrollTask?.cancel()
         focusEquipment = false
         focusNote1 = false
         focusNote2 = false
@@ -1136,14 +1158,24 @@ struct RecordEditView: View {
     }
 
     private func scrollMemoIntoView(_ anchorID: String, proxy: ScrollViewProxy, anchor: UnitPoint = .bottom) {
-        // キーボード表示中もメモ欄の入力行が隠れないよう、少し遅らせて寄せる
-        for delay in [0.05, 0.22] {
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-                guard isMemoFocused else { return }
-                withAnimation(.easeInOut(duration: 0.18)) {
-                    proxy.scrollTo(anchorID, anchor: anchor)
-                }
+        memoScrollTask?.cancel()
+        // キーボードのレイアウト確定後に最新の入力欄へ1度だけ寄せる
+        memoScrollTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(140))
+            guard !Task.isCancelled, isFocusedMemoAnchor(anchorID) else { return }
+            withAnimation(.easeInOut(duration: 0.18)) {
+                proxy.scrollTo(anchorID, anchor: anchor)
             }
+        }
+    }
+
+    /// 遅延中にフォーカス先が変わっていないか確認する
+    private func isFocusedMemoAnchor(_ anchorID: String) -> Bool {
+        switch anchorID {
+        case equipmentAnchorID: focusEquipment
+        case note1AnchorID: focusNote1
+        case note2AnchorID: focusNote2
+        default: false
         }
     }
 
