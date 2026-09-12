@@ -33,6 +33,7 @@ private struct SettingsHelpTitle: View {
 struct SettingsView: View {
 
     @Environment(\.modelContext) private var context
+    @Environment(\.openURL) private var openURL
     @AppStorage("settings.shareExportFormat") private var exportFormatRaw = RecordJSONExportStyle.compact.rawValue
     @State private var settings = AppSettings.shared
     @State private var healthKit = HealthKitService.shared
@@ -395,6 +396,23 @@ struct SettingsView: View {
                 Section {
                     Button("app.about") {
                         showSafari = true
+                    }
+
+                    Button {
+                        // requestReview は表示可否を OS が決めるため、押しても
+                        // 何も起きないことがある。ボタンからは App Store を直接開く
+                        if let url = AppConstants.reviewURL {
+                            openURL(url)
+                        }
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("settings.rateApp")
+                            // 要望や提案もレビューへ記入できることを案内する
+                            Text("settings.rateApp.note")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.leading)
+                        }
                     }
                 }
 
@@ -2250,10 +2268,9 @@ struct AboutView: View {
                     "app.website",
                     destination: URL(string: "https://azukid.com")!
                 )
-                Link(
-                    "action.reviewAppStore",
-                    destination: URL(string: "https://apps.apple.com/app/id\(AppConstants.productName)")!
-                )
+                if let reviewURL = AppConstants.reviewURL {
+                    Link("action.reviewAppStore", destination: reviewURL)
+                }
             }
         }
         .scrollIndicators(.hidden)

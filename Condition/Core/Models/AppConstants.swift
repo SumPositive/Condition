@@ -32,6 +32,21 @@ enum AppConstants {
     static let copyright        = "©2012 Azukid"
     static let unlockProductID  = "com.azukid.AzBodyNote.Unlock"
 
+    /// App Store のアプリID
+    static let appStoreID       = "472914799"
+
+    /// レビュー入力欄を開いた状態で App Store アプリを表示する。
+    /// https:// だと Safari が先に受け取り、リダイレクトで action= が落ちて
+    /// 「アドレスが無効です」になるため、App Store を直接指す itms-apps:// を使う
+    static var reviewURL: URL? {
+        URL(string: "itms-apps://apps.apple.com/app/id\(appStoreID)?action=write-review")
+    }
+
+    /// App Store のアプリページ
+    static var appStoreURL: URL? {
+        URL(string: "https://apps.apple.com/app/id\(appStoreID)")
+    }
+
     // 通知名
     static let notificationRefreshAllViews = Notification.Name("RefreshAllViews")
     static let notificationRefetchAllData  = Notification.Name("RefetchAllDatabaseData")
