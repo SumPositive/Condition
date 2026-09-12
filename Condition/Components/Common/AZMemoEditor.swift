@@ -220,7 +220,7 @@ private struct AZAutoSizingTextView: UIViewRepresentable {
             activeTextView?.resignFirstResponder()
         }
 
-        /// スクロール開始時に標準アニメーションで閉じる
+        /// メモ欄外でスクロールが始まったら標準アニメーションで閉じる
         @objc private func handleOutsidePan(_ recognizer: UIPanGestureRecognizer) {
             if recognizer.state == .began {
                 activeTextView?.resignFirstResponder()
@@ -232,14 +232,38 @@ private struct AZAutoSizingTextView: UIViewRepresentable {
             shouldReceive touch: UITouch
         ) -> Bool {
             guard let textView = activeTextView else { return false }
-            // ドラッグは開始位置にかかわらずキーボードを閉じる
-            if gestureRecognizer === outsidePanRecognizer { return true }
-            var touchedView = touch.view
-            while let currentView = touchedView {
-                if currentView === textView { return false }
-                touchedView = currentView.superview
+            // メモ欄内のドラッグはカーソル移動や文字選択なので、タップ・スクロールとも受け取らない
+            if isTouchInsideMemo(touch, textView: textView) { return false }
+            // スクロール監視は実際にスクロールできる領域の操作だけを対象にする
+            if gestureRecognizer === outsidePanRecognizer {
+                return isTouchInsideScrollableView(touch, textView: textView)
             }
             return true
+        }
+
+        /// タッチがスクロール可能なビュー上で始まったかを調べる
+        /// （メモ欄自身は isScrollEnabled = false なので対象にならない）
+        private func isTouchInsideScrollableView(_ touch: UITouch, textView: UITextView) -> Bool {
+            var touchedView = touch.view
+            while let currentView = touchedView {
+                if let scrollView = currentView as? UIScrollView,
+                   scrollView.isScrollEnabled,
+                   scrollView !== textView {
+                    return true
+                }
+                touchedView = currentView.superview
+            }
+            return false
+        }
+
+        /// タッチがメモ欄（およびその内部ビュー）で始まったかを調べる
+        private func isTouchInsideMemo(_ touch: UITouch, textView: UITextView) -> Bool {
+            var touchedView = touch.view
+            while let currentView = touchedView {
+                if currentView === textView { return true }
+                touchedView = currentView.superview
+            }
+            return false
         }
 
         func gestureRecognizer(

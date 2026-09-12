@@ -612,8 +612,11 @@ struct MeasurementAverageView: View {
                 if isMemoFocused { dismissMemoFocus() }
             }
             .simultaneousGesture(
+                // メモ欄（AZMemoEditor）内のドラッグはカーソル移動や文字選択なので対象外。
+                // メモ欄外のスクロールは AZMemoEditor 側のウィンドウ監視が閉じるため、
+                // ここでは UITextView を持たない測定場所欄の入力中だけを見る。
                 DragGesture(minimumDistance: 8).onChanged { _ in
-                    if isMemoFocused { dismissMemoFocus() }
+                    if focusEquipment { dismissMemoFocus() }
                 }
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
