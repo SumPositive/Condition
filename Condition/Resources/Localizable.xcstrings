@@ -5941,6 +5941,35 @@
         }
       }
     },
+    "medicine.picker.navTitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Medicine"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "薬"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "약"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "藥物"
+          }
+        }
+      }
+    },
     "medicine.picker.presets": {
       "extractionState": "manual",
       "localizations": {

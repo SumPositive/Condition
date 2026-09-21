@@ -41,9 +41,19 @@ struct SymptomEditView: View {
                 noteSection
                 weatherSection
             }
-            .navigationTitle("symptom.edit.title")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    // 測定シートと同じ作りで、アイコン＋用途を出す
+                    Label {
+                        Text("symptom.edit.title")
+                    } icon: {
+                        Image(systemName: "at.badge.plus")
+                    }
+                    .font(.headline)
+                    .foregroundStyle(Color.accentColor)
+                    .lineLimit(1)
+                }
                 ToolbarItem(placement: .topBarLeading) {
                     Button("action.cancel") {
                         if vm.isModified { showDiscardAlert = true } else { dismiss() }
@@ -70,7 +80,7 @@ struct SymptomEditView: View {
                     selectedIDs: Set(vm.medicineIDs)
                 ) { id in
                     addToTagList(id: id, kind: .medicine)
-                    vm.toggleMedicine(id)
+                    vm.addMedicine(id)
                 }
             }
             .alert("record.discardChanges.title", isPresented: $showDiscardAlert) {

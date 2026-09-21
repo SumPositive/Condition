@@ -147,6 +147,14 @@ enum SymptomCatalog {
 
     static func entry(for id: String) -> SymptomCatalogEntry? { byID[id] }
 
+    /// 入力された名前が辞書のどれかと一致すれば、その slug を返す。
+    /// 「花粉症」のようにプリセットにある名前を手入力されたとき、
+    /// 別IDのユーザー追加タグを作って重複させないために使う。
+    /// 表示中の言語だけでなく全対応言語の名前を見る（端末を英語にしていても日本語名で当てられる）
+    static func matchingID(forName name: String) -> String? {
+        SymptomTagMatching.matchingID(forName: name, in: all.map { ($0.id, $0.labelKey) })
+    }
+
     /// 分類ごとにまとめた辞書（辞書シートの表示順）
     static var groupedByCategory: [(category: SymptomCategory, entries: [SymptomCatalogEntry])] {
         SymptomCategory.allCases.compactMap { category in
@@ -203,5 +211,52 @@ enum MedicineCatalog {
 
     static func entry(for id: String) -> MedicineCatalogEntry? { byID[id] }
 
+    /// 入力された名前が辞書のどれかと一致すれば、その id を返す
+    static func matchingID(forName name: String) -> String? {
+        SymptomTagMatching.matchingID(forName: name, in: all.map { ($0.id, $0.labelKey) })
+    }
+
     static let defaultTagIDs: [String] = ["analgesic", "gastric", "antiallergy"]
+}
+
+
+// MARK: - 名前の突き合わせ
+
+/// 手入力された名前を辞書の項目に対応づける。
+/// 症状と薬で同じ規則を使う
+enum SymptomTagMatching {
+
+    /// 比較用に正規化する。前後の空白を落とし、全角・半角と大文字・小文字の差を無視する
+    static func normalized(_ name: String) -> String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines)
+            .folding(options: [.caseInsensitive, .widthInsensitive, .diacriticInsensitive],
+                     locale: .current)
+    }
+
+    /// 対応する全言語の訳で突き合わせる。
+    /// 端末が英語でも「花粉症」と打てば hayFever に当たるようにするため
+    private static let comparedLanguages = ["ja", "en", "ko", "zh-Hant"]
+
+    static func matchingID(forName name: String, in entries: [(id: String, labelKey: String)]) -> String? {
+        let target = normalized(name)
+        guard !target.isEmpty else { return nil }
+        for entry in entries {
+            for localized in localizedNames(forKey: entry.labelKey)
+            where normalized(localized) == target {
+                return entry.id
+            }
+        }
+        return nil
+    }
+
+    /// 1つのキーについて、対応言語ぶんの訳を集める
+    private static func localizedNames(forKey key: String) -> [String] {
+        var names = [NSLocalizedString(key, comment: "")]
+        for code in comparedLanguages {
+            guard let path = Bundle.main.path(forResource: code, ofType: "lproj"),
+                  let bundle = Bundle(path: path) else { continue }
+            names.append(NSLocalizedString(key, bundle: bundle, comment: ""))
+        }
+        return names
+    }
 }

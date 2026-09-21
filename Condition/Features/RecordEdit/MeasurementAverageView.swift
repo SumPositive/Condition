@@ -375,10 +375,16 @@ struct MeasurementAverageView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Image(systemName: "text.badge.plus")
-                        .font(.headline)
-                        .foregroundStyle(Color.accentColor)
-                        .accessibilityLabel(Text("record.measurementAvg.title"))
+                    // アイコンだけでは何のシートか分からないので用途を文字で添える
+                    Label {
+                        Text("records.toolbar.measurement")
+                    } icon: {
+                        Image(systemName: "text.badge.plus")
+                    }
+                    .font(.headline)
+                    .foregroundStyle(Color.accentColor)
+                    .lineLimit(1)
+                    .accessibilityLabel(Text("record.measurementAvg.title"))
                 }
                 ToolbarItem(placement: .cancellationAction) {
                     Button {

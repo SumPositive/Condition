@@ -59,6 +59,7 @@
 		FBA000000000000000000001 /* AppAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBA000000000000000000002 /* AppAnalytics.swift */; };
 		FBA000000000000000000003 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = FBA000000000000000000006 /* FirebaseAnalytics */; };
 		FBA000000000000000000004 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = FBA000000000000000000007 /* FirebaseCrashlytics */; };
+		2EC6632595DD9CE808623E6B /* SymptomTagMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDDE2C618EC05AE26B855AB /* SymptomTagMigration.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -132,6 +133,7 @@
 		F6931DD60054ABF712D5455D /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		FBA000000000000000000002 /* AppAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAnalytics.swift; sourceTree = "<group>"; };
 		FE6CDC8C62E6CE01882561D2 /* RecordDomain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordDomain.swift; sourceTree = "<group>"; };
+		7BDDE2C618EC05AE26B855AB /* SymptomTagMigration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymptomTagMigration.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -294,6 +296,7 @@
 		8718D76134A7E24E9FA98BD2 /* DataStore */ = {
 			isa = PBXGroup;
 			children = (
+				7BDDE2C618EC05AE26B855AB /* SymptomTagMigration.swift */,
 				C3562DCC2FFBAB8300539096 /* SnapshotSeed.swift */,
 				D11FAFC4E99DE815E66D2AEB /* MigrationService.swift */,
 				86715F6F24A9840913D72CC6 /* ModelContainer+Setup.swift */,
@@ -508,6 +511,7 @@
 		EBD078822FE98A94479EB3FA /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			files = (
+				2EC6632595DD9CE808623E6B /* SymptomTagMigration.swift in Sources */,
 				F594CC4E199C1D0114FA783B /* ToolbarButtonLabel.swift in Sources */,
 				8FD7460E6DC7533C534437D6 /* SymptomRecord.swift in Sources */,
 				84BD169598E046AE49898D33 /* SymptomCatalog.swift in Sources */,

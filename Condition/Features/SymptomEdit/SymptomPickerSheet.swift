@@ -5,7 +5,7 @@ import SwiftUI
 
 struct SymptomPickerSheet: View {
     let kind: SymptomTagKind
-    /// 選択済みの ID（症状は1件、薬は複数）
+    /// 選択済みの ID。タグの見た目に反映する（症状は1件、薬は記録側で複数持てる）
     let selectedIDs: Set<String>
     /// 選択された ID を返す。タグリストへの追加は呼び出し側で行う
     let onSelect: (String) -> Void
@@ -39,12 +39,9 @@ struct SymptomPickerSheet: View {
                 // ユーザーが追加したタグは辞書に無いので独立したセクションで出す
                 if !userDefinedTags.isEmpty {
                     Section {
-                        ForEach(userDefinedTags) { tag in
-                            row(
-                                id: tag.id,
-                                title: kind == .symptom ? tag.symptomDisplayName : tag.medicineDisplayName
-                            )
-                        }
+                        tagCloud(userDefinedTags.map {
+                            ($0.id, kind == .symptom ? $0.symptomDisplayName : $0.medicineDisplayName)
+                        })
                     } header: {
                         Text("symptom.picker.userDefined")
                     }
@@ -54,9 +51,7 @@ struct SymptomPickerSheet: View {
                 case .symptom:
                     ForEach(filteredSymptomGroups, id: \.category.id) { group in
                         Section {
-                            ForEach(group.entries) { entry in
-                                row(id: entry.id, title: entry.localizedName)
-                            }
+                            tagCloud(group.entries.map { ($0.id, $0.localizedName) })
                         } header: {
                             Label(
                                 NSLocalizedString(group.category.labelKey, comment: ""),
@@ -66,9 +61,7 @@ struct SymptomPickerSheet: View {
                     }
                 case .medicine:
                     Section {
-                        ForEach(filteredMedicines) { entry in
-                            row(id: entry.id, title: entry.localizedName)
-                        }
+                        tagCloud(filteredMedicines.map { ($0.id, $0.localizedName) })
                     } header: {
                         Text("medicine.picker.presets")
                     }
@@ -76,7 +69,7 @@ struct SymptomPickerSheet: View {
             }
             .listStyle(.insetGrouped)
             .searchable(text: $searchText, prompt: Text("symptom.picker.search"))
-            .navigationTitle(kind == .symptom ? "symptom.picker.title" : "medicine.picker.title")
+            .navigationTitle(kind == .symptom ? "symptom.edit.title" : "medicine.picker.navTitle")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -97,23 +90,27 @@ struct SymptomPickerSheet: View {
 
     // MARK: - 行
 
+    /// セクションの中身をタグの折り返し並びで出す。
+    /// 1行1項目のリストだと縦に伸びて一覧性が落ちるため、記録画面のタグ行と見た目を揃える
     @ViewBuilder
-    private func row(id: String, title: String) -> some View {
-        Button {
-            onSelect(id)
-            // 症状は1件しか選べないので、選んだら閉じる。薬は続けて選べるよう開いたままにする
-            if kind == .symptom { dismiss() }
-        } label: {
-            HStack {
-                Text(title)
-                    .foregroundStyle(Color.primary)
-                Spacer()
-                if selectedIDs.contains(id) {
-                    Image(systemName: "checkmark")
-                        .foregroundStyle(Color.accentColor)
+    private func tagCloud(_ items: [(id: String, title: String)]) -> some View {
+        FlowLayout(spacing: 8) {
+            ForEach(items, id: \.id) { item in
+                SymptomTagChip(
+                    title: item.title,
+                    color: kind == .symptom ? .accentColor : .blue,
+                    isSelected: selectedIDs.contains(item.id)
+                ) {
+                    onSelect(item.id)
+                    // 症状・薬ともタップしたら閉じて反映する。
+                    // 薬の複数選択は記録画面のタグ行で行う
+                    dismiss()
                 }
             }
         }
+        .padding(.vertical, 4)
+        // タグ自体がボタンなので、行全体のタップ領域は無効にする
+        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
     }
 
     // MARK: - 絞り込み
@@ -154,21 +151,44 @@ struct SymptomPickerSheet: View {
     private func addUserDefinedTag() {
         let name = trimmedNewTagName
         guard !name.isEmpty else { return }
-        let id = SymptomTag.newUserDefinedID()
+
+        // 「花粉症」のようにプリセットや追加済みのタグと同じ名前が打たれたら、
+        // 新しい ID は作らず既存のものを選ぶ。別IDで重複すると集計まで割れてしまう
+        let matched = existingID(forName: name)
+        let id = matched ?? SymptomTag.newUserDefinedID()
+        // 辞書に当たったときは名前を上書きしない（ローカライズ名のまま使う）
+        let customName = matched == nil ? name : ""
+
         switch kind {
         case .symptom:
             var list = settings.symptomTags
-            list.add(id: id, customName: name)
+            list.add(id: id, customName: customName)
             settings.symptomTags = list
         case .medicine:
             var list = settings.medicineTags
-            list.add(id: id, customName: name)
+            list.add(id: id, customName: customName)
             settings.medicineTags = list
         }
         newTagName = ""
         showAddField = false
         newTagFocused = false
         onSelect(id)
-        if kind == .symptom { dismiss() }
+        dismiss()
+    }
+
+    /// 入力された名前に対応する既存の ID。辞書とタグリストの両方を見る
+    private func existingID(forName name: String) -> String? {
+        let list = kind == .symptom ? settings.symptomTags : settings.medicineTags
+        // 先に自分で追加済みのタグを見る（辞書名を上書きしている場合もあるため）
+        let target = SymptomTagMatching.normalized(name)
+        if let tag = list.tags.first(where: {
+            let display = kind == .symptom ? $0.symptomDisplayName : $0.medicineDisplayName
+            return SymptomTagMatching.normalized(display) == target
+        }) {
+            return tag.id
+        }
+        return kind == .symptom
+            ? SymptomCatalog.matchingID(forName: name)
+            : MedicineCatalog.matchingID(forName: name)
     }
 }

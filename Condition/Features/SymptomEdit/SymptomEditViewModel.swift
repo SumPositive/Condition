@@ -106,6 +106,14 @@ final class SymptomEditViewModel {
         }
     }
 
+    /// 辞書シートから選ばれた薬を足す。
+    /// シートは「追加する」ための画面なので、既に選ばれていても外さない
+    func addMedicine(_ id: String) {
+        guard !medicineIDs.contains(id),
+              medicineIDs.count < SymptomLimits.maxMedicinesPerRecord else { return }
+        medicineIDs.append(id)
+    }
+
     func toggleMedicine(_ id: String) {
         if let index = medicineIDs.firstIndex(of: id) {
             medicineIDs.remove(at: index)

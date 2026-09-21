@@ -154,6 +154,42 @@ struct SymptomTagList: Codable, Equatable {
         }
     }
 
+    /// 辞書と同じ名前で作られてしまったユーザー追加タグを、辞書の項目へ寄せる。
+    /// 重複チェックを入れる前に作られた分（例:「花粉症」）を掃除するために使う。
+    /// - Returns: 置き換えが必要だった `旧ID → 新ID` の対応
+    @discardableResult
+    mutating func mergeDuplicatesIntoCatalog(
+        resolve: (String) -> String?
+    ) -> [String: String] {
+        var replacements: [String: String] = [:]
+        for tag in tags where tag.isUserDefined && !tag.customName.isEmpty {
+            guard let catalogID = resolve(tag.customName), catalogID != tag.id else { continue }
+            replacements[tag.id] = catalogID
+        }
+        guard !replacements.isEmpty else { return [:] }
+
+        for (oldID, newID) in replacements {
+            guard let oldIndex = tags.firstIndex(where: { $0.id == oldID }) else { continue }
+            let old = tags[oldIndex]
+            tags.remove(at: oldIndex)
+            if let newIndex = tags.firstIndex(where: { $0.id == newID }) {
+                // 既に辞書側のタグがあるなら使用実績だけ引き継ぐ
+                tags[newIndex].useCount += old.useCount
+                tags[newIndex].isHidden = false
+                if let lastUsed = old.lastUsedAt,
+                   tags[newIndex].lastUsedAt.map({ $0 < lastUsed }) ?? true {
+                    tags[newIndex].lastUsedAt = lastUsed
+                }
+            } else {
+                var moved = old
+                moved.id = newID
+                moved.customName = ""   // 辞書のローカライズ名を使う
+                tags.append(moved)
+            }
+        }
+        return replacements
+    }
+
     mutating func rename(id: String, to name: String) {
         guard let index = tags.firstIndex(where: { $0.id == id }) else { return }
         tags[index].customName = String(name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(40))

@@ -248,6 +248,8 @@ struct RecordListView: View {
                 }
             }
             .onAppear {
+                // 重複チェック前に作られた「花粉症」などのユーザー追加タグを辞書へ寄せる（初回のみ）
+                SymptomTagMigration.runIfNeeded(context: context)
                 if hkService.needsAutoImport {
                     hkService.needsAutoImport = false
                     Task { await autoImportFromHealthKitIfNeeded() }
