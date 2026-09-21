@@ -20,10 +20,12 @@ extension ModelContainer {
         // fastlane snapshot 撮影時は in-memory ストアにサンプルを入れて撮る
         // 実ストアやマイグレーションには一切触れない
         if SnapshotSeed.isActive {
-            let config = ModelConfiguration(schema: Schema([BodyRecord.self]),
+            let config = ModelConfiguration(schema: Schema([BodyRecord.self, SymptomRecord.self]),
                                             isStoredInMemoryOnly: true)
             do {
-                let container = try ModelContainer(for: BodyRecord.self, configurations: config)
+                let container = try ModelContainer(
+                    for: BodyRecord.self, SymptomRecord.self, configurations: config
+                )
                 SnapshotSeed.seedIfNeeded(context: container.mainContext)
                 logger.info("snapshot 撮影用の in-memory ストアを使用")
                 return container
@@ -33,7 +35,7 @@ extension ModelContainer {
         }
         #endif
 
-        let schema = Schema([BodyRecord.self])
+        let schema = Schema([BodyRecord.self, SymptomRecord.self])
         let storeName = resolveStoreName()
         logger.info("使用ストア: \(storeName)\(storeExt)")
 
@@ -43,7 +45,7 @@ extension ModelContainer {
             isStoredInMemoryOnly: false
         )
         do {
-            return try ModelContainer(for: BodyRecord.self, configurations: config)
+            return try ModelContainer(for: BodyRecord.self, SymptomRecord.self, configurations: config)
         } catch {
             AppAnalytics.shared.record(error: error, name: "model_container_create_failed")
             fatalError("ModelContainer の作成に失敗しました: \(error)")

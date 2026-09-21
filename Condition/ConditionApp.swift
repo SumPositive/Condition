@@ -129,6 +129,17 @@ private struct RootSceneView: View {
                }) {
             MeasurementAverageView()
         }
+        // 症状メモの記録シートもルートレベルで呈示する（測定の2種と同じ扱い）
+        .sheet(isPresented: Bindable(settings).showSymptomSheet,
+               onDismiss: {
+                   settings.showSymptomSheet = false
+                   settings.symptomSheetModified = false
+               }) {
+            SymptomEditView(
+                mode: .addNew,
+                onModifiedChanged: { settings.symptomSheetModified = $0 }
+            )
+        }
     }
 }
 

@@ -49,6 +49,15 @@ struct SettingsView: View {
     @State private var isMergeWindowExpanded = false
     @State private var isMergeDefaultActionExpanded = false
     @State private var isLaunchActionExpanded = false
+
+    /// 起動時アクションの選択肢。ダイアル式が無効なら「新しい記録（単発）」は選ばせない。
+    /// 選択済みのまま無効にした場合も、その項目だけは残して選択が消えないようにする
+    private var availableLaunchActions: [LaunchAction] {
+        guard !settings.useDialRecordEntry else { return LaunchAction.allCases }
+        return LaunchAction.allCases.filter {
+            $0 != .newSingle || settings.launchAction == .newSingle
+        }
+    }
     @State private var isUserLevelExpanded = false
     @State private var isAppearanceModeExpanded = false
     @State private var isFontScaleExpanded = false
@@ -222,7 +231,7 @@ struct SettingsView: View {
                         } control: {
                             // 起動時に開く画面も共通のドロップダウンPickerで選ぶ
                             AZDropdownPicker(
-                                options: LaunchAction.allCases,
+                                options: availableLaunchActions,
                                 selection: $settings.launchAction,
                                 isExpanded: $isLaunchActionExpanded,
                                 minWidth: 170
@@ -270,49 +279,74 @@ struct SettingsView: View {
                         }
                     }
 
-                    // 記録をまとめる（衝突検出）
-                    VStack(alignment: .leading, spacing: 8) {
-                        AZAdaptiveControlRow {
-                            SettingsHelpTitle(
-                                titleKey: "settings.merge.window",
-                                helpKey: "settings.help.merge",
-                                storageKey: "helpDismissed.settings.merge"
-                            )
-                                .font(.subheadline)
-                        } control: {
-                            // 記録をまとめる時間は共通のドロップダウンPickerで選ぶ
-                            AZDropdownPicker(
-                                options: Self.mergeWindowOptions,
-                                selection: mergeWindowBinding,
-                                isExpanded: $isMergeWindowExpanded,
-                                minWidth: 150
-                            ) { option in
-                                Text(LocalizedStringKey(option.titleKey))
-                            }
-                        }
-                        .zIndex(isMergeWindowExpanded ? 61 : 0)
-                        if settings.mergeWindowMinutes != 0 {
+                    // ダイアル式の記録画面を使うか。
+                    // ヘルプは Toggle のラベルに入れるとタップがトグルに吸われるので外に出す
+                    HStack {
+                        SettingsHelpTitle(
+                            titleKey: "settings.useDialRecordEntry",
+                            helpKey: "settings.help.useDialRecordEntry",
+                            storageKey: "helpDismissed.settings.useDialRecordEntry"
+                        )
+                        .font(.subheadline)
+                        Spacer(minLength: 8)
+                        Toggle("", isOn: $settings.useDialRecordEntry)
+                            .labelsHidden()
+                    }
+
+                    // 記録をまとめる（衝突検出）は、ダイアル式で1件ずつ入力したときに
+                    // 直前の記録と突き合わせるための設定なので、ダイアル式がOFFなら出さない
+                    if settings.useDialRecordEntry {
+                        VStack(alignment: .leading, spacing: 8) {
                             AZAdaptiveControlRow {
-                                Text("settings.merge.defaultAction")
+                                SettingsHelpTitle(
+                                    titleKey: "settings.merge.window",
+                                    helpKey: "settings.help.merge",
+                                    storageKey: "helpDismissed.settings.merge"
+                                )
                                     .font(.subheadline)
                             } control: {
-                                // 衝突時の初期選択も同じドロップダウンPickerで選ぶ
+                                // 記録をまとめる時間は共通のドロップダウンPickerで選ぶ
                                 AZDropdownPicker(
-                                    options: ConflictAction.allCases,
-                                    selection: mergeDefaultActionBinding,
-                                    isExpanded: $isMergeDefaultActionExpanded,
-                                    minWidth: 170
-                                ) { action in
-                                    Text(action.labelKey)
+                                    options: Self.mergeWindowOptions,
+                                    selection: mergeWindowBinding,
+                                    isExpanded: $isMergeWindowExpanded,
+                                    minWidth: 150
+                                ) { option in
+                                    Text(LocalizedStringKey(option.titleKey))
                                 }
                             }
-                            .zIndex(isMergeDefaultActionExpanded ? 60 : 0)
+                            .zIndex(isMergeWindowExpanded ? 61 : 0)
+                            if settings.mergeWindowMinutes != 0 {
+                                AZAdaptiveControlRow {
+                                    Text("settings.merge.defaultAction")
+                                        .font(.subheadline)
+                                } control: {
+                                    // 衝突時の初期選択も同じドロップダウンPickerで選ぶ
+                                    AZDropdownPicker(
+                                        options: ConflictAction.allCases,
+                                        selection: mergeDefaultActionBinding,
+                                        isExpanded: $isMergeDefaultActionExpanded,
+                                        minWidth: 170
+                                    ) { action in
+                                        Text(action.labelKey)
+                                    }
+                                }
+                                .zIndex(isMergeDefaultActionExpanded ? 60 : 0)
+                            }
                         }
                     }
                 }
                 .onChange(of: settings.mergeWindowMinutes) { _, newValue in
                     // 「しない」の時は非表示行のドロップダウンを閉じる
                     if newValue == 0 {
+                        isMergeDefaultActionExpanded = false
+                    }
+                }
+                .onChange(of: settings.useDialRecordEntry) { _, isOn in
+                    // OFF にすると「記録をまとめる」の行ごと消えるので、
+                    // 開いたままのドロップダウンを閉じておく
+                    if !isOn {
+                        isMergeWindowExpanded = false
                         isMergeDefaultActionExpanded = false
                     }
                 }
@@ -529,10 +563,17 @@ struct SettingsView: View {
                 sortBy: [SortDescriptor(\BodyRecord.dateTime)]
             )
             let records = (try? context.fetch(descriptor)) ?? []
+            let symptomDescriptor = FetchDescriptor<SymptomRecord>(
+                sortBy: [SortDescriptor(\SymptomRecord.startAt)]
+            )
+            let symptoms = (try? context.fetch(symptomDescriptor)) ?? []
             let data = RecordsJSONIO.export(
                 records: records,
+                symptoms: symptoms,
                 style: exportFormat,
-                categoryAppearances: RecordsJSONIO.normalizedDateOptAppearances(settings.dateOptAppearances)
+                categoryAppearances: RecordsJSONIO.normalizedDateOptAppearances(settings.dateOptAppearances),
+                symptomTags: settings.symptomTags,
+                medicineTags: settings.medicineTags
             )
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyyMMdd_HHmmss"
@@ -574,20 +615,29 @@ struct SettingsView: View {
                     // バックアップに同梱された区分表示マスタを復元する
                     settings.dateOptAppearances = RecordsJSONIO.normalizedDateOptAppearances(categoryAppearances)
                 }
+                // 症状・薬のタグリスト（表示名と並び順）も復元する
+                if let symptomTags = result.symptomTags {
+                    settings.symptomTags = symptomTags
+                }
+                if let medicineTags = result.medicineTags {
+                    settings.medicineTags = medicineTags
+                }
                 AppAnalytics.shared.logOperation(
                     "records_json_import",
                     parameters: [
                         "inserted": result.inserted,
                         "updated": result.updated,
                         "skipped": result.skipped,
+                        "symptoms_inserted": result.symptomsInserted,
+                        "symptoms_updated": result.symptomsUpdated,
                     ]
                 )
                 alertItem = .raw(
                     title: String(localized: "settings.share.importDoneTitle"),
                     message: String(
                         format: String(localized: "settings.share.importDoneMessage"),
-                        result.inserted,
-                        result.updated
+                        result.inserted + result.symptomsInserted,
+                        result.updated + result.symptomsUpdated
                     )
                 )
             } catch {

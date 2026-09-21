@@ -459,6 +459,49 @@ final class AppSettings {
         didSet { ud.set(estimateDateOpt, forKey: UDefKeys.estimateDateOpt) }
     }
 
+    // MARK: - ダイアル式の測定記録
+    /// 初期からあるダイアル式の記録画面を使うか。既定 OFF で、記録は複数平均式と症状の2つに絞る。
+    /// OFF のときは一覧のボタンだけでなく、記録タブ再タップと起動時アクションの経路も塞ぐ
+    var useDialRecordEntry: Bool = false {
+        didSet { ud.set(useDialRecordEntry, forKey: UDefKeys.useDialRecordEntry) }
+    }
+
+    // MARK: - 症状メモ
+    /// 記録一覧の絞り込み（すべて／測定／症状）
+    var recordDomain: RecordDomain = .all {
+        didSet { ud.set(recordDomain.rawValue, forKey: SettingsKeys.settRecordDomain) }
+    }
+    /// 症状タグリスト。変更したら保存し、一覧・記録画面へ再描画を伝える
+    var symptomTagRevision: Int = 0
+    var symptomTags: SymptomTagList = SymptomTagStore.symptomTags() {
+        didSet {
+            SymptomTagStore.saveSymptomTags(symptomTags)
+            symptomTagRevision += 1
+        }
+    }
+    var medicineTags: SymptomTagList = SymptomTagStore.medicineTags() {
+        didSet {
+            SymptomTagStore.saveMedicineTags(medicineTags)
+            symptomTagRevision += 1
+        }
+    }
+
+    /// 症状の使用を記録して並び順（MRU）を更新する
+    func markSymptomUsed(_ id: String) {
+        guard !id.isEmpty else { return }
+        var list = symptomTags
+        list.markUsed(id: id)
+        symptomTags = list
+    }
+
+    /// 薬の使用を記録して並び順（MRU）を更新する
+    func markMedicinesUsed(_ ids: [String]) {
+        guard !ids.isEmpty else { return }
+        var list = medicineTags
+        for id in ids { list.markUsed(id: id) }
+        medicineTags = list
+    }
+
     // MARK: - 新規記録シート（非永続・セッションのみ）
     /// TabView 上位から新規記録シートを開くトリガー。
     /// 開くたびに lastNewRecordKind を更新し、記録タブ再タップで同じ方を出せるようにする
@@ -472,6 +515,10 @@ final class AppSettings {
     var showMeasurementAvgSheet: Bool = false {
         didSet { if showMeasurementAvgSheet { lastNewRecordKind = .multi } }
     }
+    /// TabView 上位から症状記録シートを開くトリガー
+    var showSymptomSheet: Bool = false
+    /// 症状記録シートに未保存の変更があるか
+    var symptomSheetModified: Bool = false
     /// 起動時アクションでのタブ切替要求（ContentView が消費）
     var pendingLaunchTab: Int? = nil
 
@@ -513,6 +560,10 @@ final class AppSettings {
         }
         if ud.object(forKey: UDefKeys.estimateDateOpt) != nil {
             estimateDateOpt = ud.bool(forKey: UDefKeys.estimateDateOpt)
+        }
+        useDialRecordEntry = ud.bool(forKey: UDefKeys.useDialRecordEntry)
+        if let domain = RecordDomain(rawValue: ud.integer(forKey: SettingsKeys.settRecordDomain)) {
+            recordDomain = domain
         }
         if ud.object(forKey: UDefKeys.lastNewRecordKind) != nil {
             lastNewRecordKind = NewRecordKind(rawValue: ud.integer(forKey: UDefKeys.lastNewRecordKind)) ?? .single

@@ -91,7 +91,8 @@ struct ContentView: View {
             // （performLaunchAction 内で拒否される）ため、暗幕も先出ししない。
             if isSheetAction(settings.launchAction),
                !settings.showNewRecordSheet,
-               !settings.showMeasurementAvgSheet {
+               !settings.showMeasurementAvgSheet,
+               !settings.showSymptomSheet {
                 isPreparingLaunchSheet = true
             }
             performLaunchAction(settings.launchAction)
@@ -133,12 +134,14 @@ struct ContentView: View {
     private func presentLastUsedNewRecordSheet() {
         // すでに新規記録シートが開いているなら二重に開かない
         guard !settings.showNewRecordSheet,
-              !settings.showMeasurementAvgSheet else { return }
+              !settings.showMeasurementAvgSheet,
+              !settings.showSymptomSheet else { return }
+        // ダイアル式が無効なら、直前に使っていても複数平均式を開く
         switch settings.lastNewRecordKind {
-        case .single:
+        case .single where settings.useDialRecordEntry:
             AppAnalytics.shared.logOperation("records_tab_retap_new_single")
             settings.showNewRecordSheet = true
-        case .multi:
+        case .single, .multi:
             AppAnalytics.shared.logOperation("records_tab_retap_new_multi")
             settings.showMeasurementAvgSheet = true
         }
@@ -150,7 +153,8 @@ struct ContentView: View {
         case .none:
             return
         case .newSingle:
-            presentSheet(kind: .single)
+            // ダイアル式が無効なら起動時に開けないので、複数平均式へ振り替える
+            presentSheet(kind: settings.useDialRecordEntry ? .single : .multi)
         case .newMulti:
             presentSheet(kind: .multi)
         case .records:
@@ -176,7 +180,8 @@ struct ContentView: View {
         // 新規記録シート（単体・表形式）が開いているなら何もしない。
         // （呼び出し側で先出ししたブロック層はここで確実に下ろす）
         guard !settings.showNewRecordSheet,
-              !settings.showMeasurementAvgSheet else {
+              !settings.showMeasurementAvgSheet,
+              !settings.showSymptomSheet else {
             isPreparingLaunchSheet = false
             return
         }
@@ -186,7 +191,9 @@ struct ContentView: View {
             // 暗幕＋プログレスを確実に一度描画・視認させてからシートを開く。
             // この待機は、実機で復帰直後にシートが表示されない事故の回避も兼ねる。
             try? await Task.sleep(for: .milliseconds(350))
-            guard !settings.showNewRecordSheet, !settings.showMeasurementAvgSheet else {
+            guard !settings.showNewRecordSheet,
+                  !settings.showMeasurementAvgSheet,
+                  !settings.showSymptomSheet else {
                 isPreparingLaunchSheet = false
                 return
             }
@@ -208,7 +215,8 @@ struct ContentView: View {
     private func switchTab(to tab: RootTab) {
         // 新規記録シートが開いているならタブ移動で驚かせない
         guard !settings.showNewRecordSheet,
-              !settings.showMeasurementAvgSheet else { return }
+              !settings.showMeasurementAvgSheet,
+              !settings.showSymptomSheet else { return }
         AppAnalytics.shared.logOperation("launch_action_tab_\(tab.analyticsName)")
         selectedTab = tab
     }

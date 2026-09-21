@@ -16,7 +16,11 @@ struct RecordListView: View {
     )
     private var records: [BodyRecord]
 
+    @Query(sort: \SymptomRecord.startAt, order: .reverse)
+    private var symptomRecords: [SymptomRecord]
+
     @State private var editTarget: BodyRecord? = nil
+    @State private var symptomEditTarget: SymptomRecord? = nil
     @State private var showExportSheet = false
     /// 編集シートに未保存の変更がある場合 true
     @State private var editHasUnsavedChanges = false
@@ -86,21 +90,39 @@ struct RecordListView: View {
         }
     }
 
+    // MARK: - 症状記録
+
+    /// 絞り込み後の症状記録。区分フィルターは測定側の概念なので症状には掛けない
+    private var visibleSymptomRecords: [SymptomRecord] {
+        settings.recordDomain.includesSymptom ? symptomRecords : []
+    }
+
+    /// 測定と症状を1つの時系列へ混ぜた行。
+    /// 3月11日を開いたときに「血圧 152/94」と「頭痛・強い」が並ぶことが本機能の価値なので、
+    /// 既定（すべて）では分けずに並べる
+    private var visibleRows: [RecordListRow] {
+        let measurementRows = settings.recordDomain.includesMeasurement
+            ? visibleRecords.map { RecordListRow.measurement($0) }
+            : []
+        let symptomRows = visibleSymptomRecords.map { RecordListRow.symptom($0) }
+        return (measurementRows + symptomRows).sorted { $0.sortDate > $1.sortDate }
+    }
+
     // MARK: - セクション分割（年月ごと）
-    private var sections: [(yearMonth: Int, records: [BodyRecord])] {
-        var dict: [Int: [BodyRecord]] = [:]
-        for r in visibleRecords {
-            dict[r.yearMonth, default: []].append(r)
+    private var sections: [(yearMonth: Int, rows: [RecordListRow])] {
+        var dict: [Int: [RecordListRow]] = [:]
+        for row in visibleRows {
+            dict[row.yearMonth, default: []].append(row)
         }
         return dict
             .sorted { $0.key > $1.key }
-            .map { (yearMonth: $0.key, records: $0.value) }
+            .map { (yearMonth: $0.key, rows: $0.value) }
     }
 
     var body: some View {
         NavigationStack {
             Group {
-                if visibleRecords.isEmpty {
+                if visibleRows.isEmpty {
                     // 空状態は表ではないので、一般的な本文幅で中央に置く
                     ContentUnavailableView(
                         "records.empty.title",
@@ -137,7 +159,10 @@ struct RecordListView: View {
                 }
                 ToolbarItemGroup(placement: .topBarLeading) {
                     Button { showExportSheet = true } label: {
-                        Image(systemName: "square.and.arrow.up")
+                        ToolbarButtonLabel(
+                            systemImage: "square.and.arrow.up",
+                            captionKey: "records.toolbar.export"
+                        )
                     }
                     .disabled(records.isEmpty)
                     categoryFilterMenu
@@ -173,22 +198,47 @@ struct RecordListView: View {
                             settings.showMeasurementAvgSheet = true
                         }
                     } label: {
-                        Image(systemName: "text.badge.plus")
-                            .foregroundStyle(Color.blue)
+                        ToolbarButtonLabel(
+                            systemImage: "text.badge.plus",
+                            captionKey: "records.toolbar.measurement"
+                        )
+                        .foregroundStyle(Color.blue)
                     }
                     Button {
-                        // 状態が true のまま戻っていない異常時はリセットしてから再セット
-                        if settings.showNewRecordSheet {
-                            settings.showNewRecordSheet = false
+                        if settings.showSymptomSheet {
+                            settings.showSymptomSheet = false
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                                settings.showNewRecordSheet = true
+                                settings.showSymptomSheet = true
                             }
                         } else {
-                            settings.showNewRecordSheet = true
+                            settings.showSymptomSheet = true
                         }
                     } label: {
-                        Image(systemName: "plus.circle.fill")
+                        ToolbarButtonLabel(
+                            systemImage: "at.badge.plus",
+                            captionKey: "records.toolbar.symptom"
+                        )
+                        .foregroundStyle(Color.blue)
+                    }
+                    // ダイアル式の記録画面は既定で出さない（設定でONにしたときだけ）
+                    if settings.useDialRecordEntry {
+                        Button {
+                            // 状態が true のまま戻っていない異常時はリセットしてから再セット
+                            if settings.showNewRecordSheet {
+                                settings.showNewRecordSheet = false
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                                    settings.showNewRecordSheet = true
+                                }
+                            } else {
+                                settings.showNewRecordSheet = true
+                            }
+                        } label: {
+                            ToolbarButtonLabel(
+                                systemImage: "plus.circle.fill",
+                                captionKey: "records.toolbar.dialEntry"
+                            )
                             .foregroundStyle(Color.blue)
+                        }
                     }
                 }
             }
@@ -206,6 +256,9 @@ struct RecordListView: View {
             .sheet(item: $editTarget,
                    onDismiss: { editHasUnsavedChanges = false }) { record in
                 editRecordSheet(record: record)
+            }
+            .sheet(item: $symptomEditTarget) { record in
+                SymptomEditView(mode: .edit(record))
             }
             .sheet(isPresented: $showExportSheet) {
                 ExportSheetView(records: categoryFilteredRecords, visibleKinds: visibleRecordKinds)
@@ -228,7 +281,7 @@ struct RecordListView: View {
             .animation(.easeInOut(duration: 0.3), value: toastMessage)
             .animation(.easeInOut(duration: 0.3), value: hkService.importProgress)
             // 区分のアイコン・名称・色を変更したら一覧セルを再生成する
-            .id(settings.dateOptAppearanceRevision)
+            .id(settings.dateOptAppearanceRevision + settings.symptomTagRevision)
             .onChange(of: hkService.importTimedOut) { _, timedOut in
                 if timedOut { showHKTimeoutAlert = true }
             }
@@ -264,7 +317,19 @@ struct RecordListView: View {
     @ViewBuilder
     private var categoryFilterMenu: some View {
         Menu {
-            Picker("filter.category.title", selection: $categoryFilter) {
+            Picker("filter.domain.title", selection: Bindable(settings).recordDomain) {
+                ForEach(RecordDomain.allCases) { domain in
+                    Label(
+                        NSLocalizedString(domain.labelKey, comment: ""),
+                        systemImage: domain.icon
+                    )
+                    .tag(domain)
+                }
+            }
+            // 区分は測定側の概念なので、症状だけを見ているときは出さない
+            if settings.recordDomain.includesMeasurement {
+                Divider()
+                Picker("filter.category.title", selection: $categoryFilter) {
                 Text("filter.category.all").tag(DateOpt?.none)
                 ForEach(settings.orderedDefinedDateOpts, id: \.self) { opt in
                     Label {
@@ -273,15 +338,24 @@ struct RecordListView: View {
                         Image(systemName: opt.icon)
                     }
                     .tag(DateOpt?.some(opt))
+                    }
                 }
             }
         } label: {
             // フィルター有効時は塗りつぶしアイコンで状態を伝える
-            Image(systemName: categoryFilter == nil
-                  ? "line.3.horizontal.decrease.circle"
-                  : "line.3.horizontal.decrease.circle.fill")
-                .foregroundStyle(Color.blue)
+            ToolbarButtonLabel(
+                systemImage: isFilterActive
+                    ? "line.3.horizontal.decrease.circle.fill"
+                    : "line.3.horizontal.decrease.circle",
+                captionKey: "records.toolbar.filter"
+            )
+            .foregroundStyle(Color.blue)
         }
+    }
+
+    /// 絞り込みが効いているか（区分・種別のどちらか）
+    private var isFilterActive: Bool {
+        categoryFilter != nil || settings.recordDomain != .all
     }
 
     // MARK: - リスト
@@ -332,19 +406,46 @@ struct RecordListView: View {
             List {
                 ForEach(sections, id: \.yearMonth) { section in
                     Section(header: RecordSectionHeader(yearMonth: section.yearMonth)) {
-                        ForEach(section.records) { record in
-                            RecordRowView(record: record, visibleKinds: visibleRecordKinds, hkEnabled: settings.hkEnabled)
-                                .contentShape(Rectangle())
-                                .onTapGesture { editTarget = record }
+                        ForEach(section.rows) { row in
+                            listRow(row)
                                 .listRowInsets(EdgeInsets(top: 1, leading: 16, bottom: 1, trailing: 16))
                         }
                         .onDelete { offsets in
-                            deleteRecords(in: section.records, offsets: offsets)
+                            deleteRows(in: section.rows, offsets: offsets)
                         }
                     }
                 }
             }
             .listStyle(.plain)
+        }
+    }
+
+    // MARK: - 行
+
+    @ViewBuilder
+    private func listRow(_ row: RecordListRow) -> some View {
+        switch row {
+        case .measurement(let record):
+            RecordRowView(record: record, visibleKinds: visibleRecordKinds, hkEnabled: settings.hkEnabled)
+                .contentShape(Rectangle())
+                .onTapGesture { editTarget = record }
+        case .symptom(let record):
+            SymptomRowView(record: record) { finishSymptom(record) }
+                .contentShape(Rectangle())
+                .onTapGesture { symptomEditTarget = record }
+        }
+    }
+
+    /// 継続中の症状を「いま」で終了させる。一覧から1タップで閉じられるようにする
+    private func finishSymptom(_ record: SymptomRecord) {
+        record.bOngoing = false
+        record.endAt = Date()
+        if record.dataSource == .appInput { record.dataSource = .appModified }
+        do {
+            try context.save()
+        } catch {
+            context.rollback()
+            AppAnalytics.shared.record(error: error, name: "symptom_finish_save_failed")
         }
     }
 
@@ -416,6 +517,35 @@ struct RecordListView: View {
     }
 
     // MARK: - 削除
+
+    /// 統合行の削除。測定と症状で後処理が違うので振り分ける
+    private func deleteRows(in rows: [RecordListRow], offsets: IndexSet) {
+        let targets = offsets.map { rows[$0] }
+        let measurementRecords: [BodyRecord] = targets.compactMap {
+            if case .measurement(let record) = $0 { return record }
+            return nil
+        }
+        let symptomTargets: [SymptomRecord] = targets.compactMap {
+            if case .symptom(let record) = $0 { return record }
+            return nil
+        }
+        if !measurementRecords.isEmpty {
+            deleteRecords(in: measurementRecords, offsets: IndexSet(measurementRecords.indices))
+        }
+        if !symptomTargets.isEmpty {
+            deleteSymptomRecords(symptomTargets)
+        }
+    }
+
+    private func deleteSymptomRecords(_ targets: [SymptomRecord]) {
+        for record in targets { context.delete(record) }
+        do {
+            try context.save()
+        } catch {
+            context.rollback()
+            AppAnalytics.shared.record(error: error, name: "symptom_delete_save_failed")
+        }
+    }
 
     private func deleteRecords(in sectionRecords: [BodyRecord], offsets: IndexSet) {
         // 削除前に「アプリが書いたHK分の日時」を控える（削除後は参照できないため）

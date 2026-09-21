@@ -11,23 +11,32 @@
 		0A1A2B3C4D5E6F708192A3B4 /* AZPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A1A2B3C4D5E6F708192A3B3 /* AZPicker.swift */; };
 		0A1A2B3C4D5E6F708192A3C2 /* AZMemoEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A1A2B3C4D5E6F708192A3C1 /* AZMemoEditor.swift */; };
 		0A1A2B3C4D5E6F708192A3D2 /* EquipmentCandidateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A1A2B3C4D5E6F708192A3D1 /* EquipmentCandidateStore.swift */; };
+		0BF4709010A802966DB7CF29 /* SymptomEditViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36C442097FE527D65AE91EA0 /* SymptomEditViewModel.swift */; };
 		1051435A3366B5694C9B71EC /* RecordListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 031D6782445FA50A16B167EC /* RecordListView.swift */; };
 		20F1765DAAFD7152D5629C7C /* NumpadValueText.swift in Sources */ = {isa = PBXBuildFile; fileRef = E674CD6C1A3BCD2A7D5D8EC3 /* NumpadValueText.swift */; };
 		22D5E84A1E28C0A1784D9244 /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C7CBA484995B66668A9235C /* HealthKitService.swift */; };
 		26B161A5280A5687C622C649 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB4C0FF51DDBC65C235DF2ED /* SettingsView.swift */; };
 		2CCB75F6B884B4807D49F2DD /* SettingsKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5D0A6B773C8E379750D8D5B /* SettingsKeys.swift */; };
 		307BEA02A0CE7F10B77FFC4A /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E6E18224DAB54321E46951 /* AppSettings.swift */; };
+		31D2D4DEA50868D225CF04E9 /* SymptomPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34495BB272158E86146F47C0 /* SymptomPickerSheet.swift */; };
 		35CFF3F641C21C1669ADC898 /* BodyRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB9225443B8D3A26F9D99025 /* BodyRecord.swift */; };
 		3ED314445BE3B57864296DA3 /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 3BEC1D090470BE0FB0C3E7C2 /* InfoPlist.xcstrings */; };
 		4256C59464507B4778A0EECC /* AdConsentManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 727DE7BE7D86EE0F55365E40 /* AdConsentManager.swift */; };
 		42832198D0789A3EEE5E6B66 /* RecordEditViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 037CD7BBB175D96B6BA9D41C /* RecordEditViewModel.swift */; };
+		43F0D0ED1FA32938096894E6 /* RecordDomain.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE6CDC8C62E6CE01882561D2 /* RecordDomain.swift */; };
 		44C6FAA140856CAAEA0D1BF7 /* ConditionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7168A998F0F394E7BE741CF8 /* ConditionTests.swift */; };
 		546717AE8E7EBCAB0248C456 /* AdMobViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CD6F6F207C0904FC1AAF8A2 /* AdMobViews.swift */; };
+		58F2F9FD5E226F2E876DDB3E /* SymptomTagStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29B9B4CB925F68CE554812A5 /* SymptomTagStore.swift */; };
+		5FADB4EC6FC2847F5E9C071F /* SymptomTagRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66CF619D8006F0B46B30F853 /* SymptomTagRow.swift */; };
 		6A6487B27CC55B3970DF9411 /* StatisticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFEF1236779D72BC224C618E /* StatisticsView.swift */; };
 		8206959AD5C6A8FA4D0CF941 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90D068752225DE01C4F4BE92 /* ContentView.swift */; };
 		82BEB0597976A364B0796572 /* ConditionApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E36777C3625DABE02E40FBA /* ConditionApp.swift */; };
+		84BD169598E046AE49898D33 /* SymptomCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CD338BE1F57A4E005A16F3C /* SymptomCatalog.swift */; };
+		8FD7460E6DC7533C534437D6 /* SymptomRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = AACAB853FA29CC02FA76F4AE /* SymptomRecord.swift */; };
 		92DD1CE7BA9A6B6D06918258 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = F6931DD60054ABF712D5455D /* Localizable.xcstrings */; };
 		94F8FFF55DB8A08ACB41B6C7 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 631EC7DEF4838569597EA3C8 /* Assets.xcassets */; };
+		95AE16B6CCDDC6D967AC116F /* SymptomEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AC4B6097734E85FA967559F /* SymptomEditView.swift */; };
+		97F14EDB1271092A702C1A49 /* SymptomRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11B7B199D6FCBC011E95F85F /* SymptomRowView.swift */; };
 		982998F6ABEDB9272F6A6BA1 /* ValueFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A14BB534396221BF4A8DD998 /* ValueFormatter.swift */; };
 		9AEA2B0965601F94C251CA2F /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = E34D8E33BC77DA54E6C61D52 /* GoogleMobileAds */; };
 		A3F2C8D14B9E0571CF823DEA /* BeginnerHelpBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7C41E920D3A5F68EA271B5C /* BeginnerHelpBanner.swift */; };
@@ -46,6 +55,7 @@
 		D6C3A1A72F3E9B12734FC1FB /* GraphView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4066E230081BA97894E9514C /* GraphView.swift */; };
 		E88A92888F6AFD1FB7DFFC9F /* ModelContainer+Setup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86715F6F24A9840913D72CC6 /* ModelContainer+Setup.swift */; };
 		F15A862490DED9463FCB6F26 /* DateOpt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E16A771447D302CDF593C00 /* DateOpt.swift */; };
+		F594CC4E199C1D0114FA783B /* ToolbarButtonLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5637BA8F4A03616A451463F /* ToolbarButtonLabel.swift */; };
 		FBA000000000000000000001 /* AppAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBA000000000000000000002 /* AppAnalytics.swift */; };
 		FBA000000000000000000003 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = FBA000000000000000000006 /* FirebaseAnalytics */; };
 		FBA000000000000000000004 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = FBA000000000000000000007 /* FirebaseCrashlytics */; };
@@ -74,26 +84,34 @@
 		0A1A2B3C4D5E6F708192A3B3 /* AZPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AZPicker.swift; sourceTree = "<group>"; };
 		0A1A2B3C4D5E6F708192A3C1 /* AZMemoEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AZMemoEditor.swift; sourceTree = "<group>"; };
 		0A1A2B3C4D5E6F708192A3D1 /* EquipmentCandidateStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EquipmentCandidateStore.swift; sourceTree = "<group>"; };
+		11B7B199D6FCBC011E95F85F /* SymptomRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymptomRowView.swift; sourceTree = "<group>"; };
 		132A076B61B2C635E9A5FADA /* TipStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TipStore.swift; sourceTree = "<group>"; };
 		1B00938D5C29ADB460EE55EA /* Condition.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Condition.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		29B9B4CB925F68CE554812A5 /* SymptomTagStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymptomTagStore.swift; sourceTree = "<group>"; };
 		2C5B54F260937D2BF7A3B8E0 /* RecordEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordEditView.swift; sourceTree = "<group>"; };
 		332C7D7242BE0FB4EF8FAFFA /* AppConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConstants.swift; sourceTree = "<group>"; };
+		34495BB272158E86146F47C0 /* SymptomPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymptomPickerSheet.swift; sourceTree = "<group>"; };
+		36C442097FE527D65AE91EA0 /* SymptomEditViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymptomEditViewModel.swift; sourceTree = "<group>"; };
 		37C42276B20297B0CE85AC5E /* ConditionTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ConditionTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3BEC1D090470BE0FB0C3E7C2 /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
 		3E36777C3625DABE02E40FBA /* ConditionApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConditionApp.swift; sourceTree = "<group>"; };
 		4066E230081BA97894E9514C /* GraphView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GraphView.swift; sourceTree = "<group>"; };
+		5AC4B6097734E85FA967559F /* SymptomEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymptomEditView.swift; sourceTree = "<group>"; };
 		61169D4A225123BB0FD81A90 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		631EC7DEF4838569597EA3C8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		66CF619D8006F0B46B30F853 /* SymptomTagRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymptomTagRow.swift; sourceTree = "<group>"; };
 		7168A998F0F394E7BE741CF8 /* ConditionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConditionTests.swift; sourceTree = "<group>"; };
 		727DE7BE7D86EE0F55365E40 /* AdConsentManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdConsentManager.swift; sourceTree = "<group>"; };
 		7CD6F6F207C0904FC1AAF8A2 /* AdMobViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdMobViews.swift; sourceTree = "<group>"; };
 		86715F6F24A9840913D72CC6 /* ModelContainer+Setup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ModelContainer+Setup.swift"; sourceTree = "<group>"; };
 		90D068752225DE01C4F4BE92 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		9C7CBA484995B66668A9235C /* HealthKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitService.swift; sourceTree = "<group>"; };
+		9CD338BE1F57A4E005A16F3C /* SymptomCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymptomCatalog.swift; sourceTree = "<group>"; };
 		9E16A771447D302CDF593C00 /* DateOpt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateOpt.swift; sourceTree = "<group>"; };
 		A14BB534396221BF4A8DD998 /* ValueFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ValueFormatter.swift; sourceTree = "<group>"; };
 		A8B9C0D1E2F30001ABCDEF02 /* RecordsJSONIO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordsJSONIO.swift; sourceTree = "<group>"; };
 		A8B9C0D1E2F30002ABCDEF02 /* SymbolFallback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymbolFallback.swift; sourceTree = "<group>"; };
+		AACAB853FA29CC02FA76F4AE /* SymptomRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymptomRecord.swift; sourceTree = "<group>"; };
 		B6FE488F42254CBC37C55F0C /* Condition.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Condition.entitlements; sourceTree = "<group>"; };
 		B7C41E920D3A5F68EA271B5C /* BeginnerHelpBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeginnerHelpBanner.swift; sourceTree = "<group>"; };
 		C31B57042FB944B10090CAEC /* RecentConflictSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentConflictSheet.swift; sourceTree = "<group>"; };
@@ -110,8 +128,10 @@
 		E674CD6C1A3BCD2A7D5D8EC3 /* NumpadValueText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NumpadValueText.swift; sourceTree = "<group>"; };
 		EB4C0FF51DDBC65C235DF2ED /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		EFEF1236779D72BC224C618E /* StatisticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsView.swift; sourceTree = "<group>"; };
+		F5637BA8F4A03616A451463F /* ToolbarButtonLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarButtonLabel.swift; sourceTree = "<group>"; };
 		F6931DD60054ABF712D5455D /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		FBA000000000000000000002 /* AppAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAnalytics.swift; sourceTree = "<group>"; };
+		FE6CDC8C62E6CE01882561D2 /* RecordDomain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordDomain.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -143,6 +163,9 @@
 		06A0B05E77F7430C9454F28D /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				AACAB853FA29CC02FA76F4AE /* SymptomRecord.swift */,
+				9CD338BE1F57A4E005A16F3C /* SymptomCatalog.swift */,
+				FE6CDC8C62E6CE01882561D2 /* RecordDomain.swift */,
 				332C7D7242BE0FB4EF8FAFFA /* AppConstants.swift */,
 				DB9225443B8D3A26F9D99025 /* BodyRecord.swift */,
 				9E16A771447D302CDF593C00 /* DateOpt.swift */,
@@ -153,6 +176,7 @@
 		0C542E511B57079E742EC24F /* Common */ = {
 			isa = PBXGroup;
 			children = (
+				F5637BA8F4A03616A451463F /* ToolbarButtonLabel.swift */,
 				0A1A2B3C4D5E6F708192A3C1 /* AZMemoEditor.swift */,
 				0A1A2B3C4D5E6F708192A3B3 /* AZPicker.swift */,
 				B7C41E920D3A5F68EA271B5C /* BeginnerHelpBanner.swift */,
@@ -171,6 +195,7 @@
 				A6F7DFDE639A596B1DDD04D7 /* RecordEdit */,
 				F89D193F912C1131E67312B9 /* RecordList */,
 				7BD46B28A1391105D149BAFD /* Settings */,
+				577D99B8D96898A8E42C5822 /* SymptomEdit */,
 				15A1C7CB57AD00FA374B5C9A /* Statistics */,
 			);
 			path = Features;
@@ -190,6 +215,17 @@
 				7168A998F0F394E7BE741CF8 /* ConditionTests.swift */,
 			);
 			path = ConditionTests;
+			sourceTree = "<group>";
+		};
+		577D99B8D96898A8E42C5822 /* SymptomEdit */ = {
+			isa = PBXGroup;
+			children = (
+				5AC4B6097734E85FA967559F /* SymptomEditView.swift */,
+				36C442097FE527D65AE91EA0 /* SymptomEditViewModel.swift */,
+				34495BB272158E86146F47C0 /* SymptomPickerSheet.swift */,
+				66CF619D8006F0B46B30F853 /* SymptomTagRow.swift */,
+			);
+			path = SymptomEdit;
 			sourceTree = "<group>";
 		};
 		5E5748A4659A240A887D7138 /* Components */ = {
@@ -268,6 +304,7 @@
 		927FCE221FEEB185670BEB28 /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				29B9B4CB925F68CE554812A5 /* SymptomTagStore.swift */,
 				E0E6E18224DAB54321E46951 /* AppSettings.swift */,
 				E5D0A6B773C8E379750D8D5B /* SettingsKeys.swift */,
 				132A076B61B2C635E9A5FADA /* TipStore.swift */,
@@ -329,6 +366,7 @@
 		F89D193F912C1131E67312B9 /* RecordList */ = {
 			isa = PBXGroup;
 			children = (
+				11B7B199D6FCBC011E95F85F /* SymptomRowView.swift */,
 				031D6782445FA50A16B167EC /* RecordListView.swift */,
 			);
 			path = RecordList;
@@ -403,7 +441,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastSwiftUpdateCheck = 2650;
-				LastUpgradeCheck = 2660;
+				LastUpgradeCheck = 2700;
 				TargetAttributes = {
 					ADCF899E0B9840A32D7155AF = {
 						DevelopmentTeam = "";
@@ -470,6 +508,16 @@
 		EBD078822FE98A94479EB3FA /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			files = (
+				F594CC4E199C1D0114FA783B /* ToolbarButtonLabel.swift in Sources */,
+				8FD7460E6DC7533C534437D6 /* SymptomRecord.swift in Sources */,
+				84BD169598E046AE49898D33 /* SymptomCatalog.swift in Sources */,
+				43F0D0ED1FA32938096894E6 /* RecordDomain.swift in Sources */,
+				58F2F9FD5E226F2E876DDB3E /* SymptomTagStore.swift in Sources */,
+				97F14EDB1271092A702C1A49 /* SymptomRowView.swift in Sources */,
+				95AE16B6CCDDC6D967AC116F /* SymptomEditView.swift in Sources */,
+				0BF4709010A802966DB7CF29 /* SymptomEditViewModel.swift in Sources */,
+				31D2D4DEA50868D225CF04E9 /* SymptomPickerSheet.swift in Sources */,
+				5FADB4EC6FC2847F5E9C071F /* SymptomTagRow.swift in Sources */,
 				546717AE8E7EBCAB0248C456 /* AdMobViews.swift in Sources */,
 				4256C59464507B4778A0EECC /* AdConsentManager.swift in Sources */,
 				04F485DCB1ADFC0859E7298C /* AppConstants.swift in Sources */,

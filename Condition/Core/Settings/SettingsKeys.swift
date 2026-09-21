@@ -48,6 +48,11 @@ enum SettingsKeys {
     static let settDateOptAppearances = "KVS_SettDateOptAppearances" // 区分の名称・アイコン・色 (JSONデータ)
     static let settDateOptDisplayOrder = "KVS_SettDateOptDisplayOrder" // 区分の表示順序 ([Int] rawValue 配列、内部 index とは独立)
 
+    // MARK: - 症状メモ
+    static let settSymptomTags   = "KVS_SettSymptomTags"   // 症状タグリスト (JSONデータ)
+    static let settMedicineTags  = "KVS_SettMedicineTags"  // 薬タグリスト (JSONデータ)
+    static let settRecordDomain  = "KVS_SettRecordDomain"  // 記録一覧の絞り込み (RecordDomain.rawValue)
+
     // MARK: - 目標値
     static let goalBpHi      = "Goal_nBpHi_mmHg"
     static let goalBpLo      = "Goal_nBpLo_mmHg"
@@ -128,5 +133,6 @@ enum UDefKeys {
     static let mergeWindowMinutes        = "UDEF_MergeWindowMinutes"        // 記録をまとめる時間（分）0=しない
     static let mergeDefaultAction        = "UDEF_MergeDefaultAction"        // 衝突解決の初期選択 ConflictAction.rawValue
     static let estimateDateOpt           = "UDEF_EstimateDateOpt"           // 区分を蓄積記録から推定して初期表示する
+    static let useDialRecordEntry        = "UDEF_UseDialRecordEntry"        // 新しい記録（ダイアル式）を使う（既定 OFF）
     static let lastNewRecordKind         = "UDEF_LastNewRecordKind"         // 直前に使った新規記録の種類 NewRecordKind.rawValue
 }
