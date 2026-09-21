@@ -91,8 +91,10 @@ private struct AZAutoSizingTextView: UIViewRepresentable {
         textView.autocorrectionType = .no
         textView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         let coordinator = context.coordinator
-        textView.onLayout = { [weak textView] in
-            // 初回レイアウトで横幅が決まった後に高さを測り直す
+        textView.onWidthChange = { [weak textView] in
+            // 初回レイアウトで横幅が決まった後に高さを測り直す。
+            // 高さ変化では呼ばない（layoutSubviews の中から測り直すと再入になり、
+            // 変換中の未確定文字が解除されてしまう）。
             guard let textView else { return }
             coordinator.updateHeight(textView)
         }
@@ -100,11 +102,17 @@ private struct AZAutoSizingTextView: UIViewRepresentable {
     }
 
     func updateUIView(_ textView: UITextView, context: Context) {
-        if textView.text != text {
-            textView.text = text
+        // 日本語変換中（未確定文字がある）は UITextView の中身へ書き戻さない。
+        // text や font を代入すると marked text が解除され、勝手に確定されてしまう。
+        // 行が増えて高さが変わったときの再描画で、これが起きていた。
+        let isComposing = textView.markedTextRange != nil
+        if !isComposing {
+            if textView.text != text {
+                textView.text = text
+            }
+            // SwiftUI側のアプリ内文字サイズ設定をUITextViewにも反映する
+            textView.font = context.environment.dynamicTypeSize.azUIFont(forTextStyle: .body)
         }
-        // SwiftUI側のアプリ内文字サイズ設定をUITextViewにも反映する
-        textView.font = context.environment.dynamicTypeSize.azUIFont(forTextStyle: .body)
         context.coordinator.parent = self
         context.coordinator.updateHeight(textView)
 
@@ -269,10 +277,17 @@ extension View {
 }
 
 private final class AZLayoutReportingTextView: UITextView {
-    var onLayout: (() -> Void)?
+    /// 横幅が変わったときだけ呼ばれる
+    var onWidthChange: (() -> Void)?
+    private var lastLayoutWidth: CGFloat = 0
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        onLayout?()
+        // 高さだけが変わった再レイアウトでは測り直さない。
+        // layoutSubviews の最中に sizeThatFits を呼ぶと再入レイアウトになり、
+        // 変換中の未確定文字が確定されてしまうため。
+        guard 0.5 < abs(lastLayoutWidth - bounds.width) else { return }
+        lastLayoutWidth = bounds.width
+        onWidthChange?()
     }
 }
