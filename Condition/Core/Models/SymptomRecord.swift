@@ -179,16 +179,6 @@ extension SymptomRecord {
         }
     }
 
-    /// 対処のうち薬だけ（統計の「薬あり/なし」比較に使う）
-    @Transient var medicineOnlyIDs: [String] {
-        medicineIDs.filter { MedicineCatalog.isMedicine($0) }
-    }
-
-    /// 対処のうち薬以外（休む・通院など）
-    @Transient var actionOnlyIDs: [String] {
-        medicineIDs.filter { !MedicineCatalog.isMedicine($0) }
-    }
-
     /// セクション表示用年月（例: 2026年3月 → 202603）。BodyRecord.yearMonth と揃える
     @Transient var yearMonth: Int {
         let cal = Calendar(identifier: .gregorian)

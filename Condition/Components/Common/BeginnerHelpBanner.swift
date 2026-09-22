@@ -15,6 +15,9 @@ struct BeginnerHelpBanner: View {
     /// アイコンを小さめにするか。
     /// 同じ行に日時など他の要素が並ぶ場所で、幅を譲るために使う
     var tight: Bool = false
+    /// ヒント文の前にアイコンを置くか。
+    /// 既定は文の後ろだが、長い文だと折り返してアイコンが次の行に落ちて1行無駄になる
+    var iconLeading: Bool = false
     @State private var showsHelpSheet = false
     @State private var sheetContentHeight: CGFloat = 220
 
@@ -39,11 +42,20 @@ struct BeginnerHelpBanner: View {
         self.tight = tight
     }
 
-    init(hintKey: LocalizedStringKey, messageKey: LocalizedStringKey, storageKey: String, compact: Bool = false) {
+    init(
+        hintKey: LocalizedStringKey,
+        messageKey: LocalizedStringKey,
+        storageKey: String,
+        compact: Bool = false,
+        tight: Bool = false,
+        iconLeading: Bool = false
+    ) {
         self.hintKey = hintKey
         self.messageKey = messageKey
         self.messageText = nil
         self.compact = compact
+        self.tight = tight
+        self.iconLeading = iconLeading
     }
 
     init(hintKey: LocalizedStringKey, messageText: Text, storageKey: String, compact: Bool = false) {
@@ -84,20 +96,30 @@ struct BeginnerHelpBanner: View {
 
     private var horizontalContent: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
+            if iconLeading { helpButton }
             if let hintKey {
                 hintText(hintKey)
             }
-            helpButton
+            if !iconLeading { helpButton }
             Spacer(minLength: 0)
         }
     }
 
+    @ViewBuilder
     private var verticalContent: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            if let hintKey {
-                hintText(hintKey)
+        // アイコンを先頭に置く指定のときは、折り返しても行を増やさないよう
+        // アイコンと文を同じ行にまとめる
+        if iconLeading {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                helpButton
+                if let hintKey { hintText(hintKey) }
+                Spacer(minLength: 0)
             }
-            helpButton
+        } else {
+            VStack(alignment: .leading, spacing: 4) {
+                if let hintKey { hintText(hintKey) }
+                helpButton
+            }
         }
     }
 

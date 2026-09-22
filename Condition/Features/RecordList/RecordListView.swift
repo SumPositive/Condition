@@ -411,7 +411,9 @@ struct RecordListView: View {
     /// ツールバーの式に直接置くと型チェックが重くなりすぎるので切り出す
     @ViewBuilder
     private var demoButton: some View {
-        #if targetEnvironment(simulator)
+        // DemoDataGenerator 自体が #if DEBUG なので、条件を揃えておかないと
+        // Release のシミュレータ構成でビルドが通らない
+        #if DEBUG && targetEnvironment(simulator)
         if !settings.hkDisabledByDemo {
             Button {
                 AppSettings.shared.hkDisabledByDemo = true

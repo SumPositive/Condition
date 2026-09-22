@@ -180,47 +180,36 @@ enum SymptomCatalog {
 
 // MARK: - 薬辞書
 
-/// 対処の分類。画面では1つの「対処」にまとめて選ばせるが、
-/// 統計では「薬あり/なし」を見たいので、項目ごとに種別を持つ
-enum RemedyKind: String, Codable {
-    case medicine   // 薬
-    case action     // 薬以外の対処（休む・通院など）
-}
-
 struct MedicineCatalogEntry: Identifiable, Equatable {
     let id: String
-    var kind: RemedyKind = .medicine
 
     var labelKey: String { "medicine.name.\(id)" }
     var localizedName: String { NSLocalizedString(labelKey, comment: "") }
-    var isMedicine: Bool { kind == .medicine }
 }
 
 /// プリセットは薬効分類で持ち、商品名はユーザー追加とする。
 /// 商品名は国ごとに違う（ロキソニンは日本、Advil は米国）ため、
 /// 4言語アプリのプリセットには入れられない。
-/// 薬以外の対処（休む・通院など）も同じ辞書に入れ、`kind` で区別する。
 enum MedicineCatalog {
 
-    /// 薬と薬以外はカプセルの色で見分けるので、見出しでは分けず1つに並べる。
-    /// 薬を17件すべて先に置くと「寝た」「安静にした」まで遠いので、
-    /// よく使うものから混ぜて並べる（タグリストは使うほど上に来るので初期順の影響は薄れる）
+    /// 薬と薬以外を混ぜ、よく使うものから並べる
+    /// （タグリストは使うほど上に来るので初期順の影響は薄れる）
     static let all: [MedicineCatalogEntry] = [
         .init(id: "analgesic"),
-        .init(id: "sleep",         kind: .action),
-        .init(id: "rest",          kind: .action),
+        .init(id: "sleep"),
+        .init(id: "rest"),
         .init(id: "gastric"),
         .init(id: "antiallergy"),
-        .init(id: "cooling",       kind: .action),
-        .init(id: "warming",       kind: .action),
-        .init(id: "hydration",     kind: .action),
+        .init(id: "cooling"),
+        .init(id: "warming"),
+        .init(id: "hydration"),
         .init(id: "coldRemedy"),
         .init(id: "antitussive"),
         .init(id: "topicalAnalgesic"),
-        .init(id: "bath",          kind: .action),
-        .init(id: "meal",          kind: .action),
-        .init(id: "stretch",       kind: .action),
-        .init(id: "darkQuietRoom", kind: .action),
+        .init(id: "bath"),
+        .init(id: "meal"),
+        .init(id: "stretch"),
+        .init(id: "darkQuietRoom"),
         .init(id: "nasalSpray"),
         .init(id: "eyeDrops"),
         .init(id: "intestinal"),
@@ -231,10 +220,10 @@ enum MedicineCatalog {
         .init(id: "kampo"),
         .init(id: "supplement"),
         .init(id: "antihypertensive"),
-        .init(id: "clinicVisit",   kind: .action),
-        .init(id: "dayOff",        kind: .action),
+        .init(id: "clinicVisit"),
+        .init(id: "dayOff"),
         .init(id: "prescriptionOther"),
-        .init(id: "noAction",      kind: .action),
+        .init(id: "noAction"),
     ]
 
     private static let byID: [String: MedicineCatalogEntry] = Dictionary(
@@ -257,12 +246,6 @@ enum MedicineCatalog {
             .compactMap { entry(for: $0) }
     }
 
-    /// 薬だけの ID（統計で「薬あり/なし」を分けるのに使う）
-    static func isMedicine(_ id: String) -> Bool {
-        // 辞書に無い ID（ユーザー追加）は薬として扱う。
-        // ユーザー追加は商品名を想定しているため
-        entry(for: id)?.isMedicine ?? true
-    }
 }
 
 
@@ -327,3 +310,5 @@ enum SymptomTagMatching {
         return names
     }
 }
+
+

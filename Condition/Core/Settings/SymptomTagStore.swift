@@ -47,6 +47,7 @@ struct SymptomTag: Codable, Equatable, Identifiable {
         useCount   = try c.decodeIfPresent(Int.self, forKey: .useCount) ?? 0
         isHidden   = try c.decodeIfPresent(Bool.self, forKey: .isHidden) ?? false
     }
+
 }
 
 // MARK: - 表示名・アイコン・色の解決
@@ -65,15 +66,6 @@ extension SymptomTag {
         if !customName.isEmpty { return customName }
         if let entry = MedicineCatalog.entry(for: id) { return entry.localizedName }
         return id
-    }
-
-    /// 対処タグの色。薬と薬以外をひと目で見分けられるようにする。
-    /// 青×ティールは色相差が22°しかなく、淡く敷くと見分けがつかないので
-    /// 補色に近いオレンジ（色相差176°）を使う
-    var remedyColor: Color {
-        MedicineCatalog.isMedicine(id)
-            ? DateOptColorOption.color(for: "blue")
-            : DateOptColorOption.color(for: "orange")
     }
 
     var symptomColor: Color {
@@ -216,6 +208,14 @@ struct SymptomTagList: Codable, Equatable {
             }
         }
         return replacements
+    }
+
+    /// 上書きした名前を消して辞書の既定名へ戻す。
+    /// 辞書に無いタグ（ユーザー追加）は名前が消えると何も出せないので何もしない
+    mutating func resetName(id: String) {
+        guard let index = tags.firstIndex(where: { $0.id == id }),
+              !tags[index].isUserDefined else { return }
+        tags[index].customName = ""
     }
 
     mutating func rename(id: String, to name: String) {

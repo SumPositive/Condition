@@ -11,45 +11,51 @@ struct SymptomTagChip: View {
     let title: String
     let color: Color
     let isSelected: Bool
-    /// 未選択でも色を薄く乗せるか。
-    /// 対処の「薬／薬以外」のように、選ぶ前から見分けたい場合に使う
-    var tintsWhenUnselected: Bool = false
+    /// 長押しの処理。Button の外側に onLongPressGesture を付けても
+    /// Button がジェスチャを先に取るため届かないので、ここで受け取る
+    var onLongPress: (() -> Void)? = nil
     let action: () -> Void
 
+    /// 長押しが成立したか。離したときにタップを走らせないための目印
+    @State private var didLongPress = false
+
     var body: some View {
-        Button(action: action) {
-            Text(title)
-                .lineLimit(1)
-                .font(.callout)
-                .fontWeight(isSelected ? .semibold : .regular)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 7)
-                .background(background)
-                .foregroundStyle(foreground)
-                .clipShape(Capsule())
-                .overlay {
-                    Capsule().strokeBorder(borderColor, lineWidth: isSelected ? 0 : 1)
+        // Button + simultaneousGesture だと、長押しして離したときに
+        // Button のアクションも走ってしまう（選択されてシートが閉じる）。
+        // タップと長押しを自前で排他にする
+        Text(title)
+            .lineLimit(1)
+            .font(.callout)
+            .fontWeight(isSelected ? .semibold : .regular)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 7)
+            .background(background)
+            .foregroundStyle(foreground)
+            .clipShape(Capsule())
+            .contentShape(Capsule())
+            .onTapGesture {
+                // 長押し直後に指を離したときのタップは無視する
+                if didLongPress {
+                    didLongPress = false
+                    return
                 }
-        }
-        .buttonStyle(.plain)
+                action()
+            }
+            .onLongPressGesture(minimumDuration: 0.5) {
+                guard let onLongPress else { return }
+                didLongPress = true
+                onLongPress()
+            }
+            .accessibilityAddTraits(.isButton)
     }
 
-    // 選択と種別は別々の手段で伝える。
-    // 濃淡だけで両方を表すと、片方の差がもう片方に埋もれて見分けられなくなる。
-    //   選択／未選択 … 塗りつぶし＋白文字か、淡い塗り＋枠線か（明度が大きく変わる）
-    //   薬／薬以外   … 色相（青／オレンジ）
+    // 選択は塗りつぶし＋白文字で示す。明度が大きく変わるので一目で分かる
     private var background: Color {
-        if isSelected { return color }
-        return tintsWhenUnselected ? color.opacity(0.12) : Color(.secondarySystemBackground)
+        isSelected ? color : Color(.secondarySystemBackground)
     }
 
     private var foreground: Color {
         isSelected ? .white : .primary
-    }
-
-    private var borderColor: Color {
-        guard !isSelected else { return .clear }
-        return tintsWhenUnselected ? color.opacity(0.55) : .clear
     }
 }
 
@@ -70,9 +76,8 @@ struct SymptomTagRow: View {
             ForEach(tags) { tag in
                 SymptomTagChip(
                     title: kind == .symptom ? tag.symptomDisplayName : tag.medicineDisplayName,
-                    color: kind == .symptom ? tag.symptomColor : tag.remedyColor,
-                    isSelected: selectedIDs.contains(tag.id),
-                    tintsWhenUnselected: kind == .medicine
+                    color: kind == .symptom ? tag.symptomColor : .accentColor,
+                    isSelected: selectedIDs.contains(tag.id)
                 ) {
                     onTap(tag.id)
                 }
@@ -82,7 +87,10 @@ struct SymptomTagRow: View {
                     .font(.callout.weight(.semibold))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(Color(.secondarySystemBackground))
+                    // 他のタグと違い「選ぶ」ではなく「開く」操作なので、
+                    // 淡い塗り＋アクセント色で区別する
+                    .foregroundStyle(Color.accentColor)
+                    .background(Color.accentColor.opacity(0.14))
                     .clipShape(Capsule())
             }
             .buttonStyle(.plain)
