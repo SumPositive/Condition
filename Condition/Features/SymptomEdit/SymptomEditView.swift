@@ -44,15 +44,19 @@ struct SymptomEditView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    // 測定シートと同じ作りで、アイコン＋用途を出す
-                    Label {
-                        Text("symptom.edit.title")
-                    } icon: {
+                    // Label はツールバー内だとアイコンだけに畳まれることがあるので、
+                    // HStack で並べて必ずアイコンと文字の両方を出す
+                    HStack(spacing: 4) {
                         Image(systemName: "at.badge.plus")
+                        Text("symptom.edit.title")
                     }
                     .font(.headline)
                     .foregroundStyle(Color.accentColor)
                     .lineLimit(1)
+                    .fixedSize()
+                    // アイコンと文字が別々に読み上げられないよう1つにまとめる
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(Text("symptom.edit.title"))
                 }
                 ToolbarItem(placement: .topBarLeading) {
                     Button("action.cancel") {
