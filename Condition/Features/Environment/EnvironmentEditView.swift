@@ -38,7 +38,8 @@ struct EnvironmentEditView: View {
                         Text("environment.title")
                     }
                     .font(.headline)
-                    .foregroundStyle(Color.accentColor)
+                    // シートのタイトルは通常のラベル色にする（他のシートと揃える）
+                    .foregroundStyle(Color.primary)
                     .lineLimit(1)
                     .fixedSize()
                     .accessibilityElement(children: .ignore)
@@ -56,6 +57,8 @@ struct EnvironmentEditView: View {
                 }
             }
         }
+        // .sheet では App の dynamicTypeSize が届かないことがあるため明示する
+        .azAppFontScale()
     }
 
     // MARK: - 屋外

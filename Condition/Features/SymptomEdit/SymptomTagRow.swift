@@ -11,6 +11,9 @@ struct SymptomTagChip: View {
     let title: String
     let color: Color
     let isSelected: Bool
+    /// 未選択でも色を薄く乗せるか。
+    /// 対処の「薬／薬以外」のように、選ぶ前から見分けたい場合に使う
+    var tintsWhenUnselected: Bool = false
     let action: () -> Void
 
     var body: some View {
@@ -18,16 +21,35 @@ struct SymptomTagChip: View {
             Text(title)
                 .lineLimit(1)
                 .font(.callout)
+                .fontWeight(isSelected ? .semibold : .regular)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 7)
-                .background(isSelected ? color.opacity(0.22) : Color(.secondarySystemBackground))
-                .foregroundStyle(isSelected ? color : Color.primary)
+                .background(background)
+                .foregroundStyle(foreground)
                 .clipShape(Capsule())
                 .overlay {
-                    Capsule().strokeBorder(isSelected ? color : .clear, lineWidth: 1.5)
+                    Capsule().strokeBorder(borderColor, lineWidth: isSelected ? 0 : 1)
                 }
         }
         .buttonStyle(.plain)
+    }
+
+    // 選択と種別は別々の手段で伝える。
+    // 濃淡だけで両方を表すと、片方の差がもう片方に埋もれて見分けられなくなる。
+    //   選択／未選択 … 塗りつぶし＋白文字か、淡い塗り＋枠線か（明度が大きく変わる）
+    //   薬／薬以外   … 色相（青／オレンジ）
+    private var background: Color {
+        if isSelected { return color }
+        return tintsWhenUnselected ? color.opacity(0.12) : Color(.secondarySystemBackground)
+    }
+
+    private var foreground: Color {
+        isSelected ? .white : .primary
+    }
+
+    private var borderColor: Color {
+        guard !isSelected else { return .clear }
+        return tintsWhenUnselected ? color.opacity(0.55) : .clear
     }
 }
 
@@ -48,8 +70,9 @@ struct SymptomTagRow: View {
             ForEach(tags) { tag in
                 SymptomTagChip(
                     title: kind == .symptom ? tag.symptomDisplayName : tag.medicineDisplayName,
-                    color: kind == .symptom ? tag.symptomColor : .blue,
-                    isSelected: selectedIDs.contains(tag.id)
+                    color: kind == .symptom ? tag.symptomColor : tag.remedyColor,
+                    isSelected: selectedIDs.contains(tag.id),
+                    tintsWhenUnselected: kind == .medicine
                 ) {
                     onTap(tag.id)
                 }
@@ -63,7 +86,7 @@ struct SymptomTagRow: View {
                     .clipShape(Capsule())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(Text(kind == .symptom ? "symptom.picker.title" : "medicine.picker.title"))
+            .accessibilityLabel(Text(kind == .symptom ? "symptom.picker.title" : "remedy.picker.title"))
         }
     }
 }

@@ -66,6 +66,7 @@
 		911F8752056F5DBD7C137F2D /* EnvironmentSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EC17368E8623A56C4CAE2C3 /* EnvironmentSnapshot.swift */; };
 		8CCA25A38B51652C1A2F0AC0 /* EnvironmentEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73A2DABEDACF8BB84A87193E /* EnvironmentEditView.swift */; };
 		48E0C5BADC99A2B6360F958A /* EnvironmentEditViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9608CF1961F1943A187B0227 /* EnvironmentEditViewModel.swift */; };
+		769E0D0BE8538207E4B5E08B /* AppFontScaleModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4B39CD9E3AD74DA2FEF14F7 /* AppFontScaleModifier.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -146,6 +147,7 @@
 		5EC17368E8623A56C4CAE2C3 /* EnvironmentSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnvironmentSnapshot.swift; sourceTree = "<group>"; };
 		73A2DABEDACF8BB84A87193E /* EnvironmentEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnvironmentEditView.swift; sourceTree = "<group>"; };
 		9608CF1961F1943A187B0227 /* EnvironmentEditViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnvironmentEditViewModel.swift; sourceTree = "<group>"; };
+		B4B39CD9E3AD74DA2FEF14F7 /* AppFontScaleModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFontScaleModifier.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -191,6 +193,7 @@
 		0C542E511B57079E742EC24F /* Common */ = {
 			isa = PBXGroup;
 			children = (
+				B4B39CD9E3AD74DA2FEF14F7 /* AppFontScaleModifier.swift */,
 				F5637BA8F4A03616A451463F /* ToolbarButtonLabel.swift */,
 				0A1A2B3C4D5E6F708192A3C1 /* AZMemoEditor.swift */,
 				0A1A2B3C4D5E6F708192A3B3 /* AZPicker.swift */,
@@ -537,6 +540,7 @@
 		EBD078822FE98A94479EB3FA /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			files = (
+				769E0D0BE8538207E4B5E08B /* AppFontScaleModifier.swift in Sources */,
 				911F8752056F5DBD7C137F2D /* EnvironmentSnapshot.swift in Sources */,
 				8CCA25A38B51652C1A2F0AC0 /* EnvironmentEditView.swift in Sources */,
 				48E0C5BADC99A2B6360F958A /* EnvironmentEditViewModel.swift in Sources */,

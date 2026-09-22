@@ -11,7 +11,6 @@ struct SymptomPickerSheet: View {
     let onSelect: (String) -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @State private var searchText = ""
     @State private var newTagName = ""
     @State private var showAddField = false
     @FocusState private var newTagFocused: Bool
@@ -28,11 +27,27 @@ struct SymptomPickerSheet: View {
                                 .focused($newTagFocused)
                                 .submitLabel(.done)
                                 .onSubmit { addUserDefinedTag() }
+                                // 保存時に黙って切ると入力した名前と違うものが登録されるので、
+                                // 入力の時点で上限を超えさせない
+                                .onChange(of: newTagName) { _, value in
+                                    if value.count > SymptomLimits.tagNameMaxLength {
+                                        newTagName = String(value.prefix(SymptomLimits.tagNameMaxLength))
+                                    }
+                                }
                             Button("action.add") { addUserDefinedTag() }
                                 .disabled(trimmedNewTagName.isEmpty)
                         }
+                        // 入力中に似た項目を出す。
+                        // 同じものを別名で作ってしまう前に気づけるようにする
+                        if !suggestions.isEmpty {
+                            tagCloud(suggestions)
+                        }
                     } header: {
                         Text("symptom.picker.addOwn")
+                    } footer: {
+                        if !suggestions.isEmpty {
+                            Text("symptom.picker.suggestions")
+                        }
                     }
                 }
 
@@ -49,7 +64,7 @@ struct SymptomPickerSheet: View {
 
                 switch kind {
                 case .symptom:
-                    ForEach(filteredSymptomGroups, id: \.category.id) { group in
+                    ForEach(symptomGroups, id: \.category.id) { group in
                         Section {
                             tagCloud(group.entries.map { ($0.id, $0.localizedName) })
                         } header: {
@@ -60,16 +75,15 @@ struct SymptomPickerSheet: View {
                         }
                     }
                 case .medicine:
+                    // 薬と薬以外はカプセルの色で見分けられるので、
+                    // 見出しで分けず1つにまとめて並べる（スクロールが短くなる）
                     Section {
-                        tagCloud(filteredMedicines.map { ($0.id, $0.localizedName) })
-                    } header: {
-                        Text("medicine.picker.presets")
+                        tagCloud(allMedicines.map { ($0.id, $0.localizedName) })
                     }
                 }
             }
             .listStyle(.insetGrouped)
-            .searchable(text: $searchText, prompt: Text("symptom.picker.search"))
-            .navigationTitle(kind == .symptom ? "symptom.edit.title" : "medicine.picker.navTitle")
+            .navigationTitle(kind == .symptom ? "symptom.edit.title" : "symptom.section.remedy")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -86,6 +100,8 @@ struct SymptomPickerSheet: View {
                 }
             }
         }
+        // .sheet では App の dynamicTypeSize が届かないことがあるため明示する
+        .azAppFontScale()
     }
 
     // MARK: - 行
@@ -98,8 +114,9 @@ struct SymptomPickerSheet: View {
             ForEach(items, id: \.id) { item in
                 SymptomTagChip(
                     title: item.title,
-                    color: kind == .symptom ? .accentColor : .blue,
-                    isSelected: selectedIDs.contains(item.id)
+                    color: chipColor(for: item.id),
+                    isSelected: selectedIDs.contains(item.id),
+                    tintsWhenUnselected: kind == .medicine
                 ) {
                     onSelect(item.id)
                     // 症状・薬ともタップしたら閉じて反映する。
@@ -113,37 +130,63 @@ struct SymptomPickerSheet: View {
         .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
     }
 
-    // MARK: - 絞り込み
-
-    private var trimmedSearch: String {
-        searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+    /// 症状はアクセント色、対処は薬／薬以外で色を分ける
+    private func chipColor(for id: String) -> Color {
+        guard kind == .medicine else { return .accentColor }
+        return MedicineCatalog.isMedicine(id)
+            ? DateOptColorOption.color(for: "blue")
+            : DateOptColorOption.color(for: "orange")
     }
+
+    /// 入力中の文字に似た候補（辞書＋追加済みタグ）。
+    /// すでに選択済みのものは出さない
+    private var suggestions: [(id: String, title: String)] {
+        let input = trimmedNewTagName
+        guard input.count >= 1 else { return [] }
+
+        var seen = Set<String>()
+        var result: [(id: String, title: String)] = []
+
+        // 先に自分で追加したタグ（辞書に無い名前を使っている可能性があるため）
+        let list = kind == .symptom ? settings.symptomTags : settings.medicineTags
+        for tag in list.orderedIncludingHidden where tag.isUserDefined {
+            let name = kind == .symptom ? tag.symptomDisplayName : tag.medicineDisplayName
+            guard SymptomTagMatching.normalized(name)
+                .contains(SymptomTagMatching.normalized(input)) else { continue }
+            if seen.insert(tag.id).inserted { result.append((tag.id, name)) }
+        }
+        // 次に内蔵辞書
+        switch kind {
+        case .symptom:
+            for entry in SymptomCatalog.suggestions(forInput: input) where seen.insert(entry.id).inserted {
+                result.append((entry.id, entry.localizedName))
+            }
+        case .medicine:
+            for entry in MedicineCatalog.suggestions(forInput: input) where seen.insert(entry.id).inserted {
+                result.append((entry.id, entry.localizedName))
+            }
+        }
+        return Array(result.prefix(6))
+    }
+
+    // MARK: - 一覧
 
     private var trimmedNewTagName: String {
         newTagName.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private func matches(_ text: String) -> Bool {
-        guard !trimmedSearch.isEmpty else { return true }
-        return text.localizedCaseInsensitiveContains(trimmedSearch)
+    private var symptomGroups: [(category: SymptomCategory, entries: [SymptomCatalogEntry])] {
+        SymptomCatalog.groupedByCategory
     }
 
-    private var filteredSymptomGroups: [(category: SymptomCategory, entries: [SymptomCatalogEntry])] {
-        SymptomCatalog.groupedByCategory.compactMap { group in
-            let entries = group.entries.filter { matches($0.localizedName) }
-            return entries.isEmpty ? nil : (category: group.category, entries: entries)
-        }
-    }
-
-    private var filteredMedicines: [MedicineCatalogEntry] {
-        MedicineCatalog.all.filter { matches($0.localizedName) }
+    private var allMedicines: [MedicineCatalogEntry] {
+        MedicineCatalog.all
     }
 
     private var userDefinedTags: [SymptomTag] {
         let list = kind == .symptom ? settings.symptomTags : settings.medicineTags
-        return list.ordered
-            .filter(\.isUserDefined)
-            .filter { matches(kind == .symptom ? $0.symptomDisplayName : $0.medicineDisplayName) }
+        // 非表示にしたものもここには出す。選び直せば markUsed で表示へ戻る
+        return list.orderedIncludingHidden.filter(\.isUserDefined)
     }
 
     // MARK: - ユーザー追加

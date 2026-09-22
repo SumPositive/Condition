@@ -382,7 +382,8 @@ struct MeasurementAverageView: View {
                         Text("records.toolbar.measurement")
                     }
                     .font(.headline)
-                    .foregroundStyle(Color.accentColor)
+                    // シートのタイトルは通常のラベル色にする（他のシートと揃える）
+                    .foregroundStyle(Color.primary)
                     .lineLimit(1)
                     .fixedSize()
                     .accessibilityElement(children: .ignore)

@@ -59,10 +59,12 @@ struct SymptomRowView: View {
                 }
             }
             Spacer(minLength: 0)
-            if record.bOngoing, let onFinish {
+            if record.needsEnding, let onFinish {
+                // まだ終息していない記録だけ、その場で閉じられるようにする
                 Button(action: onFinish) {
-                    Text("symptom.action.finish")
+                    Label("symptom.action.finish", systemImage: "checkmark.circle")
                         .font(.caption.weight(.semibold))
+                        .labelStyle(.titleAndIcon)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 5)
                         .background(Color.accentColor.opacity(0.15))
@@ -112,11 +114,14 @@ struct SymptomRowView: View {
                 .background(severityColor.opacity(0.2))
                 .foregroundStyle(severityColor)
                 .clipShape(Capsule())
-            if record.bOngoing {
-                Image(systemName: "ellipsis.circle.fill")
-                    .font(.caption)
+            if record.needsEnding {
+                Text("symptom.badge.notEnded")
+                    .font(.caption2.weight(.semibold))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.accentColor.opacity(0.15))
                     .foregroundStyle(Color.accentColor)
-                    .accessibilityLabel(Text("symptom.ongoing"))
+                    .clipShape(Capsule())
             }
         }
     }
@@ -140,7 +145,7 @@ struct SymptomRowView: View {
     private var durationText: String? {
         guard let duration = record.duration else { return nil }
         let text = SymptomDurationFormatter.string(from: duration)
-        if record.bOngoing {
+        if record.needsEnding {
             return String(format: NSLocalizedString("symptom.duration.ongoing", comment: ""), text)
         }
         return text

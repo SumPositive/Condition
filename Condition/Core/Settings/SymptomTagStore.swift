@@ -67,6 +67,15 @@ extension SymptomTag {
         return id
     }
 
+    /// 対処タグの色。薬と薬以外をひと目で見分けられるようにする。
+    /// 青×ティールは色相差が22°しかなく、淡く敷くと見分けがつかないので
+    /// 補色に近いオレンジ（色相差176°）を使う
+    var remedyColor: Color {
+        MedicineCatalog.isMedicine(id)
+            ? DateOptColorOption.color(for: "blue")
+            : DateOptColorOption.color(for: "orange")
+    }
+
     var symptomColor: Color {
         let key = colorKey.isEmpty
             ? (SymptomCatalog.entry(for: id)?.colorKey ?? "gray")
@@ -92,6 +101,12 @@ struct SymptomTagList: Codable, Equatable {
     /// 表示順。最終使用日時の降順 → 未使用は追加順
     var ordered: [SymptomTag] {
         tags.filter { !$0.isHidden }.sorted(by: Self.isOrderedBefore)
+    }
+
+    /// 非表示にしたものも含めた全タグ（選択シートで選び直せるようにするため）。
+    /// ユーザー追加タグは辞書に無いので、ここに出さないと復活経路が無くなる
+    var orderedIncludingHidden: [SymptomTag] {
+        tags.sorted(by: Self.isOrderedBefore)
     }
 
     /// 記録画面のタグ行に出す上位 n 件
@@ -124,7 +139,15 @@ struct SymptomTagList: Codable, Equatable {
     /// 辞書から選ばれたタグを追加する。既にあれば何もしない
     mutating func add(id: String, customName: String = "") {
         guard !contains(id) else { return }
-        tags.append(SymptomTag(id: id, customName: customName))
+        tags.append(SymptomTag(id: id, customName: Self.limitedName(customName)))
+    }
+
+    /// タグ名を切り詰める。追加とリネームで同じ規則にする
+    static func limitedName(_ name: String) -> String {
+        String(
+            name.trimmingCharacters(in: .whitespacesAndNewlines)
+                .prefix(SymptomLimits.tagNameMaxLength)
+        )
     }
 
     /// 使用を記録する（最終使用日時を今にし、使用回数を1つ増やす）。
@@ -143,15 +166,20 @@ struct SymptomTagList: Codable, Equatable {
         }
     }
 
-    /// タグリストから外す。辞書由来は非表示、ユーザー追加は削除する。
-    /// 辞書由来を消さないのは、過去の記録が参照している表示名を失わないため。
+    /// タグリストから外す。実体は消さず非表示にするだけ。
+    ///
+    /// ユーザー追加タグを本当に削除すると、そのタグを使った過去の記録は
+    /// `u:<UUID>` を持ったまま名前を引く先を失い、一覧に UUID が出てしまう。
+    /// 辞書由来・ユーザー追加のどちらも非表示に留める。
     mutating func remove(id: String) {
         guard let index = tags.firstIndex(where: { $0.id == id }) else { return }
-        if tags[index].isUserDefined {
-            tags.remove(at: index)
-        } else {
-            tags[index].isHidden = true
-        }
+        tags[index].isHidden = true
+    }
+
+    /// どの記録からも参照されていないユーザー追加タグだけを本当に消す。
+    /// 使用中の ID を呼び出し側から渡してもらう（ここからは記録を見られないため）
+    mutating func purgeUnusedUserDefined(usedIDs: Set<String>) {
+        tags.removeAll { $0.isUserDefined && $0.isHidden && !usedIDs.contains($0.id) }
     }
 
     /// 辞書と同じ名前で作られてしまったユーザー追加タグを、辞書の項目へ寄せる。
@@ -192,7 +220,7 @@ struct SymptomTagList: Codable, Equatable {
 
     mutating func rename(id: String, to name: String) {
         guard let index = tags.firstIndex(where: { $0.id == id }) else { return }
-        tags[index].customName = String(name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(40))
+        tags[index].customName = Self.limitedName(name)
     }
 }
 

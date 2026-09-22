@@ -12,6 +12,9 @@ struct BeginnerHelpBanner: View {
     /// 詳細シートで messageKey の代わりに使う Text（SF Symbol を含めるなどの用途）
     let messageText: Text?
     let compact: Bool
+    /// アイコンを小さめにするか。
+    /// 同じ行に日時など他の要素が並ぶ場所で、幅を譲るために使う
+    var tight: Bool = false
     @State private var showsHelpSheet = false
     @State private var sheetContentHeight: CGFloat = 220
 
@@ -23,11 +26,17 @@ struct BeginnerHelpBanner: View {
         hintKey == nil
     }
 
-    init(_ messageKey: LocalizedStringKey, storageKey: String, compact: Bool = false) {
+    init(
+        _ messageKey: LocalizedStringKey,
+        storageKey: String,
+        compact: Bool = false,
+        tight: Bool = false
+    ) {
         self.hintKey = nil
         self.messageKey = messageKey
         self.messageText = nil
         self.compact = compact
+        self.tight = tight
     }
 
     init(hintKey: LocalizedStringKey, messageKey: LocalizedStringKey, storageKey: String, compact: Bool = false) {
@@ -117,11 +126,15 @@ struct BeginnerHelpBanner: View {
 
     private var helpButtonFont: Font {
         // 達人モードのアイコン単独表示は少し控えめにする
-        settings.userLevel == .expert ? .footnote.weight(.semibold) : .callout.weight(.semibold)
+        if tight { return .footnote.weight(.semibold) }
+        return settings.userLevel == .expert ? .footnote.weight(.semibold) : .callout.weight(.semibold)
     }
 
     private var helpButtonPadding: CGFloat {
-        settings.userLevel == .expert ? 5 : 8
+        // tight のときは行の他の要素に幅を譲る。
+        // タップ領域は contentShape(Circle()) が確保するので小さくしても押しやすさは保てる
+        if tight { return 3 }
+        return settings.userLevel == .expert ? 5 : 8
     }
 
     private var helpSheetHeight: CGFloat {

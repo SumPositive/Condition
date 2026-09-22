@@ -19,8 +19,8 @@ final class SymptomEditViewModel {
     // MARK: - 入力値
     var startAt: Date                { didSet { markModified() } }
     var endAt: Date                  { didSet { markModified() } }
-    var hasEndAt: Bool               { didSet { markModified() } }
-    var isOngoing: Bool              { didSet { markModified() } }
+    /// 終息したか。OFF の間は終息日時を持たず、一覧の「終息」で後から閉じられる
+    var hasEnded: Bool               { didSet { markModified() } }
     var symptomID: String            { didSet { markModified() } }
     var severity: SymptomSeverity    { didSet { markModified() } }
     var note: String                 { didSet { markModified() } }
@@ -43,8 +43,7 @@ final class SymptomEditViewModel {
             let now = Date()
             startAt = now
             endAt = now
-            hasEndAt = false
-            isOngoing = false
+            hasEnded = false
             symptomID = ""
             severity = .defaultForNewRecord
             note = ""
@@ -53,8 +52,7 @@ final class SymptomEditViewModel {
         case .edit(let record):
             startAt = record.startAt
             endAt = record.endAt ?? record.startAt
-            hasEndAt = record.endAt != nil
-            isOngoing = record.bOngoing
+            hasEnded = record.endAt != nil
             symptomID = record.sSymptomID
             severity = record.severity
             note = record.sNote
@@ -78,20 +76,14 @@ final class SymptomEditViewModel {
 
     /// 終了が開始より前になっていないか
     var hasInvalidRange: Bool {
-        hasEndAt && !isOngoing && endAt < startAt
+        hasEnded && endAt < startAt
     }
 
-    /// 継続中にすると終了時刻は持てない（同時に成立しない状態を作らせない）
-    func setOngoing(_ value: Bool) {
-        isOngoing = value
-        if value { hasEndAt = false }
-    }
-
-    func setHasEndAt(_ value: Bool) {
-        hasEndAt = value
-        if value {
-            isOngoing = false
-            if endAt < startAt { endAt = startAt }
+    /// 終息の有無を変える。終息にしたとき、終息が発症より前なら発症に合わせる
+    func setHasEnded(_ value: Bool) {
+        hasEnded = value
+        if value, endAt < startAt {
+            endAt = startAt
         }
     }
 
@@ -131,8 +123,9 @@ final class SymptomEditViewModel {
         }
 
         record.startAt = startAt
-        record.bOngoing = isOngoing
-        record.endAt = (hasEndAt && !isOngoing) ? endAt : nil
+        // 終息していない記録は「まだ続いている」扱いにし、一覧から後で閉じられるようにする
+        record.bOngoing = !hasEnded
+        record.endAt = hasEnded ? endAt : nil
         record.sSymptomID = symptomID
         record.severity = severity
         record.sNote = String(note.trimmingCharacters(in: .newlines).prefix(SymptomLimits.noteMaxLength))

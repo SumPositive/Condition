@@ -155,6 +155,13 @@ enum SymptomCatalog {
         SymptomTagMatching.matchingID(forName: name, in: all.map { ($0.id, $0.labelKey) })
     }
 
+    /// 入力中の文字に似た症状の候補
+    static func suggestions(forInput input: String, limit: Int = 5) -> [SymptomCatalogEntry] {
+        SymptomTagMatching
+            .suggestions(forInput: input, in: all.map { ($0.id, $0.labelKey) }, limit: limit)
+            .compactMap { entry(for: $0) }
+    }
+
     /// 分類ごとにまとめた辞書（辞書シートの表示順）
     static var groupedByCategory: [(category: SymptomCategory, entries: [SymptomCatalogEntry])] {
         SymptomCategory.allCases.compactMap { category in
@@ -173,36 +180,61 @@ enum SymptomCatalog {
 
 // MARK: - 薬辞書
 
+/// 対処の分類。画面では1つの「対処」にまとめて選ばせるが、
+/// 統計では「薬あり/なし」を見たいので、項目ごとに種別を持つ
+enum RemedyKind: String, Codable {
+    case medicine   // 薬
+    case action     // 薬以外の対処（休む・通院など）
+}
+
 struct MedicineCatalogEntry: Identifiable, Equatable {
     let id: String
+    var kind: RemedyKind = .medicine
 
     var labelKey: String { "medicine.name.\(id)" }
     var localizedName: String { NSLocalizedString(labelKey, comment: "") }
+    var isMedicine: Bool { kind == .medicine }
 }
 
 /// プリセットは薬効分類で持ち、商品名はユーザー追加とする。
 /// 商品名は国ごとに違う（ロキソニンは日本、Advil は米国）ため、
 /// 4言語アプリのプリセットには入れられない。
+/// 薬以外の対処（休む・通院など）も同じ辞書に入れ、`kind` で区別する。
 enum MedicineCatalog {
 
+    /// 薬と薬以外はカプセルの色で見分けるので、見出しでは分けず1つに並べる。
+    /// 薬を17件すべて先に置くと「寝た」「安静にした」まで遠いので、
+    /// よく使うものから混ぜて並べる（タグリストは使うほど上に来るので初期順の影響は薄れる）
     static let all: [MedicineCatalogEntry] = [
         .init(id: "analgesic"),
+        .init(id: "sleep",         kind: .action),
+        .init(id: "rest",          kind: .action),
         .init(id: "gastric"),
+        .init(id: "antiallergy"),
+        .init(id: "cooling",       kind: .action),
+        .init(id: "warming",       kind: .action),
+        .init(id: "hydration",     kind: .action),
+        .init(id: "coldRemedy"),
+        .init(id: "antitussive"),
+        .init(id: "topicalAnalgesic"),
+        .init(id: "bath",          kind: .action),
+        .init(id: "meal",          kind: .action),
+        .init(id: "stretch",       kind: .action),
+        .init(id: "darkQuietRoom", kind: .action),
+        .init(id: "nasalSpray"),
+        .init(id: "eyeDrops"),
         .init(id: "intestinal"),
         .init(id: "antidiarrheal"),
         .init(id: "laxative"),
-        .init(id: "antiallergy"),
-        .init(id: "nasalSpray"),
-        .init(id: "eyeDrops"),
-        .init(id: "antitussive"),
-        .init(id: "coldRemedy"),
-        .init(id: "topicalAnalgesic"),
         .init(id: "sleepAid"),
         .init(id: "antiemetic"),
         .init(id: "kampo"),
         .init(id: "supplement"),
         .init(id: "antihypertensive"),
+        .init(id: "clinicVisit",   kind: .action),
+        .init(id: "dayOff",        kind: .action),
         .init(id: "prescriptionOther"),
+        .init(id: "noAction",      kind: .action),
     ]
 
     private static let byID: [String: MedicineCatalogEntry] = Dictionary(
@@ -216,7 +248,21 @@ enum MedicineCatalog {
         SymptomTagMatching.matchingID(forName: name, in: all.map { ($0.id, $0.labelKey) })
     }
 
-    static let defaultTagIDs: [String] = ["analgesic", "gastric", "antiallergy"]
+    static let defaultTagIDs: [String] = ["analgesic", "gastric", "antiallergy", "sleep", "rest"]
+
+    /// 入力中の文字に似た対処の候補
+    static func suggestions(forInput input: String, limit: Int = 5) -> [MedicineCatalogEntry] {
+        SymptomTagMatching
+            .suggestions(forInput: input, in: all.map { ($0.id, $0.labelKey) }, limit: limit)
+            .compactMap { entry(for: $0) }
+    }
+
+    /// 薬だけの ID（統計で「薬あり/なし」を分けるのに使う）
+    static func isMedicine(_ id: String) -> Bool {
+        // 辞書に無い ID（ユーザー追加）は薬として扱う。
+        // ユーザー追加は商品名を想定しているため
+        entry(for: id)?.isMedicine ?? true
+    }
 }
 
 
@@ -236,6 +282,27 @@ enum SymptomTagMatching {
     /// 対応する全言語の訳で突き合わせる。
     /// 端末が英語でも「花粉症」と打てば hayFever に当たるようにするため
     private static let comparedLanguages = ["ja", "en", "ko", "zh-Hant"]
+
+    /// 入力途中の文字を含む項目を返す（候補表示用）。
+    /// 完全一致の matchingID と違い、部分一致で拾う
+    static func suggestions(
+        forInput input: String,
+        in entries: [(id: String, labelKey: String)],
+        limit: Int = 5
+    ) -> [String] {
+        let target = normalized(input)
+        guard !target.isEmpty else { return [] }
+        var result: [String] = []
+        for entry in entries {
+            let names = localizedNames(forKey: entry.labelKey)
+            // 前方一致を優先したいので、まず含むかどうかだけ判定する
+            if names.contains(where: { normalized($0).contains(target) }) {
+                result.append(entry.id)
+                if result.count >= limit { break }
+            }
+        }
+        return result
+    }
 
     static func matchingID(forName name: String, in entries: [(id: String, labelKey: String)]) -> String? {
         let target = normalized(name)

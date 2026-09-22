@@ -82,9 +82,9 @@ final class SymptomRecord {
     // .spotlight は付けない。Spotlight 検索から記録を開く導線も CoreSpotlight の設定も
     // アプリに無いため、インデックス登録が毎回失敗して CoreData のエラーログが出続ける
     var startAt: Date = Date()
-    /// 終了時刻。nil かつ bOngoing == false なら「点」の記録
+    /// 終息した時刻。終息していなければ nil
     var endAt: Date? = nil
-    /// 継続中（終了時刻の入力待ち）
+    /// まだ終息していない（終息時刻の入力待ち）。一覧の「終息」で後から閉じられる
     var bOngoing: Bool = false
 
     // MARK: - 症状
@@ -179,6 +179,16 @@ extension SymptomRecord {
         }
     }
 
+    /// 対処のうち薬だけ（統計の「薬あり/なし」比較に使う）
+    @Transient var medicineOnlyIDs: [String] {
+        medicineIDs.filter { MedicineCatalog.isMedicine($0) }
+    }
+
+    /// 対処のうち薬以外（休む・通院など）
+    @Transient var actionOnlyIDs: [String] {
+        medicineIDs.filter { !MedicineCatalog.isMedicine($0) }
+    }
+
     /// セクション表示用年月（例: 2026年3月 → 202603）。BodyRecord.yearMonth と揃える
     @Transient var yearMonth: Int {
         let cal = Calendar(identifier: .gregorian)
@@ -186,9 +196,14 @@ extension SymptomRecord {
         return (comps.year ?? 0) * 100 + (comps.month ?? 0)
     }
 
-    /// 終了済みのエピソードか
+    /// 終息済みのエピソードか
     @Transient var isCompleted: Bool {
         !bOngoing && endAt != nil
+    }
+
+    /// まだ終息していない（一覧に「終息」ボタンを出す対象）
+    @Transient var needsEnding: Bool {
+        endAt == nil
     }
 
     /// 持続時間。終了済みなら実測、継続中は現在までの暫定値、点の記録は nil
@@ -244,8 +259,15 @@ extension SymptomRecord {
 // MARK: - 入力上限
 
 enum SymptomLimits {
-    /// メモの最大文字数（壊れたバックアップの極端な長文だけを弾く）
-    static let noteMaxLength = 2000
+    /// 画面で入力できるメモの最大文字数
+    static let noteMaxLength = 200
+    /// 取り込み時に許容する上限。壊れたバックアップの極端な長文だけを弾く。
+    /// 入力上限と同じにすると、過去に長いメモを保存していた利用者の
+    /// バックアップを復元したときに本文が切り捨てられてしまう
+    static let noteImportMaxLength = 2000
+    /// ユーザーが付けるタグ名の最大文字数。
+    /// 長いとタグ行が横に伸びて折り返しが増え、一覧セルの連結も読みにくくなる
+    static let tagNameMaxLength = 20
     /// 1件に付けられる薬の最大数
     static let maxMedicinesPerRecord = 10
     /// 気温・湿度・気圧の入力許容範囲（手動入力とインポートの clamp に使う）

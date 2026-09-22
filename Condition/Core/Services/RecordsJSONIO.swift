@@ -461,7 +461,7 @@ enum RecordsJSONIO {
             record.severity = imported.parsedSeverity
             record.sNote = String((imported.note ?? "")
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-                .prefix(SymptomLimits.noteMaxLength))
+                .prefix(SymptomLimits.noteImportMaxLength))
             record.medicineIDs = Array((imported.medicineIds ?? [])
                 .prefix(SymptomLimits.maxMedicinesPerRecord))
             record.dataSource = RecordDataSource(rawValue: imported.dataSourceRaw ?? 0) ?? .appInput
