@@ -83,19 +83,34 @@ struct SymptomImportRecord: Decodable {
 }
 
 struct SymptomWeatherImport: Decodable {
-    let source: String?         // "auto" / "manual"
+    let source: String?         // "jma" / "weatherKit" / "manual"（旧: "auto"）
     let temp: Double?
     let humidity: Int?
     let pressure: Double?
     let pressureDelta24h: Double?
+    let devicePressure: Double?
     let symbol: String?
     let place: String?
+    let stationId: String?
+    let pressureStationId: String?
+    let pressureStationDistanceKm: Double?
+    let indoorTemp: Double?
+    let indoorHumidity: Int?
+    let sourceUrl: String?
+    // 0℃・0%・変化量0と欠測を区別するフラグ（旧バックアップには無い）
+    let tempSet: Bool?
+    let humiditySet: Bool?
+    let pressureDelta24hSet: Bool?
+    let tempEdited: Bool?
+    let humidityEdited: Bool?
+    let pressureEdited: Bool?
 
     var parsedSource: SymptomWeatherSource {
         switch source?.lowercased() {
-        case "auto":   return .auto
-        case "manual": return .manual
-        default:       return .none
+        case "jma":                 return .jma
+        case "weatherkit", "auto":  return .weatherKit   // "auto" は旧バックアップ
+        case "manual":              return .manual
+        default:                    return .none
         }
     }
 }
@@ -308,19 +323,58 @@ enum RecordsJSONIO {
         }
         if record.hasWeather {
             var weather: [String: Any] = [
-                "source": record.weatherSource == .auto ? "auto" : "manual",
+                "source": Self.weatherSourceName(record.weatherSource),
             ]
-            if record.nTemp_10c != 0 { weather["temp"] = decimalNumber(record.nTemp_10c, scale: 1) }
-            if 0 < record.nHumidity_p { weather["humidity"] = record.nHumidity_p }
+            // 0℃・0%も有効値なので、値ではなく入力有無フラグで出し分ける
+            if record.bTempSet {
+                weather["temp"] = decimalNumber(record.nTemp_10c, scale: 1)
+                weather["tempSet"] = true
+            }
+            if record.bHumiditySet {
+                weather["humidity"] = record.nHumidity_p
+                weather["humiditySet"] = true
+            }
             if 0 < record.nPressure_10hpa { weather["pressure"] = decimalNumber(record.nPressure_10hpa, scale: 1) }
-            if record.nPressureDelta24h_10hpa != 0 {
+            if record.bPressureDelta24hSet {
                 weather["pressureDelta24h"] = decimalNumber(record.nPressureDelta24h_10hpa, scale: 1)
+                weather["pressureDelta24hSet"] = true
+            }
+            if !record.sWeatherSourceURL.isEmpty { weather["sourceUrl"] = record.sWeatherSourceURL }
+            if record.nDevicePressure_10hpa != 0 {
+                weather["devicePressure"] = decimalNumber(record.nDevicePressure_10hpa, scale: 1)
             }
             if !record.sWeatherSymbol.isEmpty { weather["symbol"] = record.sWeatherSymbol }
             if !record.sWeatherPlace.isEmpty { weather["place"] = record.sWeatherPlace }
+            if !record.sWeatherStationID.isEmpty { weather["stationId"] = record.sWeatherStationID }
+            if !record.sPressureStationID.isEmpty {
+                weather["pressureStationId"] = record.sPressureStationID
+                if record.nPressureStationDistance_10km > 0 {
+                    weather["pressureStationDistanceKm"] =
+                        decimalNumber(record.nPressureStationDistance_10km, scale: 1)
+                }
+            }
+            // 室内値は外気と別項目。0℃・0%も有効なので入力フラグで出し分ける
+            if record.bIndoorTempSet {
+                weather["indoorTemp"] = decimalNumber(record.nIndoorTemp_10c, scale: 1)
+            }
+            if record.bIndoorHumiditySet {
+                weather["indoorHumidity"] = record.nIndoorHumidity_p
+            }
+            if record.bTempEdited { weather["tempEdited"] = true }
+            if record.bHumidityEdited { weather["humidityEdited"] = true }
+            if record.bPressureEdited { weather["pressureEdited"] = true }
             object["weather"] = weather
         }
         return object
+    }
+
+    private static func weatherSourceName(_ source: SymptomWeatherSource) -> String {
+        switch source {
+        case .none:       return "none"
+        case .weatherKit: return "weatherKit"
+        case .manual:     return "manual"
+        case .jma:        return "jma"
+        }
     }
 
     // MARK: インポート
@@ -429,19 +483,55 @@ enum RecordsJSONIO {
             record.nHumidity_p = 0
             record.nPressure_10hpa = 0
             record.nPressureDelta24h_10hpa = 0
+            record.bTempSet = false
+            record.bHumiditySet = false
+            record.bPressureDelta24hSet = false
+            record.sWeatherSourceURL = ""
+            record.nDevicePressure_10hpa = 0
             record.sWeatherSymbol = ""
             record.sWeatherPlace = ""
+            record.sWeatherStationID = ""
+            record.sPressureStationID = ""
+            record.nPressureStationDistance_10km = 0
+            record.nIndoorTemp_10c = 0
+            record.nIndoorHumidity_p = 0
+            record.bIndoorTempSet = false
+            record.bIndoorHumiditySet = false
+            record.bTempEdited = false
+            record.bHumidityEdited = false
+            record.bPressureEdited = false
             record.weatherSource = .none
             return
         }
         record.nTemp_10c = clampedSignedDec(weather.temp, SymptomLimits.tempRange_10c)
+        // 旧バックアップにはフラグが無いので、値があれば入力済みとみなす
+        record.bTempSet = weather.tempSet ?? (weather.temp != nil)
         record.nHumidity_p = clampedSignedInt(weather.humidity, SymptomLimits.humidityRange_p)
+        record.bHumiditySet = weather.humiditySet ?? (weather.humidity != nil)
         record.nPressure_10hpa = clampedSignedDec(weather.pressure, SymptomLimits.pressureRange_10hpa)
         record.nPressureDelta24h_10hpa = clampedSignedDec(
             weather.pressureDelta24h, SymptomLimits.pressureDeltaRange_10hpa
         )
+        record.bPressureDelta24hSet = weather.pressureDelta24hSet ?? (weather.pressureDelta24h != nil)
+        record.sWeatherSourceURL = String((weather.sourceUrl ?? "").prefix(300))
+        record.nDevicePressure_10hpa = clampedSignedDec(
+            weather.devicePressure, SymptomLimits.pressureRange_10hpa
+        )
         record.sWeatherSymbol = String((weather.symbol ?? "").prefix(60))
         record.sWeatherPlace = String((weather.place ?? "").prefix(60))
+        record.sWeatherStationID = String((weather.stationId ?? "").prefix(16))
+        record.sPressureStationID = String((weather.pressureStationId ?? "").prefix(16))
+        record.nPressureStationDistance_10km = weather.pressureStationDistanceKm
+            .map { max(0, Int(($0 * 10).rounded())) } ?? 0
+        record.bIndoorTempSet = weather.indoorTemp != nil
+        record.nIndoorTemp_10c = weather.indoorTemp
+            .map { clampedSignedDec($0, SymptomLimits.tempRange_10c) } ?? 0
+        record.bIndoorHumiditySet = weather.indoorHumidity != nil
+        record.nIndoorHumidity_p = weather.indoorHumidity
+            .map { clampedSignedInt($0, SymptomLimits.humidityRange_p) } ?? 0
+        record.bTempEdited = weather.tempEdited ?? false
+        record.bHumidityEdited = weather.humidityEdited ?? false
+        record.bPressureEdited = weather.pressureEdited ?? false
         record.weatherSource = weather.parsedSource
     }
 

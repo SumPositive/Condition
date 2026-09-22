@@ -15,7 +15,7 @@ struct SymptomEditView: View {
     @State private var showSymptomPicker = false
     @State private var showMedicinePicker = false
     @State private var showDiscardAlert = false
-    @State private var showWeatherFields = false
+    @State private var showEnvironmentSheet = false
     /// 保存後に「続けて記録」で2件目を作るかの確認
     @State private var showContinueSheet = false
     @FocusState private var noteFocused: Bool
@@ -85,6 +85,14 @@ struct SymptomEditView: View {
                 ) { id in
                     addToTagList(id: id, kind: .medicine)
                     vm.addMedicine(id)
+                }
+            }
+            .sheet(isPresented: $showEnvironmentSheet) {
+                EnvironmentEditView(
+                    snapshot: vm.environment,
+                    recordDate: vm.startAt
+                ) { updated in
+                    vm.environment = updated
                 }
             }
             .alert("record.discardChanges.title", isPresented: $showDiscardAlert) {
@@ -224,41 +232,49 @@ struct SymptomEditView: View {
         }
     }
 
-    // MARK: - 天候（フェーズ1は手動入力のみ）
+    // MARK: - 環境（天候・室内・端末気圧）
 
+    /// 中身は測定記録と共用の環境シートに置く。
+    /// 記録画面には現在の要約と、開くためのボタンだけを出す
     private var weatherSection: some View {
         Section {
-            if showWeatherFields || vm.weatherSource.isPresent {
-                LabeledContent("symptom.weather.temp") {
-                    TextField("", text: Binding(get: { vm.tempText }, set: { vm.tempText = $0 }))
-                        .keyboardType(.numbersAndPunctuation)
-                        .multilineTextAlignment(.trailing)
-                }
-                LabeledContent("symptom.weather.humidity") {
-                    TextField("", text: Binding(get: { vm.humidityText }, set: { vm.humidityText = $0 }))
-                        .keyboardType(.numberPad)
-                        .multilineTextAlignment(.trailing)
-                }
-                LabeledContent("symptom.weather.pressure") {
-                    TextField("", text: Binding(get: { vm.pressureText }, set: { vm.pressureText = $0 }))
-                        .keyboardType(.decimalPad)
-                        .multilineTextAlignment(.trailing)
-                }
-                LabeledContent("symptom.weather.place") {
-                    TextField("", text: Binding(get: { vm.weatherPlace }, set: { vm.weatherPlace = $0 }))
-                        .multilineTextAlignment(.trailing)
-                }
-            } else {
-                Button("symptom.weather.enterManually") {
-                    showWeatherFields = true
+            Button {
+                showEnvironmentSheet = true
+            } label: {
+                HStack {
+                    Label("environment.title", systemImage: "cloud.sun.fill")
+                    Spacer()
+                    Text(environmentSummary)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                    Image(systemName: "chevron.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.tertiary)
                 }
             }
-        } header: {
-            Text("symptom.section.weather")
-        } footer: {
-            // 自動取得はフェーズ4。ここで期待させないよう手動入力だけであることを明示する
-            Text("symptom.section.weather.footer")
+            .buttonStyle(.plain)
         }
+    }
+
+    /// ボタンに出す要約。未入力なら促す文言にする
+    private var environmentSummary: String {
+        let snapshot = vm.environment
+        var parts: [String] = []
+        if snapshot.source.isPresent, snapshot.temp_10c != 0 {
+            parts.append(String(format: "%.1f℃", Double(snapshot.temp_10c) / 10))
+        }
+        if snapshot.pressure_10hpa > 0 {
+            parts.append(String(format: "%.0fhPa", Double(snapshot.pressure_10hpa) / 10))
+        }
+        if snapshot.isIndoorTempSet {
+            parts.append(String(
+                format: String(localized: "environment.summary.indoor"),
+                Double(snapshot.indoorTemp_10c) / 10
+            ))
+        }
+        return parts.isEmpty ? String(localized: "environment.summary.empty")
+            : parts.joined(separator: "  ")
     }
 
     // MARK: - 保存

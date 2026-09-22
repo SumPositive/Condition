@@ -26,12 +26,9 @@ final class SymptomEditViewModel {
     var note: String                 { didSet { markModified() } }
     var medicineIDs: [String]        { didSet { markModified() } }
 
-    // MARK: - 天候（フェーズ1は手動入力のみ）
-    var weatherSource: SymptomWeatherSource { didSet { markModified() } }
-    var tempText: String             { didSet { markModified() } }
-    var humidityText: String         { didSet { markModified() } }
-    var pressureText: String         { didSet { markModified() } }
-    var weatherPlace: String         { didSet { markModified() } }
+    // MARK: - 環境（天候・室内・端末気圧）
+    /// 中身の編集は測定記録と共用の環境シートが行う。ここは値を持って保存するだけ
+    var environment: EnvironmentSnapshot { didSet { markModified() } }
 
     private(set) var isModified = false
     /// 読み込み中は isModified を立てない
@@ -52,11 +49,7 @@ final class SymptomEditViewModel {
             severity = .defaultForNewRecord
             note = ""
             medicineIDs = []
-            weatherSource = .none
-            tempText = ""
-            humidityText = ""
-            pressureText = ""
-            weatherPlace = ""
+            environment = EnvironmentSnapshot()
         case .edit(let record):
             startAt = record.startAt
             endAt = record.endAt ?? record.startAt
@@ -66,11 +59,7 @@ final class SymptomEditViewModel {
             severity = record.severity
             note = record.sNote
             medicineIDs = record.medicineIDs
-            weatherSource = record.weatherSource
-            tempText = Self.decimalText(record.nTemp_10c, scale: 1, isSet: record.hasWeather)
-            humidityText = record.nHumidity_p > 0 ? "\(record.nHumidity_p)" : ""
-            pressureText = Self.decimalText(record.nPressure_10hpa, scale: 1, isSet: record.nPressure_10hpa > 0)
-            weatherPlace = record.sWeatherPlace
+            environment = record.environmentSnapshot
         }
         isLoading = false
     }
@@ -149,7 +138,7 @@ final class SymptomEditViewModel {
         record.sNote = String(note.trimmingCharacters(in: .newlines).prefix(SymptomLimits.noteMaxLength))
         record.medicineIDs = medicineIDs
 
-        applyWeather(to: record)
+        record.apply(environment)
 
         do {
             try context.save()
@@ -166,51 +155,4 @@ final class SymptomEditViewModel {
         return record
     }
 
-    private func applyWeather(to record: SymptomRecord) {
-        // フェーズ1は手動入力のみ。自動取得（WeatherKit）はフェーズ4で足す。
-        // 自動取得済みの値を編集画面で触っていない場合は、取得値をそのまま残す
-        guard weatherSource != .auto else { return }
-
-        let temp = Self.scaledInt(tempText, scale: 1)
-        let humidity = Int(humidityText.trimmingCharacters(in: .whitespaces))
-        let pressure = Self.scaledInt(pressureText, scale: 1)
-        let place = weatherPlace.trimmingCharacters(in: .whitespacesAndNewlines)
-        let hasAny = temp != nil || humidity != nil || pressure != nil || !place.isEmpty
-
-        guard hasAny else {
-            record.nTemp_10c = 0
-            record.nHumidity_p = 0
-            record.nPressure_10hpa = 0
-            record.nPressureDelta24h_10hpa = 0
-            record.sWeatherSymbol = ""
-            record.sWeatherPlace = ""
-            record.weatherSource = .none
-            return
-        }
-
-        record.nTemp_10c = Self.clamped(temp, SymptomLimits.tempRange_10c)
-        record.nHumidity_p = Self.clamped(humidity, SymptomLimits.humidityRange_p)
-        record.nPressure_10hpa = Self.clamped(pressure, SymptomLimits.pressureRange_10hpa)
-        record.sWeatherPlace = String(place.prefix(60))
-        record.weatherSource = .manual
-    }
-
-    // MARK: - 数値の入出力
-
-    private static func decimalText(_ value: Int, scale: Int, isSet: Bool) -> String {
-        guard isSet, value != 0 else { return "" }
-        return String(format: "%.\(scale)f", Double(value) / pow(10, Double(scale)))
-    }
-
-    /// "20.1" → 201（scale=1）。空欄と不正値は nil
-    private static func scaledInt(_ text: String, scale: Int) -> Int? {
-        let trimmed = text.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty, let value = Double(trimmed) else { return nil }
-        return Int((value * pow(10, Double(scale))).rounded())
-    }
-
-    private static func clamped(_ value: Int?, _ range: (min: Int, max: Int)) -> Int {
-        guard let value else { return 0 }
-        return min(max(value, range.min), range.max)
-    }
 }

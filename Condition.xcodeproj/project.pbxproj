@@ -60,6 +60,12 @@
 		FBA000000000000000000003 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = FBA000000000000000000006 /* FirebaseAnalytics */; };
 		FBA000000000000000000004 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = FBA000000000000000000007 /* FirebaseCrashlytics */; };
 		2EC6632595DD9CE808623E6B /* SymptomTagMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BDDE2C618EC05AE26B855AB /* SymptomTagMigration.swift */; };
+		B68F280BDEBE26963A9DFDAD /* JMAWeatherService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D41B20B872236BE49A53CEAA /* JMAWeatherService.swift */; };
+		98931E91876C7D1DC2416471 /* WeatherLocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4F2507EDAA6B110E600CA8E /* WeatherLocationService.swift */; };
+		E3D3DDA000A084BD20782137 /* DevicePressureService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05FA7D86EF7CE4BAD5C6F487 /* DevicePressureService.swift */; };
+		911F8752056F5DBD7C137F2D /* EnvironmentSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EC17368E8623A56C4CAE2C3 /* EnvironmentSnapshot.swift */; };
+		8CCA25A38B51652C1A2F0AC0 /* EnvironmentEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73A2DABEDACF8BB84A87193E /* EnvironmentEditView.swift */; };
+		48E0C5BADC99A2B6360F958A /* EnvironmentEditViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9608CF1961F1943A187B0227 /* EnvironmentEditViewModel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -134,6 +140,12 @@
 		FBA000000000000000000002 /* AppAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAnalytics.swift; sourceTree = "<group>"; };
 		FE6CDC8C62E6CE01882561D2 /* RecordDomain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordDomain.swift; sourceTree = "<group>"; };
 		7BDDE2C618EC05AE26B855AB /* SymptomTagMigration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymptomTagMigration.swift; sourceTree = "<group>"; };
+		D41B20B872236BE49A53CEAA /* JMAWeatherService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JMAWeatherService.swift; sourceTree = "<group>"; };
+		D4F2507EDAA6B110E600CA8E /* WeatherLocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherLocationService.swift; sourceTree = "<group>"; };
+		05FA7D86EF7CE4BAD5C6F487 /* DevicePressureService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevicePressureService.swift; sourceTree = "<group>"; };
+		5EC17368E8623A56C4CAE2C3 /* EnvironmentSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnvironmentSnapshot.swift; sourceTree = "<group>"; };
+		73A2DABEDACF8BB84A87193E /* EnvironmentEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnvironmentEditView.swift; sourceTree = "<group>"; };
+		9608CF1961F1943A187B0227 /* EnvironmentEditViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnvironmentEditViewModel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -165,6 +177,7 @@
 		06A0B05E77F7430C9454F28D /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				5EC17368E8623A56C4CAE2C3 /* EnvironmentSnapshot.swift */,
 				AACAB853FA29CC02FA76F4AE /* SymptomRecord.swift */,
 				9CD338BE1F57A4E005A16F3C /* SymptomCatalog.swift */,
 				FE6CDC8C62E6CE01882561D2 /* RecordDomain.swift */,
@@ -193,6 +206,7 @@
 		114EC52CD41E3310B88EBBCF /* Features */ = {
 			isa = PBXGroup;
 			children = (
+				FEACA2C64548DA4B4F1A8562 /* Environment */,
 				673344F6A0605B4FC46E6699 /* Graph */,
 				A6F7DFDE639A596B1DDD04D7 /* RecordEdit */,
 				F89D193F912C1131E67312B9 /* RecordList */,
@@ -358,6 +372,9 @@
 		DD27FB837464EED7ACADE894 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				D41B20B872236BE49A53CEAA /* JMAWeatherService.swift */,
+				D4F2507EDAA6B110E600CA8E /* WeatherLocationService.swift */,
+				05FA7D86EF7CE4BAD5C6F487 /* DevicePressureService.swift */,
 				FBA000000000000000000002 /* AppAnalytics.swift */,
 				C3DC29A32F72BE25007F4C3A /* PDFPanelExporter.swift */,
 				9C7CBA484995B66668A9235C /* HealthKitService.swift */,
@@ -373,6 +390,15 @@
 				031D6782445FA50A16B167EC /* RecordListView.swift */,
 			);
 			path = RecordList;
+			sourceTree = "<group>";
+		};
+		FEACA2C64548DA4B4F1A8562 /* Environment */ = {
+			isa = PBXGroup;
+			children = (
+				73A2DABEDACF8BB84A87193E /* EnvironmentEditView.swift */,
+				9608CF1961F1943A187B0227 /* EnvironmentEditViewModel.swift */,
+			);
+			path = Environment;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -511,6 +537,12 @@
 		EBD078822FE98A94479EB3FA /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			files = (
+				911F8752056F5DBD7C137F2D /* EnvironmentSnapshot.swift in Sources */,
+				8CCA25A38B51652C1A2F0AC0 /* EnvironmentEditView.swift in Sources */,
+				48E0C5BADC99A2B6360F958A /* EnvironmentEditViewModel.swift in Sources */,
+				B68F280BDEBE26963A9DFDAD /* JMAWeatherService.swift in Sources */,
+				98931E91876C7D1DC2416471 /* WeatherLocationService.swift in Sources */,
+				E3D3DDA000A084BD20782137 /* DevicePressureService.swift in Sources */,
 				2EC6632595DD9CE808623E6B /* SymptomTagMigration.swift in Sources */,
 				F594CC4E199C1D0114FA783B /* ToolbarButtonLabel.swift in Sources */,
 				8FD7460E6DC7533C534437D6 /* SymptomRecord.swift in Sources */,

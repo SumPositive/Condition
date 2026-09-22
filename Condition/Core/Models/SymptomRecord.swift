@@ -50,14 +50,27 @@ enum SymptomSeverity: Int, CaseIterable, Codable, Identifiable {
     var isCountable: Bool { self != .unspecified }
 }
 
-// MARK: - 天候の取得元
+// MARK: - 気象データの取得元
 
 enum SymptomWeatherSource: Int, Codable {
-    case none   = 0   // 未取得
-    case auto   = 1   // WeatherKit から自動取得
-    case manual = 2   // 手動入力
+    case none       = 0   // 未取得
+    case weatherKit = 1   // WeatherKit から自動取得（国外用・未実装）
+    case manual     = 2   // 全項目を手動入力
+    case jma        = 3   // 気象庁アメダスから自動取得
 
     var isPresent: Bool { self != .none }
+
+    /// 観測値として扱えるか（手動入力は観測値ではない）
+    var isObserved: Bool { self == .weatherKit || self == .jma }
+
+    var labelKey: String {
+        switch self {
+        case .none:       return "symptom.weather.source.none"
+        case .weatherKit: return "symptom.weather.source.weatherKit"
+        case .manual:     return "symptom.weather.source.manual"
+        case .jma:        return "symptom.weather.source.jma"
+        }
+    }
 }
 
 // MARK: - モデル
@@ -66,7 +79,9 @@ enum SymptomWeatherSource: Int, Codable {
 final class SymptomRecord {
 
     // MARK: - 日時
-    @Attribute(.spotlight) var startAt: Date = Date()
+    // .spotlight は付けない。Spotlight 検索から記録を開く導線も CoreSpotlight の設定も
+    // アプリに無いため、インデックス登録が毎回失敗して CoreData のエラーログが出続ける
+    var startAt: Date = Date()
     /// 終了時刻。nil かつ bOngoing == false なら「点」の記録
     var endAt: Date? = nil
     /// 継続中（終了時刻の入力待ち）
@@ -84,14 +99,39 @@ final class SymptomRecord {
     var sMedicineIDs: String = ""
     var nDataSource: Int = RecordDataSource.appInput.rawValue
 
-    // MARK: - 天候スナップショット（0 / 空 = 未取得）
+    // MARK: - 環境スナップショット（0 / 空 = 未取得）
     var nTemp_10c: Int = 0                  // 気温 x10 ℃
     var nHumidity_p: Int = 0                // 湿度 %
     var nPressure_10hpa: Int = 0            // 気圧 x10 hPa
     var nPressureDelta24h_10hpa: Int = 0    // 24時間前との差 x10 hPa（符号あり）
+    // 0℃・0%・変化量0はいずれも実際に起こりうる有効値なので、値では欠測と区別できない。
+    // 室内側（bIndoorTempSet 等）と同じく入力有無フラグで持つ
+    var bTempSet: Bool = false
+    var bHumiditySet: Bool = false
+    var bPressureDelta24hSet: Bool = false
     var sWeatherSymbol: String = ""         // SF Symbol 名
     var sWeatherPlace: String = ""          // 市区町村レベルの地名
     var nWeatherSource: Int = SymptomWeatherSource.none.rawValue
+    /// 気温・湿度を取った観測所番号（気象庁のとき）
+    var sWeatherStationID: String = ""
+    /// 気圧を取った観測所番号。気圧観測所は154か所しかないので気温側と別地点になりうる
+    var sPressureStationID: String = ""
+    /// 気圧観測所までの距離（x10 km）。別地点の値であることを画面に示すために保存する
+    var nPressureStationDistance_10km: Int = 0
+    /// 取得した気象庁データの出典URL（後から値の根拠をたどれるように残す）
+    var sWeatherSourceURL: String = ""
+    /// 端末の気圧計で測った現地気圧（x10 hPa）。観測所の気圧とは別物なので混ぜない
+    var nDevicePressure_10hpa: Int = 0
+    /// 室内の気温・湿度（x10 ℃ / %）。外気とは別物なので上書きせず並べて持つ。
+    /// 0 = 未入力（0℃は有効値なので入力有無フラグで区別する）
+    var nIndoorTemp_10c: Int = 0
+    var nIndoorHumidity_p: Int = 0
+    var bIndoorTempSet: Bool = false
+    var bIndoorHumiditySet: Bool = false
+    /// 項目ごとの手動変更フラグ。観測値と手入力を区別する
+    var bTempEdited: Bool = false
+    var bHumidityEdited: Bool = false
+    var bPressureEdited: Bool = false
 
     // MARK: - 初期化
 
@@ -164,9 +204,40 @@ extension SymptomRecord {
         return max(0, endAt.timeIntervalSince(startAt))
     }
 
-    /// 天候が入っているか
+    /// 気象データが入っているか
     @Transient var hasWeather: Bool {
         weatherSource.isPresent
+    }
+
+    /// 室内の気温・湿度が入っているか。
+    /// 0℃・0%も有効値なので、値ではなく入力有無フラグで判定する
+    @Transient var hasIndoorValues: Bool {
+        bIndoorTempSet || bIndoorHumiditySet
+    }
+
+    /// 屋外の気温（℃）。未取得なら nil
+    @Transient var outdoorTemp: Double? {
+        bTempSet ? Double(nTemp_10c) / 10 : nil
+    }
+
+    /// 屋外の湿度（%）。未取得なら nil
+    @Transient var outdoorHumidity: Int? {
+        bHumiditySet ? nHumidity_p : nil
+    }
+
+    /// 24時間の気圧変化（hPa）。計算できていなければ nil
+    @Transient var pressureDelta24h: Double? {
+        bPressureDelta24hSet ? Double(nPressureDelta24h_10hpa) / 10 : nil
+    }
+
+    /// 室内の気温（℃）。未入力なら nil
+    @Transient var indoorTemp: Double? {
+        bIndoorTempSet ? Double(nIndoorTemp_10c) / 10 : nil
+    }
+
+    /// 室内の湿度（%）。未入力なら nil
+    @Transient var indoorHumidity: Int? {
+        bIndoorHumiditySet ? nIndoorHumidity_p : nil
     }
 }
 

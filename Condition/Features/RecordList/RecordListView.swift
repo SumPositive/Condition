@@ -168,22 +168,7 @@ struct RecordListView: View {
                     categoryFilterMenu
                 }
                 ToolbarItemGroup(placement: .topBarTrailing) {
-                    #if targetEnvironment(simulator)
-                    if !settings.hkDisabledByDemo {
-                        Button {
-                            AppSettings.shared.hkDisabledByDemo = true
-                            AppSettings.shared.hkEnabled = false
-                            DemoDataGenerator.generate(in: context)
-                            toastMessage = String(localized: "demo.addedOneYear")
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                                toastMessage = nil
-                            }
-                        } label: {
-                            Text("action.demo")
-                        }
-                        .tint(.orange)
-                    }
-                    #endif // targetEnvironment(simulator)
+                    demoButton
                     Button {
                         // 起動時アクションと同じルートレベルのシートで開く。
                         // ローカル @State で開くと、バックグラウンド復帰時に
@@ -420,6 +405,28 @@ struct RecordListView: View {
             }
             .listStyle(.plain)
         }
+    }
+
+    /// シミュレータ限定のデモデータ投入ボタン。
+    /// ツールバーの式に直接置くと型チェックが重くなりすぎるので切り出す
+    @ViewBuilder
+    private var demoButton: some View {
+        #if targetEnvironment(simulator)
+        if !settings.hkDisabledByDemo {
+            Button {
+                AppSettings.shared.hkDisabledByDemo = true
+                AppSettings.shared.hkEnabled = false
+                DemoDataGenerator.generate(in: context)
+                toastMessage = String(localized: "demo.addedOneYear")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                    toastMessage = nil
+                }
+            } label: {
+                Text("action.demo")
+            }
+            .tint(.orange)
+        }
+        #endif
     }
 
     // MARK: - 行

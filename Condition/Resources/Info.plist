@@ -24,6 +24,10 @@
 	<string>$(ADMOB_APP_ID)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>記録した場所に近い気象庁の観測所を選び、気温・湿度・気圧を取得するために使用します。位置情報は市区町村までしか保存しません。</string>
+	<key>NSMotionUsageDescription</key>
+	<string>端末の気圧計で、その場の気圧を測るために使用します。</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>ヘルスケアの記録を読み取り、記録画面に自動入力するために使用します。</string>
 	<key>NSHealthUpdateUsageDescription</key>

@@ -2693,6 +2693,238 @@
         }
       }
     },
+    "environment.device.pressure": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pressure (hPa)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "気圧(hPa)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기압(hPa)"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "氣壓(hPa)"
+          }
+        }
+      }
+    },
+    "environment.device.unavailable": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not supported on this device"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この端末は未対応です"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 기기는 지원하지 않습니다"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此裝置不支援"
+          }
+        }
+      }
+    },
+    "environment.section.device": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Device (your device)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "デバイス（お使いの端末）"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기기(사용 중인 기기)"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "裝置（您的裝置）"
+          }
+        }
+      }
+    },
+    "environment.section.device.footer": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Measures local pressure with this device's barometer. Stored separately from station pressure, and only for records made now."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "端末の気圧計でその場の気圧を測ります。観測所の気圧とは別の値として保存します。今の記録でのみ測れます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기기의 기압계로 현재 위치의 기압을 측정합니다. 관측소 기압과는 별도로 저장되며, 지금 시각의 기록에서만 측정할 수 있습니다."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "以裝置的氣壓計測量當地氣壓。與觀測所氣壓分開儲存，且僅能用於當下的記錄。"
+          }
+        }
+      }
+    },
+    "environment.section.outdoor": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Outdoors (weather)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "屋外（天候）"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "실외(날씨)"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "室外（天氣）"
+          }
+        }
+      }
+    },
+    "environment.summary.empty": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not set"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未設定"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "미설정"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未設定"
+          }
+        }
+      }
+    },
+    "environment.summary.indoor": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Indoor %.1f°C"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "室内%.1f℃"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "실내 %.1f℃"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "室內%.1f℃"
+          }
+        }
+      }
+    },
+    "environment.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Environment"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "環境"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "환경"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "環境"
+          }
+        }
+      }
+    },
     "error.simulatorCannotOpen": {
       "extractionState": "manual",
       "localizations": {
@@ -15761,6 +15993,64 @@
         }
       }
     },
+    "symptom.section.indoor": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Indoors"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "室内"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "실내"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "室內"
+          }
+        }
+      }
+    },
+    "symptom.section.indoor.footer": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Indoor readings are stored separately from the outdoor observation and kept apart in statistics."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "室内で測った値を入れると、取得した外気の値とは別に保存します。屋外の観測値と混ぜずに集計します。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "실내에서 측정한 값은 취득한 외기 값과 별도로 저장하며, 실외 관측값과 섞지 않고 집계합니다."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "室內測得的數值會與取得的室外數值分開儲存，統計時也不會混用。"
+          }
+        }
+      }
+    },
     "symptom.section.medicine": {
       "extractionState": "manual",
       "localizations": {
@@ -15883,25 +16173,25 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Weather"
+            "value": "Environment"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "天候"
+            "value": "環境"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "날씨"
+            "value": "환경"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "天氣"
+            "value": "環境"
           }
         }
       }
@@ -16202,30 +16492,320 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Enter weather manually"
+            "value": "Enter environment data manually"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "天候を手動で入力"
+            "value": "環境を手動で入力"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "날씨를 수동으로 입력"
+            "value": "환경 정보를 직접 입력"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "手動輸入天氣"
+            "value": "手動輸入環境資料"
           }
         }
       }
     },
-    "symptom.weather.humidity": {
+    "symptom.weather.error.barometerFailed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't measure pressure"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "気圧を測れませんでした"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기압을 측정하지 못했습니다"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無法測量氣壓"
+          }
+        }
+      }
+    },
+    "symptom.weather.error.locationDenied": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Location access is off, so weather can't be fetched. Enter it by hand."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "位置情報が許可されていないため取得できません。手入力してください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "위치 정보가 허용되지 않아 가져올 수 없습니다. 직접 입력해 주세요."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未允許定位，無法取得。請手動輸入。"
+          }
+        }
+      }
+    },
+    "symptom.weather.error.locationFailed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't get your location"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在地を取得できませんでした"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "현재 위치를 가져오지 못했습니다"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無法取得目前位置"
+          }
+        }
+      }
+    },
+    "symptom.weather.error.noBarometer": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This device has no barometer"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この端末には気圧計がありません"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 기기에는 기압계가 없습니다"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此裝置沒有氣壓計"
+          }
+        }
+      }
+    },
+    "symptom.weather.error.noStation": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No nearby station found"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "近くに観測所が見つかりません"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "근처에 관측소가 없습니다"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "附近找不到觀測所"
+          }
+        }
+      }
+    },
+    "symptom.weather.error.notAvailable": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No observation for this time"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この時刻の観測値がありません"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 시각의 관측값이 없습니다"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此時刻沒有觀測值"
+          }
+        }
+      }
+    },
+    "symptom.weather.error.outOfRange": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JMA data for this time is no longer published"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この日時の気象庁データは公開期間を過ぎています"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 일시의 기상청 데이터는 공개 기간이 지났습니다"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此時間的氣象廳資料已超過公開期間"
+          }
+        }
+      }
+    },
+    "symptom.weather.error.outsideJapan": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Outside Japan. JMA data covers Japan only, so enter values by hand."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日本国外のようです。気象庁のデータは国内のみのため、手入力してください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "일본 국외로 보입니다. 기상청 데이터는 일본 국내만 제공되므로 직접 입력해 주세요."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "似乎位於日本境外。氣象廳資料僅涵蓋日本國內，請手動輸入。"
+          }
+        }
+      }
+    },
+    "symptom.weather.fetchJMA": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Get weather data (JMA)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "気象データを取得（気象庁）"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기상 데이터 가져오기 (기상청)"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取得氣象資料（氣象廳）"
+          }
+        }
+      }
+    },
+    "symptom.weather.fetching": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fetching…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取得しています…"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "가져오는 중…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取得中…"
+          }
+        }
+      }
+    },
+    "symptom.weather.indoorHumidity": {
       "extractionState": "manual",
       "localizations": {
         "en": {
@@ -16254,31 +16834,205 @@
         }
       }
     },
+    "symptom.weather.indoorTemp": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Temperature (°C)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "室温(℃)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "실온(℃)"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "室溫(℃)"
+          }
+        }
+      }
+    },
+    "symptom.weather.jmaAttribution": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Source: JMA AMeDAS (processed for display)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "出典: 気象庁アメダス（加工して表示）"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "출처: 기상청 AMeDAS (가공하여 표시)"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "資料來源：氣象廳 AMeDAS（經加工顯示）"
+          }
+        }
+      }
+    },
+    "symptom.weather.measureDevicePressure": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Measure with barometer"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "端末の気圧計で測る"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기기 기압계로 측정"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "以裝置氣壓計測量"
+          }
+        }
+      }
+    },
+    "symptom.weather.outOfRangeHint": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JMA publishes about 9 days of data, so enter older dates by hand."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "気象庁の公開データは約9日ぶんのため、それより前の日時は手入力してください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기상청 공개 데이터는 약 9일분이므로 그 이전 날짜는 직접 입력해 주세요."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "氣象廳僅公開約9天的資料，更早的日期請手動輸入。"
+          }
+        }
+      }
+    },
+    "symptom.weather.outdoorHumidity": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Humidity (%)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "湿度(%)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "습도(%)"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "濕度(%)"
+          }
+        }
+      }
+    },
+    "symptom.weather.outdoorTemp": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Temperature (°C)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "気温(℃)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기온(℃)"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "氣溫(℃)"
+          }
+        }
+      }
+    },
     "symptom.weather.place": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Place"
+            "value": "Station"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "場所"
+            "value": "測候所"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "장소"
+            "value": "측후소"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "地點"
+            "value": "測候所"
           }
         }
       }
@@ -16312,31 +17066,205 @@
         }
       }
     },
-    "symptom.weather.temp": {
+    "symptom.weather.pressureDelta": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Temp (°C)"
+            "value": "24h pressure change"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "気温(℃)"
+            "value": "24時間の気圧変化"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "기온(℃)"
+            "value": "24시간 기압 변화"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "氣溫(℃)"
+            "value": "24小時氣壓變化"
+          }
+        }
+      }
+    },
+    "symptom.weather.pressureStationNote": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pressure is from the %1$@ station (about %2$.0f km away). Only 154 stations nationwide observe pressure."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "気圧は %1$@ 観測所（約%2$.0fkm）の値です。気圧を観測する地点は全国で154か所しかないため、離れた地点の値を使っています。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기압은 %1$@ 관측소(약 %2$.0fkm)의 값입니다. 기압을 관측하는 지점은 전국 154곳뿐입니다."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "氣壓為 %1$@ 觀測所（約%2$.0f公里）的數值。全國僅154處觀測氣壓。"
+          }
+        }
+      }
+    },
+    "symptom.weather.source.jma": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JMA"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "気象庁"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기상청"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "氣象廳"
+          }
+        }
+      }
+    },
+    "symptom.weather.source.manual": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entered by hand"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手入力"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "직접 입력"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手動輸入"
+          }
+        }
+      }
+    },
+    "symptom.weather.source.none": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not set"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未取得"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "미취득"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未取得"
+          }
+        }
+      }
+    },
+    "symptom.weather.source.weatherKit": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Weather"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple 天気"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple 날씨"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple 天氣"
+          }
+        }
+      }
+    },
+    "symptom.weather.stationNote": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Temperature and humidity are from the %@ station, not measured at your exact location."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "気温・湿度は %@ 観測所の値です。記録した場所そのものの実測値ではありません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기온·습도는 %@ 관측소 값입니다. 기록한 장소의 실측값이 아닙니다."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "氣溫與濕度為 %@ 觀測所的數值，並非記錄地點的實測值。"
           }
         }
       }

@@ -7,8 +7,9 @@ import SwiftData
 @Model
 final class BodyRecord {
 
-    // MARK: - 日時（インデックス付き）
-    @Attribute(.spotlight) var dateTime: Date = Date()
+    // MARK: - 日時
+    // .spotlight は付けない（理由は SymptomRecord.startAt のコメントを参照）
+    var dateTime: Date = Date()
 
     // MARK: - メタデータ
     var nDateOpt: Int = DateOpt.cat02.rawValue       // DateOpt rawValue
