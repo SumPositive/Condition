@@ -17,14 +17,13 @@ struct SymptomPickerSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var newTagName = ""
-    /// 編集中のタグ（長押しで開く）
-    @State private var editingTag: EditingTag? = nil
-
-    struct EditingTag: Identifiable {
-        let id: String
-        var name: String
-    }
+    /// 編集中のタグ ID。nil なら追加モード。
+    /// 別シートを開かず、この欄がそのまま編集欄に変わる
+    @State private var editingTagID: String? = nil
     @FocusState private var newTagFocused: Bool
+
+    /// いま編集中か。見出しとボタンの文言を切り替える
+    private var isEditing: Bool { editingTagID != nil }
 
     private var settings: AppSettings { AppSettings.shared }
 
@@ -77,7 +76,7 @@ struct SymptomPickerSheet: View {
                             TextField("symptom.picker.newName", text: $newTagName)
                                 .focused($newTagFocused)
                                 .submitLabel(.done)
-                                .onSubmit { addUserDefinedTag() }
+                                .onSubmit { commitTag() }
                                 // 保存時に黙って切ると入力した名前と違うものが登録されるので、
                                 // 入力の時点で上限を超えさせない
                                 .onChange(of: newTagName) { _, value in
@@ -85,46 +84,42 @@ struct SymptomPickerSheet: View {
                                         newTagName = String(value.prefix(SymptomLimits.tagNameMaxLength))
                                     }
                                 }
-                            Button("action.add") { addUserDefinedTag() }
+                            // 編集中は「変更」、それ以外は「追加」。欄はひとつのまま役割が変わる
+                            // List の行に置く Button は borderless を明示する。
+                            // 既定のままだと行全体のタップとして扱われ、
+                            // 同じ行に複数あるとどれも反応しなくなる
+                            Button(isEditing ? "action.update" : "action.add") { commitTag() }
+                                .buttonStyle(.borderless)
                                 .disabled(trimmedNewTagName.isEmpty)
                         }
+
+                        // 編集を始めたら、やめる手段も同じ場所に出す
+                        if isEditing {
+                            Button("symptom.picker.editCancel", role: .cancel) { endEditing() }
+                                .buttonStyle(.borderless)
+                        }
+
                         // 入力中に似た項目を出す。
-                        // 同じものを別名で作ってしまう前に気づけるようにする
-                        if !suggestions.isEmpty {
+                        // 同じものを別名で作ってしまう前に気づけるようにする。
+                        // 編集中は「似た名前」を出しても選び直す意味がないので出さない
+                        if !isEditing, !suggestions.isEmpty {
                             tagCloud(suggestions)
                         }
-                        // 自分で足したものは、足した場所と同じセクションに置く。
-                        // 症状は11分類で並ぶため、どの分類にも属さない追加分はここが定位置になる。
-                        // 対処は分類を持たないので、下でプリセットと同じ列に混ぜる
-                        if kind == .symptom, !userDefinedTags.isEmpty {
-                            tagCloud(userDefinedTags.map { ($0.id, $0.symptomDisplayName) })
-                        }
                     } header: {
-                        Text(kind == .symptom ? "symptom.picker.newSymptom" : "symptom.picker.newRemedy")
+                        // 見出しは症状・対処で共通。編集中だけ役割を言い換える
+                        Text(isEditing ? "symptom.picker.editTag" : "symptom.picker.findOrAdd")
                     } footer: {
                         // 使い方は先頭のヘルプで伝えているので、ここは候補の説明だけにする
-                        if !suggestions.isEmpty {
+                        if !isEditing, !suggestions.isEmpty {
                             Text("symptom.picker.suggestions")
                         }
                     }
 
-                    switch kind {
-                    case .symptom:
-                        ForEach(symptomGroups, id: \.category.id) { group in
-                            Section {
-                                tagCloud(group.entries.map { ($0.id, symptomName(for: $0)) })
-                            } header: {
-                                Label(
-                                    NSLocalizedString(group.category.labelKey, comment: ""),
-                                    systemImage: group.category.icon
-                                )
-                            }
-                        }
-                    case .medicine:
-                        // ユーザー追加分もプリセットと同じ列に混ぜ、直近に使った順で並べる
-                        Section {
-                            tagCloud(remedyItems)
-                        }
+                    // 症状・対処とも、プリセットとユーザー追加を同じ1つの列に混ぜ、
+                    // 直近に使った順で並べる。分類で分けると、実際に使う症状が
+                    // 数個しかない個人利用では見出しばかりで探しにくかった
+                    Section {
+                        tagCloud(pickerItems)
                     }
                 }
                 .listStyle(.insetGrouped)
@@ -134,17 +129,23 @@ struct SymptomPickerSheet: View {
                 // 名前を打ったあと一覧を見たい場面が多く、いちいち閉じるのが手間になる
                 .scrollDismissesKeyboard(.immediately)
             }
-            // 入力欄の外を叩いたらフォーカスを外す。
-            // タグやボタンは自分のジェスチャを先に処理するので、ここには届かない
-            .contentShape(Rectangle())
-            .onTapGesture { newTagFocused = false }
-            .sheet(item: $editingTag) { target in
-                TagEditSheet(kind: kind, tagID: target.id)
-            }
             // 選択はこのシートだけで行うので、タイトルも「選ぶ」と言い切る
             .navigationTitle(kind == .symptom ? "symptom.picker.title" : "remedy.picker.title")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                // 入力欄の外をタップして閉じる方式は、List の行内ボタンと
+                // タップを奪い合って「変更」が効かなくなるので採らない。
+                // キーボードの上に閉じる手段を置き、スクロールでも下がるようにする
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button {
+                        newTagFocused = false
+                    } label: {
+                        // 文字より、下向きにしまう動きがそのまま分かる絵にする
+                        Image(systemName: "keyboard.chevron.compact.down")
+                    }
+                    .accessibilityLabel(Text("action.done"))
+                }
                 ToolbarItem(placement: .topBarLeading) {
                     // 下向き矢印はシートを下へ閉じる操作と向きが一致する。
                     // 文字を省けるぶん、タイトルとタグに幅を回せる
@@ -187,9 +188,9 @@ struct SymptomPickerSheet: View {
                     title: item.title,
                     color: .accentColor,
                     isSelected: selectedIDs.contains(item.id),
-                    // プリセットも含めて長押しで名前を直せる。
+                    // プリセットもユーザー追加も、長押しで同じ編集欄に載せる。
                     // 削除は用意しない（過去の記録が名前を参照しているため）
-                    onLongPress: { editingTag = EditingTag(id: item.id, name: item.title) }
+                    onLongPress: { beginEditing(id: item.id, title: item.title) }
                 ) {
                     onSelect(item.id)
                     // 症状は1件だけなので選んだら閉じる。
@@ -247,22 +248,34 @@ struct SymptomPickerSheet: View {
         newTagName.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private var symptomGroups: [(category: SymptomCategory, entries: [SymptomCatalogEntry])] {
-        SymptomCatalog.groupedByCategory
-    }
+    /// 一覧に出す項目。辞書とユーザー追加をひとつのマスタとして扱い、
+    /// 直近に使った順で並べる（未使用は辞書の登録順、ユーザー追加はその後）。
+    /// 症状・対処で同じ規則にする
+    private var pickerItems: [(id: String, title: String)] {
+        let list = kind == .symptom ? settings.symptomTags : settings.medicineTags
+        let catalogIDs: [String] = kind == .symptom
+            ? SymptomCatalog.visibleIDs
+            : MedicineCatalog.all.map(\.id)
 
-    /// 対処の一覧。辞書とユーザー追加をまとめ、直近に使った順に並べる。
-    /// 使っていないものは辞書の登録順（よく使うものが前に来るよう並べてある）
-    private var remedyItems: [(id: String, title: String)] {
-        let list = settings.medicineTags
         // 辞書の登録順を覚えておき、未使用タグの並びに使う
         let catalogOrder = Dictionary(
-            uniqueKeysWithValues: MedicineCatalog.all.enumerated().map { ($1.id, $0) }
+            uniqueKeysWithValues: catalogIDs.enumerated().map { ($1, $0) }
         )
-        var ids = MedicineCatalog.all.map(\.id)
-        // 辞書に無いユーザー追加分を足す
+        var ids = catalogIDs
+        // 辞書に無いユーザー追加分を足す（一度でも使ったものは必ず見えるようにする）。
+        //
+        // ただし「辞書から消えた ID」は出さない。自分で名前を付けたタグは
+        // customName を持つので出せるが、プリセットだった ID は名前の引き先が
+        // 無くなっており、そのまま並べると "hayFever" のような生の ID が見えてしまう
+        let known = Set(ids)
         ids += list.orderedIncludingHidden
-            .filter { $0.isUserDefined }
+            .filter { tag in
+                guard !known.contains(tag.id) else { return false }
+                if !tag.customName.isEmpty { return true }
+                return kind == .symptom
+                    ? SymptomCatalog.entry(for: tag.id) != nil
+                    : MedicineCatalog.entry(for: tag.id) != nil
+            }
             .map(\.id)
 
         return ids
@@ -279,22 +292,59 @@ struct SymptomPickerSheet: View {
                 }
             }
             .map { id in
-                // 上書き名があればそれを優先する（プリセットも名前を直せるため）。
-                // タグリストに無い項目は辞書の名前を使う
-                let name = list.tag(for: id)?.medicineDisplayName
-                    ?? MedicineCatalog.entry(for: id)?.localizedName
-                    ?? id
+                let tag = list.tag(for: id)
+                let name = kind == .symptom
+                    ? (tag?.symptomDisplayName
+                        ?? SymptomCatalog.entry(for: id)?.localizedName ?? id)
+                    : (tag?.medicineDisplayName
+                        ?? MedicineCatalog.entry(for: id)?.localizedName ?? id)
                 return (id, name)
             }
     }
 
-    private var userDefinedTags: [SymptomTag] {
-        let list = kind == .symptom ? settings.symptomTags : settings.medicineTags
-        // 非表示にしたものもここには出す。選び直せば markUsed で表示へ戻る
-        return list.orderedIncludingHidden.filter(\.isUserDefined)
+    // MARK: - ユーザー追加
+
+    // MARK: 追加・編集
+
+    /// 長押しされたタグを編集欄に載せる。プリセットとユーザー追加を区別しない
+    private func beginEditing(id: String, title: String) {
+        editingTagID = id
+        newTagName = title
+        newTagFocused = true
     }
 
-    // MARK: - ユーザー追加
+    private func endEditing() {
+        editingTagID = nil
+        newTagName = ""
+        newTagFocused = false
+    }
+
+    /// 「追加」または「変更」。編集中かどうかで動きを振り分ける
+    private func commitTag() {
+        if let editingTagID {
+            updateTag(id: editingTagID)
+        } else {
+            addUserDefinedTag()
+        }
+    }
+
+    /// 既存タグの名前と分類を書き換える。プリセットも同じ経路で直せる
+    private func updateTag(id: String) {
+        let name = trimmedNewTagName
+        guard !name.isEmpty else { return }
+
+        switch kind {
+        case .symptom:
+            var list = settings.symptomTags
+            list.upsertName(id: id, to: name)
+            settings.symptomTags = list
+        case .medicine:
+            var list = settings.medicineTags
+            list.upsertName(id: id, to: name)
+            settings.medicineTags = list
+        }
+        endEditing()
+    }
 
     private func addUserDefinedTag() {
         let name = trimmedNewTagName

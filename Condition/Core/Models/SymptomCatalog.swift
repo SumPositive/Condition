@@ -8,55 +8,24 @@
 import Foundation
 import SwiftUI
 
-// MARK: - 分類
+// MARK: - 色
 
-enum SymptomCategory: String, CaseIterable, Codable, Identifiable {
-    case head            // 頭・神経
-    case systemic        // 全身
-    case digestive       // 消化器
-    case respiratory     // 呼吸器・耳鼻
-    case musculoskeletal // 筋・骨格
-    case circulatory     // 循環器
-    case skin            // 皮膚
-    case eye             // 眼
-    case oral            // 口腔
-    case mental          // 精神
-    case womens          // 女性
+/// タグの色を ID から決める。
+/// 分類ごとの色分けをやめたので、代わりに ID のハッシュで安定して割り当てる。
+/// 名前を変えても色は変わらない（ID は変わらないため）
+enum SymptomPalette {
+    /// 記録一覧の背景にも敷くので、濃さの近い色をそろえる
+    static let colorKeys = [
+        "purple", "orange", "brown", "cyan", "teal",
+        "red", "pink", "indigo", "blue", "green",
+    ]
 
-    var id: String { rawValue }
-
-    var labelKey: String { "symptom.category.\(rawValue)" }
-
-    var icon: String {
-        switch self {
-        case .head:            return "brain.head.profile"
-        case .systemic:        return "figure.stand"
-        case .digestive:       return "fork.knife"
-        case .respiratory:     return "lungs.fill"
-        case .musculoskeletal: return "figure.walk"
-        case .circulatory:     return "heart.fill"
-        case .skin:            return "hand.raised.fill"
-        case .eye:             return "eye.fill"
-        case .oral:            return "mouth.fill"
-        case .mental:          return "cloud.rain.fill"
-        case .womens:          return "figure.dress.line.vertical.figure"
-        }
-    }
-
-    var colorKey: String {
-        switch self {
-        case .head:            return "purple"
-        case .systemic:        return "orange"
-        case .digestive:       return "brown"
-        case .respiratory:     return "cyan"
-        case .musculoskeletal: return "teal"
-        case .circulatory:     return "red"
-        case .skin:            return "pink"
-        case .eye:             return "indigo"
-        case .oral:            return "blue"
-        case .mental:          return "gray"
-        case .womens:          return "pink"
-        }
+    static func colorKey(for id: String) -> String {
+        guard !id.isEmpty else { return "gray" }
+        // hashValue は起動ごとに変わるので使えない（色が毎回変わってしまう）。
+        // バイト列の総和なら同じ ID から必ず同じ色になる
+        let sum = id.utf8.reduce(0) { $0 + Int($1) }
+        return colorKeys[sum % colorKeys.count]
     }
 }
 
@@ -65,13 +34,14 @@ enum SymptomCategory: String, CaseIterable, Codable, Identifiable {
 struct SymptomCatalogEntry: Identifiable, Equatable {
     /// レコードへ保存する安定キー（slug）
     let id: String
-    let category: SymptomCategory
     /// HealthKit の HKCategoryTypeIdentifier 名。空ならアプリ内のみで扱う。
     /// 実際の書き出しはフェーズ6。識別子の綴りと利用可否は実装時に SDK で要確認。
     let healthKitIdentifier: String
 
     var labelKey: String { "symptom.name.\(id)" }
-    var colorKey: String { category.colorKey }
+    /// タグの色。分類を廃したので、ID から安定した色を割り当てる。
+    /// 同じ症状はいつでも同じ色になり、ユーザー追加分も同じ規則で色が付く
+    var colorKey: String { SymptomPalette.colorKey(for: id) }
 
     /// 現在の言語での表示名
     var localizedName: String { NSLocalizedString(labelKey, comment: "") }
@@ -81,64 +51,26 @@ struct SymptomCatalogEntry: Identifiable, Equatable {
 
 enum SymptomCatalog {
 
+    /// 既定で一覧に出す症状。
+    ///
+    /// 個人が実際に記録する症状は限られているので、最初から並べるのは10件だけにする。
+    /// 多すぎると目的の症状を探すほうが手間になり、ユーザー追加の邪魔にもなる。
+    /// 並びは日本の有訴者率（肩こり・腰痛が男女とも上位）と、
+    /// 体調記録アプリで扱う中心（頭痛・倦怠感・めまい）を踏まえた順。
+    ///
+    /// 足りないものはユーザーが名前を打って追加する。辞書に無い症状も
+    /// 同じマスタ（症状タグリスト）に入り、プリセットと区別なく扱われる
     static let all: [SymptomCatalogEntry] = [
-        // 頭・神経
-        .init(id: "headache",            category: .head, healthKitIdentifier: "headache"),
-        .init(id: "dizziness",           category: .head, healthKitIdentifier: "dizziness"),
-        .init(id: "lightheadedness",     category: .head, healthKitIdentifier: ""),
-        .init(id: "numbness",            category: .head, healthKitIdentifier: ""),
-        .init(id: "scintillatingScotoma", category: .head, healthKitIdentifier: ""),
-        .init(id: "insomnia",            category: .head, healthKitIdentifier: "sleepChanges"),
-        .init(id: "drowsiness",          category: .head, healthKitIdentifier: "sleepChanges"),
-        // 全身
-        .init(id: "fever",               category: .systemic, healthKitIdentifier: "fever"),
-        .init(id: "fatigue",             category: .systemic, healthKitIdentifier: "fatigue"),
-        .init(id: "chills",              category: .systemic, healthKitIdentifier: "chills"),
-        .init(id: "nightSweats",         category: .systemic, healthKitIdentifier: "nightSweats"),
-        .init(id: "edema",               category: .systemic, healthKitIdentifier: ""),
-        .init(id: "coldSensitivity",     category: .systemic, healthKitIdentifier: ""),
-        // 消化器
-        .init(id: "abdominalPain",       category: .digestive, healthKitIdentifier: "abdominalCramps"),
-        .init(id: "nausea",              category: .digestive, healthKitIdentifier: "nausea"),
-        .init(id: "diarrhea",            category: .digestive, healthKitIdentifier: "diarrhea"),
-        .init(id: "constipation",        category: .digestive, healthKitIdentifier: "constipation"),
-        .init(id: "heartburn",           category: .digestive, healthKitIdentifier: "heartburn"),
-        .init(id: "bloating",            category: .digestive, healthKitIdentifier: "bloating"),
-        .init(id: "appetiteLoss",        category: .digestive, healthKitIdentifier: ""),
-        // 呼吸器・耳鼻
-        .init(id: "cough",               category: .respiratory, healthKitIdentifier: "coughing"),
-        .init(id: "phlegm",              category: .respiratory, healthKitIdentifier: ""),
-        .init(id: "runnyNose",           category: .respiratory, healthKitIdentifier: "runnyNose"),
-        .init(id: "soreThroat",          category: .respiratory, healthKitIdentifier: "soreThroat"),
-        .init(id: "shortnessOfBreath",   category: .respiratory, healthKitIdentifier: "shortnessOfBreath"),
-        .init(id: "hayFever",            category: .respiratory, healthKitIdentifier: ""),
-        .init(id: "tinnitus",            category: .respiratory, healthKitIdentifier: ""),
-        .init(id: "earFullness",         category: .respiratory, healthKitIdentifier: ""),
-        // 筋・骨格
-        .init(id: "backPain",            category: .musculoskeletal, healthKitIdentifier: "lowerBackPain"),
-        .init(id: "stiffShoulder",       category: .musculoskeletal, healthKitIdentifier: ""),
-        .init(id: "neckPain",            category: .musculoskeletal, healthKitIdentifier: ""),
-        .init(id: "jointPain",           category: .musculoskeletal, healthKitIdentifier: ""),
-        .init(id: "musclePain",          category: .musculoskeletal, healthKitIdentifier: "generalizedBodyAche"),
-        // 循環器
-        .init(id: "palpitations",        category: .circulatory, healthKitIdentifier: "rapidPoundingOrFlutteringHeartbeat"),
-        .init(id: "chestPain",           category: .circulatory, healthKitIdentifier: "chestTightnessOrPain"),
-        // 皮膚
-        .init(id: "itching",             category: .skin, healthKitIdentifier: ""),
-        .init(id: "rash",                category: .skin, healthKitIdentifier: ""),
-        // 眼
-        .init(id: "eyeStrain",           category: .eye, healthKitIdentifier: ""),
-        .init(id: "blurredVision",       category: .eye, healthKitIdentifier: ""),
-        .init(id: "floaters",            category: .eye, healthKitIdentifier: ""),
-        // 口腔
-        .init(id: "toothache",           category: .oral, healthKitIdentifier: ""),
-        .init(id: "dryMouth",            category: .oral, healthKitIdentifier: ""),
-        // 精神
-        .init(id: "lowMood",             category: .mental, healthKitIdentifier: "moodChanges"),
-        .init(id: "anxiety",             category: .mental, healthKitIdentifier: ""),
-        .init(id: "irritability",        category: .mental, healthKitIdentifier: ""),
-        // 女性
-        .init(id: "menstrualPain",       category: .womens, healthKitIdentifier: "pelvicPain"),
+        .init(id: "stiffShoulder",  healthKitIdentifier: ""),
+        .init(id: "backPain",       healthKitIdentifier: ""),
+        .init(id: "headache",       healthKitIdentifier: "headache"),
+        .init(id: "fatigue",        healthKitIdentifier: "fatigue"),
+        .init(id: "dizziness",      healthKitIdentifier: "dizziness"),
+        .init(id: "abdominalPain",  healthKitIdentifier: "abdominalCramps"),
+        .init(id: "runnyNose",      healthKitIdentifier: "runnyNose"),
+        .init(id: "cough",          healthKitIdentifier: "coughing"),
+        .init(id: "fever",          healthKitIdentifier: "fever"),
+        .init(id: "insomnia",       healthKitIdentifier: "sleepChanges"),
     ]
 
     private static let byID: [String: SymptomCatalogEntry] = Dictionary(
@@ -162,20 +94,12 @@ enum SymptomCatalog {
             .compactMap { entry(for: $0) }
     }
 
-    /// 分類ごとにまとめた辞書（辞書シートの表示順）
-    static var groupedByCategory: [(category: SymptomCategory, entries: [SymptomCatalogEntry])] {
-        SymptomCategory.allCases.compactMap { category in
-            let entries = all.filter { $0.category == category }
-            return entries.isEmpty ? nil : (category: category, entries: entries)
-        }
-    }
+    /// 一覧に出す順。辞書がそのまま表示対象になる
+    static let visibleIDs: [String] = all.map(\.id)
 
     /// 初回起動時に症状タグリストへ入れておく既定の症状。
-    /// 空のリストで始めると記録画面に何も出ず、最初の1件が記録できないため。
-    static let defaultTagIDs: [String] = [
-        "headache", "abdominalPain", "fever", "fatigue",
-        "dizziness", "cough", "runnyNose", "backPain",
-    ]
+    /// 空のリストで始めると記録画面に何も出ず、最初の1件が記録できないため
+    static let defaultTagIDs: [String] = visibleIDs
 }
 
 // MARK: - 薬辞書

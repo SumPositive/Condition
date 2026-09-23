@@ -58,20 +58,28 @@ extension SymptomTag {
     var symptomDisplayName: String {
         if !customName.isEmpty { return customName }
         if let entry = SymptomCatalog.entry(for: id) { return entry.localizedName }
-        return id
+        return Self.fallbackName(for: id)
     }
 
     /// 薬としての表示名
     var medicineDisplayName: String {
         if !customName.isEmpty { return customName }
         if let entry = MedicineCatalog.entry(for: id) { return entry.localizedName }
-        return id
+        return Self.fallbackName(for: id)
+    }
+
+    /// 名前の引き先が無いときの表示。
+    /// 辞書から外した項目を使った古い記録が残っていると、
+    /// そのままでは "hayFever" のような内部 ID が画面に出てしまう。
+    /// ID を読ませても意味が無いので、汎用の文言に置き換える
+    static func fallbackName(for _: String) -> String {
+        String(localized: "symptom.name.unknown")
     }
 
     var symptomColor: Color {
-        let key = colorKey.isEmpty
-            ? (SymptomCatalog.entry(for: id)?.colorKey ?? "gray")
-            : colorKey
+        // 辞書もユーザー追加も同じ規則（ID から決まる色）にする。
+        // これでプリセットと自作の見た目に差が出ない
+        let key = colorKey.isEmpty ? SymptomPalette.colorKey(for: id) : colorKey
         return DateOptColorOption.color(for: key)
     }
 }
@@ -134,6 +142,13 @@ struct SymptomTagList: Codable, Equatable {
         tags.append(SymptomTag(id: id, customName: Self.limitedName(customName)))
     }
 
+    /// 名前を変える。一覧に無いプリセットは先に登録してから書き込む。
+    /// rename と違い、プリセットでも確実に保存されるようにしたもの
+    mutating func upsertName(id: String, to name: String) {
+        if !contains(id) { add(id: id) }
+        rename(id: id, to: name)
+    }
+
     /// タグ名を切り詰める。追加とリネームで同じ規則にする
     static func limitedName(_ name: String) -> String {
         String(
@@ -166,6 +181,16 @@ struct SymptomTagList: Codable, Equatable {
     mutating func remove(id: String) {
         guard let index = tags.firstIndex(where: { $0.id == id }) else { return }
         tags[index].isHidden = true
+    }
+
+    /// 辞書から外れて名前を引けなくなったタグを捨てる。
+    /// 自分で名前を付けたもの（customName あり）は辞書に頼らず表示できるので残す。
+    /// - Returns: 1件でも消したか
+    @discardableResult
+    mutating func dropOrphans(isKnown: (String) -> Bool) -> Bool {
+        let before = tags.count
+        tags.removeAll { !$0.customName.isEmpty ? false : !isKnown($0.id) }
+        return tags.count != before
     }
 
     /// どの記録からも参照されていないユーザー追加タグだけを本当に消す。

@@ -19,14 +19,26 @@ enum SymptomTagMigration {
     /// 版を上げれば再度走る
     private static let doneVersionKey = "UDEF_SymptomTagDedupeVersion"
     /// 辞書の内容を変えたら上げる
-    private static let catalogVersion = 2
+    private static let catalogVersion = 3
 
     static func runIfNeeded(context: ModelContext, settings: AppSettings = .shared) {
         let done = UserDefaults.standard.integer(forKey: doneVersionKey)
         guard done < catalogVersion else { return }
         defer { UserDefaults.standard.set(catalogVersion, forKey: doneVersionKey) }
 
+        // 辞書から外した項目のタグを片付ける。
+        // 名前の引き先が無くなっており、残すと一覧に生の ID が出てしまう。
+        // 自分で名前を付けたタグ（customName あり）は引き先が要らないので残す
         var symptomTags = settings.symptomTags
+        if symptomTags.dropOrphans(isKnown: { SymptomCatalog.entry(for: $0) != nil }) {
+            settings.symptomTags = symptomTags
+        }
+        var cleanedMedicine = settings.medicineTags
+        if cleanedMedicine.dropOrphans(isKnown: { MedicineCatalog.entry(for: $0) != nil }) {
+            settings.medicineTags = cleanedMedicine
+        }
+
+        symptomTags = settings.symptomTags
         let symptomReplacements = symptomTags.mergeDuplicatesIntoCatalog {
             SymptomCatalog.matchingID(forName: $0)
         }
