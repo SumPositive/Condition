@@ -163,6 +163,9 @@ struct RecordListView: View {
                             systemImage: "square.and.arrow.up",
                             captionKey: "records.toolbar.export"
                         )
+                        // 他のツールバーボタンと同じアクセント色にそろえる。
+                        // 記録が無いときは disabled の灰色を活かしたいので、そのときだけ既定に戻す
+                        .foregroundStyle(records.isEmpty ? AnyShapeStyle(.tertiary) : AnyShapeStyle(Color.blue))
                     }
                     .disabled(records.isEmpty)
                     categoryFilterMenu
@@ -441,16 +444,21 @@ struct RecordListView: View {
                 .contentShape(Rectangle())
                 .onTapGesture { editTarget = record }
         case .symptom(let record):
-            SymptomRowView(record: record) { finishSymptom(record) }
+            SymptomRowView(record: record) { finished in
+                setSymptomOngoing(record, finished: finished)
+            }
                 .contentShape(Rectangle())
                 .onTapGesture { symptomEditTarget = record }
         }
     }
 
-    /// 継続中の症状を「いま」で終了させる。一覧から1タップで閉じられるようにする
-    private func finishSymptom(_ record: SymptomRecord) {
-        record.bOngoing = false
-        record.endAt = Date()
+    /// 一覧から継続／終息を切り替える。
+    /// finished が true なら「いま」で終息、false なら継続中へ戻す
+    private func setSymptomOngoing(_ record: SymptomRecord, finished: Bool) {
+        record.bOngoing = !finished
+        // 継続へ戻すときは終了時刻を消す。残したままだと needsEnding が false のままで
+        // 見た目が終息のままになり、持続時間も止まった値で出てしまう
+        record.endAt = finished ? Date() : nil
         if record.dataSource == .appInput { record.dataSource = .appModified }
         do {
             try context.save()

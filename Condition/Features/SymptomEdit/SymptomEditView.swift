@@ -27,9 +27,6 @@ struct SymptomEditView: View {
 
     private var settings: AppSettings { AppSettings.shared }
 
-    /// 記録画面のタグ行に出す件数
-    private static let visibleTagCount = 8
-
     init(mode: SymptomEditViewModel.Mode, onModifiedChanged: ((Bool) -> Void)? = nil) {
         self.mode = mode
         self.onModifiedChanged = onModifiedChanged
@@ -41,9 +38,12 @@ struct SymptomEditView: View {
             Form {
                 dateSection
                 symptomSection
-                medicineSection
                 noteSection
             }
+            // メモを打ったあと下へスクロールしたらキーボードを引き下げる。
+            // 複数行入力なので、指の動きに追従する .interactively にする
+            // （測定シートのメモ欄と同じ扱い）
+            .scrollDismissesKeyboard(.interactively)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
@@ -99,7 +99,8 @@ struct SymptomEditView: View {
                     selectedIDs: Set(vm.medicineIDs)
                 ) { id in
                     addToTagList(id: id, kind: .medicine)
-                    vm.addMedicine(id)
+                    // シートが唯一の選択場所になったので、もう一度押したら外せるようにする
+                    vm.toggleMedicine(id)
                 }
             }
             .sheet(isPresented: $showStartPicker) {
@@ -200,21 +201,21 @@ struct SymptomEditView: View {
         return f
     }()
 
-    // MARK: - 症状
+    // MARK: - 症状・程度・対処
 
+    /// 症状とその程度、とった対処は一続きの入力なので1つのセクションに収める。
+    /// 見出しは行のラベルと同じ語になってしまうため置かない
     private var symptomSection: some View {
         Section {
-            SymptomTagRow(
-                tags: symptomTags,
-                kind: .symptom,
-                selectedIDs: vm.symptomID.isEmpty ? [] : [vm.symptomID],
-                onTap: { id in
-                    // 1レコード1症状。選び直しはできるが複数は持てない
-                    vm.symptomID = (vm.symptomID == id) ? "" : id
-                },
-                onAdd: { showSymptomPicker = true }
-            )
-            .padding(.vertical, 2)
+            // 選択済みのものだけを出し、選び直しはシートで行う。
+            // 記録画面にも候補を並べると、シートと二段構えになって
+            // 「どちらで選ぶのか」が分かりにくかった
+            selectionRow(
+                title: "symptom.section.symptom",
+                chips: selectedSymptomChips
+            ) {
+                showSymptomPicker = true
+            }
 
             // 程度は症状に付く値なので同じセクションに置く。
             // 既定の minOptionWidth(96) は4択だと折り返すが、実際に要る幅は
@@ -234,44 +235,75 @@ struct SymptomEditView: View {
             } label: { level in
                 Text(LocalizedStringKey(level.labelKey))
             }
-        } header: {
-            Text("symptom.section.symptom")
+
+            selectionRow(
+                title: "symptom.section.remedy",
+                chips: selectedMedicineChips
+            ) {
+                showMedicinePicker = true
+            }
         }
     }
 
-    /// MRU 上位。編集中の症状がリスト外にあるときは先頭に足して必ず見えるようにする
-    private var symptomTags: [SymptomTag] {
-        var tags = settings.symptomTags.frequentlyUsed(limit: Self.visibleTagCount)
-        if !vm.symptomID.isEmpty, !tags.contains(where: { $0.id == vm.symptomID }) {
-            let selected = settings.symptomTags.tag(for: vm.symptomID) ?? SymptomTag(id: vm.symptomID)
-            tags.insert(selected, at: 0)
-        }
-        return tags
+    /// 選択中の症状。1件だけなので0個か1個になる
+    private var selectedSymptomChips: [(id: String, title: String, color: Color)] {
+        guard !vm.symptomID.isEmpty else { return [] }
+        let tag = settings.symptomTags.tag(for: vm.symptomID) ?? SymptomTag(id: vm.symptomID)
+        return [(tag.id, tag.symptomDisplayName, tag.symptomColor)]
     }
 
-    // MARK: - 薬
-
-    private var medicineSection: some View {
-        Section {
-            SymptomTagRow(
-                tags: medicineTags,
-                kind: .medicine,
-                selectedIDs: Set(vm.medicineIDs),
-                onTap: { vm.toggleMedicine($0) },
-                onAdd: { showMedicinePicker = true }
-            )
-            .padding(.vertical, 2)
-        } header: {
-            Text("symptom.section.remedy")
+    /// 選択中の対処。記録に入っている順（選んだ順）で出す
+    private var selectedMedicineChips: [(id: String, title: String, color: Color)] {
+        vm.medicineIDs.map { id in
+            let tag = settings.medicineTags.tag(for: id) ?? SymptomTag(id: id)
+            return (id, tag.medicineDisplayName, Color.accentColor)
         }
     }
 
-    private var medicineTags: [SymptomTag] {
-        var tags = settings.medicineTags.frequentlyUsed(limit: Self.visibleTagCount)
-        for id in vm.medicineIDs where !tags.contains(where: { $0.id == id }) {
-            tags.insert(settings.medicineTags.tag(for: id) ?? SymptomTag(id: id), at: 0)
+    // MARK: - 選択行
+
+    /// 「見出し ＋ 選択済みのタグ ＋ ＞」の1セル。タップでシートを開く。
+    /// タグは表示専用（解除もシート側で行う）なので、セル全体を1つのボタンにする
+    private func selectionRow(
+        title: LocalizedStringKey,
+        chips: [(id: String, title: String, color: Color)],
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(alignment: .center, spacing: 8) {
+                Text(title)
+                    .foregroundStyle(Color.primary)
+                    .fixedSize(horizontal: true, vertical: false)
+                Spacer(minLength: 4)
+                if chips.isEmpty {
+                    Text("symptom.select.empty")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                } else {
+                    // 選択済みは右寄せで折り返す。多いと縦に伸びるが、
+                    // 省略するより「何を選んだか」が分かるほうを優先する
+                    FlowLayout(spacing: 6, alignment: .trailing) {
+                        ForEach(chips, id: \.id) { chip in
+                            Text(chip.title)
+                                .lineLimit(1)
+                                .font(.callout.weight(.semibold))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(chip.color)
+                                .foregroundStyle(.white)
+                                .clipShape(Capsule())
+                        }
+                    }
+                }
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .contentShape(Rectangle())
         }
-        return tags
+        .buttonStyle(.plain)
+        .padding(.vertical, 2)
+        .azFullWidthRow()
     }
 
     // MARK: - メモ
@@ -280,6 +312,11 @@ struct SymptomEditView: View {
         Section {
             AZMemoEditor(
                 placeholder: "symptom.note.placeholder",
+                // 上限は定数から埋める（文言と実装がずれないようにする）
+                placeholderText: String(
+                    format: String(localized: "symptom.note.placeholder"),
+                    SymptomLimits.noteMaxLength
+                ),
                 text: Binding(
                     get: { vm.note },
                     // 保存時に黙って切ると打った文と違うものが残るので、入力の時点で止める
@@ -317,24 +354,21 @@ struct SymptomEditView: View {
                 compact: true,
                 tight: true
             )
-            Button {
-                showEnvironmentSheet = true
-            } label: {
-                HStack {
-                    Spacer(minLength: 4)
-                    Text(environmentSummary)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                    Image(systemName: "chevron.right")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.tertiary)
-                }
-                // 余白部分もタップで開けるようにする
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
+            Spacer(minLength: 4)
+            Text(environmentSummary)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.tertiary)
         }
+        // ラベルや余白を含めた行全体で開けるようにする。
+        // Button で包まず onTapGesture にするのは、中にある (?) の
+        // タップを親へ吸わせないため（Button なら (?) が先に受け取る）
+        .contentShape(Rectangle())
+        .onTapGesture { showEnvironmentSheet = true }
+        .azFullWidthRow()
     }
 
     /// ボタンに出す要約。未入力なら促す文言にする

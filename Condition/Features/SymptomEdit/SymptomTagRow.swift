@@ -1,5 +1,6 @@
 // SymptomTagRow.swift
-// 症状・薬のタグ行（MRU 上位 n 件＋「＋」で全件シート）と、辞書から選ぶシート
+// 症状・対処の選択で使う部品（タグの見た目と折り返しレイアウト）。
+// 選択そのものは SymptomPickerSheet が担い、記録画面には選択済みだけを出す
 
 import SwiftUI
 
@@ -59,46 +60,6 @@ struct SymptomTagChip: View {
     }
 }
 
-// MARK: - タグ行
-
-/// 記録画面に出すタグ行。MRU 上位 `limit` 件を並べ、末尾の「＋」で辞書シートを開く
-struct SymptomTagRow: View {
-    let tags: [SymptomTag]
-    let kind: SymptomTagKind
-    /// 選択中の ID（症状は1件、薬は複数）
-    let selectedIDs: Set<String>
-    let onTap: (String) -> Void
-    let onAdd: () -> Void
-
-    /// 折り返しで並べる（タグ名の長さが言語で大きく変わるため固定列にしない）
-    var body: some View {
-        FlowLayout(spacing: 8) {
-            ForEach(tags) { tag in
-                SymptomTagChip(
-                    title: kind == .symptom ? tag.symptomDisplayName : tag.medicineDisplayName,
-                    color: kind == .symptom ? tag.symptomColor : .accentColor,
-                    isSelected: selectedIDs.contains(tag.id)
-                ) {
-                    onTap(tag.id)
-                }
-            }
-            Button(action: onAdd) {
-                Image(systemName: "plus")
-                    .font(.callout.weight(.semibold))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    // 他のタグと違い「選ぶ」ではなく「開く」操作なので、
-                    // 淡い塗り＋アクセント色で区別する
-                    .foregroundStyle(Color.accentColor)
-                    .background(Color.accentColor.opacity(0.14))
-                    .clipShape(Capsule())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(Text(kind == .symptom ? "symptom.picker.title" : "remedy.picker.title"))
-        }
-    }
-}
-
 enum SymptomTagKind {
     case symptom
     case medicine
@@ -110,6 +71,8 @@ enum SymptomTagKind {
 /// タグ名の長さは言語で大きく変わるので、固定の列数では破綻する
 struct FlowLayout: Layout {
     var spacing: CGFloat = 8
+    /// 行内の寄せ方。選択済みタグを右の「＞」に揃えたい場面で .trailing を使う
+    var alignment: HorizontalAlignment = .leading
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let maxWidth = proposal.width ?? .infinity
@@ -126,7 +89,10 @@ struct FlowLayout: Layout {
         let rows = arrange(subviews: subviews, maxWidth: bounds.width)
         var y = bounds.minY
         for row in rows {
-            var x = bounds.minX
+            // 右寄せのときは、その行の余りぶんだけ開始位置をずらす
+            var x = alignment == .trailing
+                ? bounds.maxX - row.width
+                : bounds.minX
             for index in row.indices {
                 let size = subviews[index].sizeThatFits(.unspecified)
                 subviews[index].place(
@@ -165,5 +131,18 @@ struct FlowLayout: Layout {
         }
         if !current.indices.isEmpty { rows.append(current) }
         return rows
+    }
+}
+
+// MARK: - 行の当たり判定
+
+extension View {
+    /// Form のセル全体をタップ領域にする。
+    /// 既定の行インセットを消して自分で余白を持ち、行いっぱいに広がるようにしないと、
+    /// 中身の幅までしか反応せず「ラベルを押しても開かない」状態になる
+    func azFullWidthRow() -> some View {
+        frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
     }
 }

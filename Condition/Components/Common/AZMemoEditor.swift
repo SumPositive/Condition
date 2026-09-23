@@ -31,6 +31,10 @@ private extension DynamicTypeSize {
 /// SPM化を見据えた、Dynamic Type対応の自動伸縮メモ入力欄
 struct AZMemoEditor: View {
     let placeholder: LocalizedStringKey
+    /// 文字数上限のように値を埋めた文言を出したいときに使う。
+    /// LocalizedStringKey へ補間するとキー名自体が変わってしまうため、
+    /// 呼び出し側で組み立てた文字列をそのまま受け取る
+    var placeholderText: String? = nil
     @Binding var text: String
     @FocusState.Binding var isFocused: Bool
     var minHeight: CGFloat = 36
@@ -44,7 +48,13 @@ struct AZMemoEditor: View {
     var body: some View {
         ZStack(alignment: .topLeading) {
             if text.isEmpty {
-                Text(placeholder)
+                Group {
+                    if let placeholderText {
+                        Text(placeholderText)
+                    } else {
+                        Text(placeholder)
+                    }
+                }
                     .foregroundStyle(Color(.placeholderText))
                     .padding(.top, 8)
                     .padding(.leading, 5)

@@ -7,8 +7,13 @@ struct SymptomPickerSheet: View {
     let kind: SymptomTagKind
     /// 選択済みの ID。タグの見た目に反映する（症状は1件、薬は記録側で複数持てる）
     let selectedIDs: Set<String>
-    /// 選択された ID を返す。タグリストへの追加は呼び出し側で行う
+    /// タップされた ID を返す。タグリストへの追加は呼び出し側で行う。
+    /// 対処は選択/解除のトグルとして呼ばれる
     let onSelect: (String) -> Void
+
+    /// 症状は1件だけなので選んだ時点で閉じる。
+    /// 対処は複数選べるので、続けて選べるよう開いたままにする
+    private var closesOnSelect: Bool { kind == .symptom }
 
     @Environment(\.dismiss) private var dismiss
     @State private var newTagName = ""
@@ -125,11 +130,19 @@ struct SymptomPickerSheet: View {
                 .listStyle(.insetGrouped)
                 // 背景はシート全体で1枚にしたいので List 自身の背景は消す
                 .scrollContentBackground(.hidden)
+                // タグを選ぼうとスクロールしたらキーボードを引き下げる。
+                // 名前を打ったあと一覧を見たい場面が多く、いちいち閉じるのが手間になる
+                .scrollDismissesKeyboard(.immediately)
             }
+            // 入力欄の外を叩いたらフォーカスを外す。
+            // タグやボタンは自分のジェスチャを先に処理するので、ここには届かない
+            .contentShape(Rectangle())
+            .onTapGesture { newTagFocused = false }
             .sheet(item: $editingTag) { target in
                 TagEditSheet(kind: kind, tagID: target.id)
             }
-            .navigationTitle(kind == .symptom ? "symptom.edit.title" : "symptom.section.remedy")
+            // 選択はこのシートだけで行うので、タイトルも「選ぶ」と言い切る
+            .navigationTitle(kind == .symptom ? "symptom.picker.title" : "remedy.picker.title")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -142,10 +155,22 @@ struct SymptomPickerSheet: View {
                     }
                     .accessibilityLabel(Text("action.close"))
                 }
+                if !closesOnSelect {
+                    // 複数選ぶシートは自動で閉じないので、終わりを示すボタンを置く。
+                    // 選択はタップした時点で記録へ反映済みなので、ここは閉じるだけ。
+                    // そのため下スワイプやナビの閉じるで抜けても結果は同じになる
+                    // （「完了」を押さないと取り消される、という作りにはしない）
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("action.done") { dismiss() }
+                            .fontWeight(.semibold)
+                    }
+                }
             }
         }
         // ナビゲーションバーの下まで色を回すため、背景はシート側に指定する
         .presentationBackground(sheetBackground)
+        // 症状・対処とも辞書が縦に長いので、最初から全画面で出す
+        .presentationDetents([.large])
         // .sheet では App の dynamicTypeSize が届かないことがあるため明示する
         .azAppFontScale()
     }
@@ -167,9 +192,9 @@ struct SymptomPickerSheet: View {
                     onLongPress: { editingTag = EditingTag(id: item.id, name: item.title) }
                 ) {
                     onSelect(item.id)
-                    // 症状・薬ともタップしたら閉じて反映する。
-                    // 薬の複数選択は記録画面のタグ行で行う
-                    dismiss()
+                    // 症状は1件だけなので選んだら閉じる。
+                    // 対処はここが唯一の選択場所になったので、閉じずに続けて選べるようにする
+                    if closesOnSelect { dismiss() }
                 }
             }
         }
@@ -295,7 +320,7 @@ struct SymptomPickerSheet: View {
         newTagName = ""
         newTagFocused = false
         onSelect(id)
-        dismiss()
+        if closesOnSelect { dismiss() }
     }
 
     /// 入力された名前に対応する既存の ID。辞書とタグリストの両方を見る

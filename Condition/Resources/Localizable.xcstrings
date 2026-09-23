@@ -14807,28 +14807,28 @@
     "symptom.help.ended": {
       "extractionState": "manual",
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Turn this on when you feel the symptom has ended, and record the time. This lets the duration be used in analysis.\n\nYou can save with it off at onset. Once it stops, tap End in the list to fill in the time."
-          }
-        },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "症状が終息したと感じればONにして日時を記録してください。これにより持続時間が分析に利用できます。\n\n発症した時点ではOFFのまま保存できます。治まったあとで、一覧の「終息」を押せばその時刻が入ります。"
+            "value": "症状が終息したと感じればONにして日時を記録してください。これにより持続時間が分析に利用できます。\n\n発症した時点ではOFFのまま保存できます。治まったあとで、一覧にある「砂時計」を押せばその時刻が入ります。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn this on when you feel the symptom has ended, and record the time. This lets the duration be used in analysis.\n\nYou can save with it off at onset. Once it stops, tap the hourglass in the list to fill in the time."
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "증상이 가라앉았다고 느끼면 켜고 일시를 기록해 주세요. 지속 시간을 분석에 활용할 수 있습니다.\n\n발병 시점에는 끈 채로 저장할 수 있습니다. 가라앉은 뒤 목록의 '종식'을 누르면 그 시각이 입력됩니다."
+            "value": "증상이 가라앉았다고 느끼면 켜고 일시를 기록해 주세요. 지속 시간을 분석에 활용할 수 있습니다.\n\n발병 시점에는 끈 채로 저장할 수 있습니다. 가라앉은 뒤 목록에 있는 '모래시계'를 누르면 그 시각이 입력됩니다."
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "當您覺得症狀已結束時請開啟並記錄時間，這樣持續時長便可用於分析。\n\n發作當下可維持關閉直接儲存。結束後於列表點「結束」即可填入該時間。"
+            "value": "當您覺得症狀已結束時請開啟並記錄時間，這樣持續時長便可用於分析。\n\n發作當下可維持關閉直接儲存。結束後點一下列表中的「沙漏」即可填入該時間。"
           }
         }
       }
@@ -16199,28 +16199,28 @@
     "symptom.note.placeholder": {
       "extractionState": "manual",
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "What you noticed"
-          }
-        },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "気づいたこと"
+            "value": "気づいたことなど　最大%d字"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What you noticed (up to %d characters)"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "느낀 점"
+            "value": "느낀 점 등 (최대 %d자)"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "注意到的事"
+            "value": "注意到的事（最多 %d 字）"
           }
         }
       }
@@ -16399,6 +16399,64 @@
         }
       }
     },
+    "symptom.progress.backToOngoing": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "継続中に戻す"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back to ongoing"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "진행 중으로 되돌리기"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "改回持續中"
+          }
+        }
+      }
+    },
+    "symptom.progress.didFinish": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "終息しました"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It has ended"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "종식되었습니다"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已經結束"
+          }
+        }
+      }
+    },
     "symptom.progress.finished": {
       "extractionState": "manual",
       "localizations": {
@@ -16424,6 +16482,35 @@
           "stringUnit": {
             "state": "translated",
             "value": "結束"
+          }
+        }
+      }
+    },
+    "symptom.progress.stillOngoing": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在も継続中です"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Still ongoing"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "현재도 진행 중입니다"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目前仍持續中"
           }
         }
       }
@@ -16656,6 +16743,35 @@
           "stringUnit": {
             "state": "translated",
             "value": "目前僅支援手動輸入。自動取得將於日後更新支援。"
+          }
+        }
+      }
+    },
+    "symptom.select.empty": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未選択"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not selected"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "미선택"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未選擇"
           }
         }
       }
