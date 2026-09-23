@@ -615,11 +615,15 @@ struct SettingsView: View {
                     // バックアップに同梱された区分表示マスタを復元する
                     settings.dateOptAppearances = RecordsJSONIO.normalizedDateOptAppearances(categoryAppearances)
                 }
-                // 症状・薬のタグリスト（表示名と並び順）も復元する
-                if let symptomTags = result.symptomTags {
+                // 症状・薬のタグリスト（表示名と並び順）も復元する。
+                // 取り込む側の数は決められないので、ここで上限に収める。
+                // 最終使用日時の新しい順に残るので、落ちるのは未使用のタグになる
+                if var symptomTags = result.symptomTags {
+                    symptomTags.trimToLimit()
                     settings.symptomTags = symptomTags
                 }
-                if let medicineTags = result.medicineTags {
+                if var medicineTags = result.medicineTags {
+                    medicineTags.trimToLimit()
                     settings.medicineTags = medicineTags
                 }
                 AppAnalytics.shared.logOperation(

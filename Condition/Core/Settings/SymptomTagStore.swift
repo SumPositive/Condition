@@ -136,10 +136,30 @@ struct SymptomTagList: Codable, Equatable {
 
     // MARK: 更新
 
-    /// 辞書から選ばれたタグを追加する。既にあれば何もしない
-    mutating func add(id: String, customName: String = "") {
-        guard !contains(id) else { return }
+    /// これ以上タグを増やせないか。手入力の追加を止める判定に使う
+    var isFull: Bool { tags.count >= SymptomLimits.maxTagsPerList }
+
+    /// 辞書から選ばれたタグを追加する。既にあれば何もしない。
+    /// - Returns: 追加できたか（上限に達していると false）
+    @discardableResult
+    mutating func add(id: String, customName: String = "") -> Bool {
+        guard !contains(id) else { return true }
+        guard !isFull else { return false }
         tags.append(SymptomTag(id: id, customName: Self.limitedName(customName)))
+        return true
+    }
+
+    /// 上限を超えたぶんを捨てる。取り込んだバックアップに大量のタグがあっても、
+    /// アプリが抱える数を一定に保つために使う。
+    ///
+    /// 機械的に先頭から切ると、実際に使っているタグが落ちて過去の記録が
+    /// 名前を引けなくなる。最終使用日時の新しい順に残し、
+    /// 消えるのを未使用のものに寄せる
+    mutating func trimToLimit() {
+        guard tags.count > SymptomLimits.maxTagsPerList else { return }
+        tags = Array(
+            tags.sorted(by: Self.isOrderedBefore).prefix(SymptomLimits.maxTagsPerList)
+        )
     }
 
     /// 名前を変える。一覧に無いプリセットは先に登録してから書き込む。
@@ -170,6 +190,9 @@ struct SymptomTagList: Codable, Equatable {
             tag.lastUsedAt = date
             tag.useCount = 1
             tags.append(tag)
+            // いま使ったものは必ず残したいので、入れてから上限に収める。
+            // 並びは最終使用日時の新しい順なので、落ちるのは未使用のタグになる
+            trimToLimit()
         }
     }
 

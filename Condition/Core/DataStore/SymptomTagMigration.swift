@@ -19,7 +19,7 @@ enum SymptomTagMigration {
     /// 版を上げれば再度走る
     private static let doneVersionKey = "UDEF_SymptomTagDedupeVersion"
     /// 辞書の内容を変えたら上げる
-    private static let catalogVersion = 3
+    private static let catalogVersion = 4
 
     static func runIfNeeded(context: ModelContext, settings: AppSettings = .shared) {
         let done = UserDefaults.standard.integer(forKey: doneVersionKey)

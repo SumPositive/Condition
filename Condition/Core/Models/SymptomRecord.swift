@@ -260,6 +260,11 @@ enum SymptomLimits {
     static let tagNameMaxLength = 20
     /// 1件に付けられる薬の最大数
     static let maxMedicinesPerRecord = 10
+    /// タグリストに持てる最大数（症状・対処それぞれ）。
+    /// 実際に使うのは10〜30個程度だが、整理せず足し続ける使い方でも
+    /// 困らない余裕を取る。UserDefaults に JSON で丸ごと入れて
+    /// 起動のたびに読むので、青天井にはしない
+    static let maxTagsPerList = 100
     /// 気温・湿度・気圧の入力許容範囲（手動入力とインポートの clamp に使う）
     static let tempRange_10c        = (min: -600, max: 600)      // -60.0 〜 60.0 ℃
     static let humidityRange_p      = (min: 0,    max: 100)      // 0 〜 100 %

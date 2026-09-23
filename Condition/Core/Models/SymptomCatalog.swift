@@ -118,36 +118,25 @@ enum MedicineCatalog {
 
     /// 薬と薬以外を混ぜ、よく使うものから並べる
     /// （タグリストは使うほど上に来るので初期順の影響は薄れる）
+    /// 既定で一覧に出す対処。
+    ///
+    /// 症状プリセット（10件）に対して実際に取る手を10件でカバーする。
+    /// 市販薬の主要3系統（解熱鎮痛薬・胃腸薬・抗アレルギー薬）と、
+    /// 薬以外の基本動作、そして「受診した」。
+    /// 商品名（バファリンPM など）はユーザーが足す前提にする。
+    ///
+    /// 「何もしなかった」は未選択と意味が重なるので持たない
     static let all: [MedicineCatalogEntry] = [
-        .init(id: "analgesic"),
-        .init(id: "sleep"),
-        .init(id: "rest"),
-        .init(id: "gastric"),
-        .init(id: "antiallergy"),
-        .init(id: "cooling"),
-        .init(id: "warming"),
-        .init(id: "hydration"),
-        .init(id: "coldRemedy"),
-        .init(id: "antitussive"),
-        .init(id: "topicalAnalgesic"),
-        .init(id: "bath"),
-        .init(id: "meal"),
-        .init(id: "stretch"),
-        .init(id: "darkQuietRoom"),
-        .init(id: "nasalSpray"),
-        .init(id: "eyeDrops"),
-        .init(id: "intestinal"),
-        .init(id: "antidiarrheal"),
-        .init(id: "laxative"),
-        .init(id: "sleepAid"),
-        .init(id: "antiemetic"),
-        .init(id: "kampo"),
-        .init(id: "supplement"),
-        .init(id: "antihypertensive"),
-        .init(id: "clinicVisit"),
-        .init(id: "dayOff"),
-        .init(id: "prescriptionOther"),
-        .init(id: "noAction"),
+        .init(id: "analgesic"),        // 解熱鎮痛薬
+        .init(id: "sleep"),            // 寝た
+        .init(id: "rest"),             // 安静にした
+        .init(id: "warming"),          // 温めた
+        .init(id: "cooling"),          // 冷やした
+        .init(id: "gastric"),          // 胃腸薬
+        .init(id: "antiallergy"),      // 抗アレルギー薬
+        .init(id: "bath"),             // 入浴した
+        .init(id: "stretch"),          // ストレッチ・体操
+        .init(id: "clinicVisit"),      // 受診した
     ]
 
     private static let byID: [String: MedicineCatalogEntry] = Dictionary(
@@ -161,7 +150,8 @@ enum MedicineCatalog {
         SymptomTagMatching.matchingID(forName: name, in: all.map { ($0.id, $0.labelKey) })
     }
 
-    static let defaultTagIDs: [String] = ["analgesic", "gastric", "antiallergy", "sleep", "rest"]
+    /// 初回起動時にタグリストへ入れる対処。一覧に出す10件と同じにする
+    static let defaultTagIDs: [String] = all.map(\.id)
 
     /// 入力中の文字に似た対処の候補
     static func suggestions(forInput input: String, limit: Int = 5) -> [MedicineCatalogEntry] {

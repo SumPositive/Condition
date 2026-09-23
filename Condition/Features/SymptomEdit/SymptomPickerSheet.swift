@@ -24,6 +24,8 @@ struct SymptomPickerSheet: View {
 
     /// いま編集中か。見出しとボタンの文言を切り替える
     private var isEditing: Bool { editingTagID != nil }
+    /// 上限に達して追加できなかったときに出す案内
+    @State private var showTagLimitAlert = false
 
     private var settings: AppSettings { AppSettings.shared }
 
@@ -167,6 +169,15 @@ struct SymptomPickerSheet: View {
                     }
                 }
             }
+        }
+        .alert(
+            Text(String(
+                format: String(localized: "symptom.picker.tagLimit"),
+                SymptomLimits.maxTagsPerList
+            )),
+            isPresented: $showTagLimitAlert
+        ) {
+            Button("action.close", role: .cancel) {}
         }
         // ナビゲーションバーの下まで色を回すため、背景はシート側に指定する
         .presentationBackground(sheetBackground)
@@ -357,14 +368,21 @@ struct SymptomPickerSheet: View {
         // 辞書に当たったときは名前を上書きしない（ローカライズ名のまま使う）
         let customName = matched == nil ? name : ""
 
+        // 上限に達していたら足さずに知らせる。黙って消えるのが一番困る
         switch kind {
         case .symptom:
             var list = settings.symptomTags
-            list.add(id: id, customName: customName)
+            guard list.add(id: id, customName: customName) else {
+                showTagLimitAlert = true
+                return
+            }
             settings.symptomTags = list
         case .medicine:
             var list = settings.medicineTags
-            list.add(id: id, customName: customName)
+            guard list.add(id: id, customName: customName) else {
+                showTagLimitAlert = true
+                return
+            }
             settings.medicineTags = list
         }
         newTagName = ""
