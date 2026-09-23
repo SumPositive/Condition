@@ -97,6 +97,8 @@ struct SymptomWeatherImport: Decodable {
     let indoorTemp: Double?
     let indoorHumidity: Int?
     let sourceUrl: String?
+    /// 観測値の時刻（ISO8601）。旧バックアップには無い
+    let observedAt: String?
     // 0℃・0%・変化量0と欠測を区別するフラグ（旧バックアップには無い）
     let tempSet: Bool?
     let humiditySet: Bool?
@@ -104,6 +106,15 @@ struct SymptomWeatherImport: Decodable {
     let tempEdited: Bool?
     let humidityEdited: Bool?
     let pressureEdited: Bool?
+
+    /// 観測時刻。ISO8601DateFormatter は Sendable ではないのでその場で作る
+    var parsedObservedAt: Date? {
+        guard let observedAt else { return nil }
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withDashSeparatorInDate,
+                           .withColonSeparatorInTime, .withTimeZone]
+        return f.date(from: observedAt)
+    }
 
     var parsedSource: SymptomWeatherSource {
         switch source?.lowercased() {
@@ -340,6 +351,9 @@ enum RecordsJSONIO {
                 weather["pressureDelta24hSet"] = true
             }
             if !record.sWeatherSourceURL.isEmpty { weather["sourceUrl"] = record.sWeatherSourceURL }
+            if let observedAt = record.dWeatherObservedAt {
+                weather["observedAt"] = iso.string(from: observedAt)
+            }
             if record.nDevicePressure_10hpa != 0 {
                 weather["devicePressure"] = decimalNumber(record.nDevicePressure_10hpa, scale: 1)
             }
@@ -514,6 +528,7 @@ enum RecordsJSONIO {
         )
         record.bPressureDelta24hSet = weather.pressureDelta24hSet ?? (weather.pressureDelta24h != nil)
         record.sWeatherSourceURL = String((weather.sourceUrl ?? "").prefix(300))
+        record.dWeatherObservedAt = weather.parsedObservedAt
         record.nDevicePressure_10hpa = clampedSignedDec(
             weather.devicePressure, SymptomLimits.pressureRange_10hpa
         )

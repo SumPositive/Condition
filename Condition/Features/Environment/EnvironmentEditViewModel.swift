@@ -34,6 +34,8 @@ final class EnvironmentEditViewModel {
     private(set) var pressureDelta24h_10hpa: Int?
     private(set) var weatherSymbol: String
     private(set) var sourceURL: String = ""
+    /// 観測値の時刻。取得したときだけ入る
+    private(set) var observedAt: Date? = nil
 
     private(set) var tempEdited: Bool
     private(set) var humidityEdited: Bool
@@ -68,6 +70,7 @@ final class EnvironmentEditViewModel {
         pressureDelta24h_10hpa = snapshot.isPressureDelta24hSet
             ? snapshot.pressureDelta24h_10hpa : nil
         sourceURL = snapshot.sourceURL
+        observedAt = snapshot.observedAt
         weatherSymbol = snapshot.weatherSymbol
         tempEdited = snapshot.isTempEdited
         humidityEdited = snapshot.isHumidityEdited
@@ -109,6 +112,9 @@ final class EnvironmentEditViewModel {
             )
             let placeName = await WeatherLocationService.shared.placeName(for: location)
             apply(observation, placeName: placeName)
+            // 成功したときだけ記録する。失敗を数えると、通信が悪いだけで
+            // 次の取得に広告が要る状態になってしまう
+            lastFetchAt = Date()
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -132,12 +138,63 @@ final class EnvironmentEditViewModel {
         stationID = observation.stationID
         stationName = observation.stationName
         sourceURL = observation.sourceURL
+        observedAt = observation.observedAt
         pressureStationID = observation.pressureStationID
         pressureStationName = observation.pressureStationName
         pressureDistanceKm = observation.pressureDistanceKm
         if !placeName.isEmpty { place = placeName }
         source = .jma
     }
+
+    /// 屋外の気象データと端末気圧をまとめて取る。
+    ///
+    /// 1つのボタンから呼ぶので、取れないものは黙って飛ばす。
+    /// 端末気圧は「今」しか測れず（気圧計は過去に遡れない）、
+    /// 過去日時の記録では気象データだけが入る
+    // MARK: - 取得の間隔制限
+
+    /// 最後に気象データの取得に成功した時刻（端末ローカル）
+    private static let lastFetchKey = "UDEF_LastWeatherFetchAt"
+
+    /// 前回の取得成功から1時間の間は、続けて取るのに広告の視聴を求める。
+    /// 無料で何度も叩ける状態にしておくと、気象庁への負荷も収益機会も損なうため。
+    /// アメダスの更新自体が10分間隔なので、1時間あれば値は必ず変わっている
+    private static let fetchFreeInterval: TimeInterval = 3600
+
+    private var lastFetchAt: Date? {
+        get { UserDefaults.standard.object(forKey: Self.lastFetchKey) as? Date }
+        set { UserDefaults.standard.set(newValue, forKey: Self.lastFetchKey) }
+    }
+
+    /// 広告を見ずに取得できるか。初回と、前回から1時間が過ぎていれば無料
+    var canFetchWithoutAd: Bool {
+        guard let lastFetchAt else { return true }
+        return Date().timeIntervalSince(lastFetchAt) >= Self.fetchFreeInterval
+    }
+
+    /// 広告の視聴が済んだ扱いにする。シートを閉じるまで有効。
+    /// 視聴のたびに1回ぶん取得できるようにし、クレジットとして持ち越さない
+    private var hasWatchedAd = false
+
+    func grantAdReward() {
+        hasWatchedAd = true
+    }
+
+    func fetchAll() async {
+        // 広告を1回見たぶんは1回の取得で使い切る
+        defer { hasWatchedAd = false }
+        await fetchFromJMA()
+        // 気象データ側でエラーが出ていても端末気圧は独立して測れるので続ける
+        if canFetchDevicePressure {
+            let weatherError = errorMessage
+            await fetchDevicePressure()
+            // 端末気圧が成功しても、先に出た気象データのエラーは消さない
+            if errorMessage == nil { errorMessage = weatherError }
+        }
+    }
+
+    /// まとめて取得できるものが1つでもあるか
+    var canFetchAny: Bool { canFetchJMA || canFetchDevicePressure }
 
     func fetchDevicePressure() async {
         errorMessage = nil
@@ -196,6 +253,8 @@ final class EnvironmentEditViewModel {
             result.sourceURL = sourceURL
         }
         result.stationID = (tempEdited && humidityEdited) ? "" : stationID
+        // 観測所の値を全部手で直したら、観測時刻も残さない（出典と食い違うため）
+        result.observedAt = (tempEdited && humidityEdited) ? nil : observedAt
 
         let hasOutdoor = temp != nil || humidity != nil || pressure != nil || !trimmedPlace.isEmpty
         let allEdited = tempEdited && humidityEdited && pressureEdited

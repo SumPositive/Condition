@@ -2722,6 +2722,122 @@
         }
       }
     },
+    "environment.adGate.loading": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "広告を準備しています…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparing an ad…"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "광고를 준비하고 있습니다…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在準備廣告…"
+          }
+        }
+      }
+    },
+    "environment.adGate.message": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "動画広告を見ると、続けて取得できます。音が出る場合があります。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Watch a video ad to fetch again. It may play sound."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "동영상 광고를 보면 이어서 가져올 수 있습니다. 소리가 날 수 있습니다."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "觀看影片廣告後即可再次取得。可能會有聲音。"
+          }
+        }
+      }
+    },
+    "environment.adGate.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "前回の取得から1時間たっていません"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It has been less than an hour since the last fetch"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "마지막 가져오기로부터 1시간이 지나지 않았습니다"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "距離上次取得未滿 1 小時"
+          }
+        }
+      }
+    },
+    "environment.adGate.watch": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "動画広告を見て取得する"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Watch a video ad and fetch"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "동영상 광고 보고 가져오기"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "觀看影片廣告並取得"
+          }
+        }
+      }
+    },
     "environment.device.pressure": {
       "extractionState": "manual",
       "localizations": {
@@ -2780,6 +2896,35 @@
         }
       }
     },
+    "environment.help.fetchInterval": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "前回の取得から1時間経過するまでは、動画広告が表示されます。最後まで視聴すれば取得できます。音が出る場合があります"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Until an hour has passed since the last fetch, a video ad is shown. Watch it through to the end to fetch. It may play sound."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "마지막 가져오기로부터 1시간이 지날 때까지는 동영상 광고가 표시됩니다. 끝까지 시청하면 가져올 수 있습니다. 소리가 날 수 있습니다"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "距離上次取得滿 1 小時之前會顯示影片廣告。完整觀看後即可取得。可能會有聲音"
+          }
+        }
+      }
+    },
     "environment.section.device": {
       "extractionState": "manual",
       "localizations": {
@@ -2805,35 +2950,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "裝置（您的裝置）"
-          }
-        }
-      }
-    },
-    "environment.section.device.footer": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Measures local pressure with this device's barometer. Stored separately from station pressure, and only for records made now."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "端末の気圧計でその場の気圧を測ります。観測所の気圧とは別の値として保存します。今の記録でのみ測れます。"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "기기의 기압계로 현재 위치의 기압을 측정합니다. 관측소 기압과는 별도로 저장되며, 지금 시각의 기록에서만 측정할 수 있습니다."
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "以裝置的氣壓計測量當地氣壓。與觀測所氣壓分開儲存，且僅能用於當下的記錄。"
           }
         }
       }
@@ -14021,6 +14137,35 @@
         }
       }
     },
+    "symptom.help.indoor": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "発症時の身近な温度を記録すれば、気温よりも優先して分析に使用します。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If you record the temperature around you at onset, it is used for analysis in preference to the outdoor temperature."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "발병 당시 주변 온도를 기록하면, 기온보다 우선하여 분석에 사용합니다."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "若記錄發作當下身邊的溫度，分析時會優先採用該值，而非室外氣溫。"
+          }
+        }
+      }
+    },
     "symptom.name.abdominalPain": {
       "extractionState": "manual",
       "localizations": {
@@ -14746,35 +14891,6 @@
         }
       }
     },
-    "symptom.section.indoor.footer": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Indoor readings are stored separately from the outdoor observation and kept apart in statistics."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "室内で測った値を入れると、取得した外気の値とは別に保存します。屋外の観測値と混ぜずに集計します。"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "실내에서 측정한 값은 취득한 외기 값과 별도로 저장하며, 실외 관측값과 섞지 않고 집계합니다."
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "室內測得的數值會與取得的室外數值分開儲存，統計時也不會混用。"
-          }
-        }
-      }
-    },
     "symptom.section.medicine": {
       "extractionState": "manual",
       "localizations": {
@@ -15445,28 +15561,28 @@
     "symptom.weather.fetchJMA": {
       "extractionState": "manual",
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Get weather data (JMA)"
-          }
-        },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "気象データを取得（気象庁）"
+            "value": "今ここ付近の気象データを取得する"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Get weather data for near here and now"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "기상 데이터 가져오기 (기상청)"
+            "value": "지금 이 부근의 기상 데이터 가져오기"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "取得氣象資料（氣象廳）"
+            "value": "取得此時附近的氣象資料"
           }
         }
       }
@@ -15587,35 +15703,6 @@
         }
       }
     },
-    "symptom.weather.measureDevicePressure": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Measure with barometer"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "端末の気圧計で測る"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "기기 기압계로 측정"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "以裝置氣壓計測量"
-          }
-        }
-      }
-    },
     "symptom.weather.outOfRangeHint": {
       "extractionState": "manual",
       "localizations": {
@@ -15706,28 +15793,28 @@
     "symptom.weather.place": {
       "extractionState": "manual",
       "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "観測所"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Station"
           }
         },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "測候所"
-          }
-        },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "측후소"
+            "value": "관측소"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "測候所"
+            "value": "觀測站"
           }
         }
       }

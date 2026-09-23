@@ -298,3 +298,117 @@ extension UIApplication {
         return base
     }
 }
+
+// MARK: - リワード広告
+
+/// 気象データの再取得で使うリワード広告のユニットID。
+/// Debug は app が Google テストアプリIDになるため本番ユニットを使えない
+let REWARDED_AD_UNIT_ID: String = {
+    #if DEBUG || targetEnvironment(simulator)
+    return "ca-app-pub-3940256099942544/1712485313"  // テスト用リワード
+    #else
+    return "ca-app-pub-7576639777972199/4693657810"  // 本番用リワードのユニットID
+    #endif
+}()
+
+/// リワード広告の読み込みと表示。
+///
+/// 視聴完了でだけ `onRewardEarned` を呼ぶ。途中で閉じた場合は何も起きない。
+/// 読み込みに失敗したときは広告なしで先へ進める（設計書 6.7-4）ため、
+/// 呼び出し側は `present` の結果を待たずに `onUnavailable` で救済する
+@MainActor
+final class RewardedAdLoader: NSObject, ObservableObject, FullScreenContentDelegate {
+    @Published private(set) var isLoading = false
+    @Published private(set) var isReady = false
+
+    /// 視聴が完了したとき（報酬を与えてよいとき）だけ呼ばれる
+    var onRewardEarned: (() -> Void)?
+    /// 広告を出せないとき。呼び出し側は広告なしで処理を進める
+    var onUnavailable: (() -> Void)?
+    /// 視聴せずに閉じたとき
+    var onDismissed: (() -> Void)?
+
+    private let adUnitID: String
+    /// 報酬を得たか。閉じたときに「中断」と区別するために持つ
+    private var didEarnReward = false
+    // nonisolated(unsafe): completion handler から isolation を越えずに代入するため
+    nonisolated(unsafe) private var rewardedAd: RewardedAd?
+
+    init(adUnitID: String = REWARDED_AD_UNIT_ID) {
+        self.adUnitID = adUnitID
+        super.init()
+    }
+
+    /// 先に読み込んでおく。シートを開いた時点で呼ぶと待ち時間が減る
+    func preload() {
+        guard !isLoading, !isReady else { return }
+        loadAd()
+    }
+
+    private func loadAd() {
+        isLoading = true
+        isReady = false
+
+        RewardedAd.load(with: adUnitID, request: Request()) { [weak self] ad, error in
+            guard let self else { return }
+            // ad を assumeIsolated の外で代入し、isolation 境界を越える Sending を回避
+            self.rewardedAd = ad
+            if let ad { ad.fullScreenContentDelegate = self }
+            MainActor.assumeIsolated { [weak self] in
+                guard let self else { return }
+                self.isLoading = false
+                if error != nil {
+                    self.rewardedAd = nil
+                } else {
+                    self.isReady = self.rewardedAd != nil
+                }
+            }
+        }
+    }
+
+    /// 広告を出す。出せないときは `onUnavailable` を呼んで取得を通す
+    func present() {
+        guard let ad = rewardedAd, let root = UIApplication.topMostViewController() else {
+            onUnavailable?()
+            // 次の機会に備えて読み直す
+            if !isLoading { loadAd() }
+            return
+        }
+        didEarnReward = false
+        isReady = false
+        ad.present(from: root) { [weak self] in
+            // 視聴完了。ここでだけ報酬を与える
+            self?.didEarnReward = true
+        }
+    }
+
+    nonisolated func adDidDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
+        MainActor.assumeIsolated { [weak self] in
+            guard let self else { return }
+            self.rewardedAd = nil
+            self.isReady = false
+            if self.didEarnReward {
+                self.onRewardEarned?()
+            } else {
+                self.onDismissed?()
+            }
+            self.didEarnReward = false
+            // 次に備えて読み直す
+            self.loadAd()
+        }
+    }
+
+    nonisolated func ad(
+        _ ad: FullScreenPresentingAd,
+        didFailToPresentFullScreenContentWithError error: Error
+    ) {
+        MainActor.assumeIsolated { [weak self] in
+            guard let self else { return }
+            self.rewardedAd = nil
+            self.isReady = false
+            // 表示できなかったのはユーザーの責任ではないので取得を通す
+            self.onUnavailable?()
+            self.loadAd()
+        }
+    }
+}

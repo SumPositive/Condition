@@ -120,6 +120,9 @@ final class SymptomRecord {
     var nPressureStationDistance_10km: Int = 0
     /// 取得した気象庁データの出典URL（後から値の根拠をたどれるように残す）
     var sWeatherSourceURL: String = ""
+    /// 観測値の時刻。アメダスは10分ごとの観測なので記録時刻とは少しずれる。
+    /// nil は未取得（手入力だけの記録）
+    var dWeatherObservedAt: Date? = nil
     /// 端末の気圧計で測った現地気圧（x10 hPa）。観測所の気圧とは別物なので混ぜない
     var nDevicePressure_10hpa: Int = 0
     /// 室内の気温・湿度（x10 ℃ / %）。外気とは別物なので上書きせず並べて持つ。
@@ -265,9 +268,23 @@ enum SymptomLimits {
     /// 困らない余裕を取る。UserDefaults に JSON で丸ごと入れて
     /// 起動のたびに読むので、青天井にはしない
     static let maxTagsPerList = 100
-    /// 気温・湿度・気圧の入力許容範囲（手動入力とインポートの clamp に使う）
+    /// 気温・湿度・気圧の保存許容範囲（インポートの clamp に使う）。
+    /// 取り込みで値を捨てると復元できないので、ここは広めに取る
     static let tempRange_10c        = (min: -600, max: 600)      // -60.0 〜 60.0 ℃
     static let humidityRange_p      = (min: 0,    max: 100)      // 0 〜 100 %
     static let pressureRange_10hpa  = (min: 8000, max: 11000)    // 800.0 〜 1100.0 hPa
     static let pressureDeltaRange_10hpa = (min: -1000, max: 1000) // ±100.0 hPa
+
+    // MARK: - 画面で打てる範囲
+    //
+    // 上の保存範囲より狭くして、打ち間違いをその場で弾く。
+    // 世界の観測記録は超えない程度に取り、海外の利用者でも困らないようにする
+
+    /// 屋外の気温。世界最高 56.7℃（米）を少し上回る程度まで。
+    /// 南極の -89.2℃ は居住地ではないので下限には採らない
+    static let inputTempRange_10c      = (min: -500, max: 600)   // -50.0 〜 60.0 ℃
+    /// 室温。暖房のない寒冷地から冷房のない酷暑まで
+    static let inputIndoorTempRange_10c = (min: -200, max: 500)  // -20.0 〜 50.0 ℃
+    /// 気圧。観測史上は 870hPa（台風）〜 1083.8hPa（シベリア）
+    static let inputPressureRange_10hpa = (min: 8700, max: 10850) // 870.0 〜 1085.0 hPa
 }

@@ -216,3 +216,30 @@ struct BeginnerHelpBanner: View {
         .scrollIndicators(.hidden)
     }
 }
+
+// MARK: - シートの背景色
+
+extension Color {
+    /// 標準のグループ背景へ、指定の色を淡く混ぜた色。
+    ///
+    /// 記録画面の上にシートが重なると、下の画面と同じ灰色ではどれを操作しているのか
+    /// 分からなくなる。色相でシートの種類が分かるようにするために使う。
+    /// ライト/ダークそれぞれで解決してから混ぜるのは、固定色を薄く敷くと
+    /// ダークモードで白っぽく浮いてしまうため
+    static func azTintedSheetBackground(_ tint: UIColor, amount: CGFloat = 0.07) -> Color {
+        Color(UIColor { traits in
+            let base = UIColor.systemGroupedBackground.resolvedColor(with: traits)
+            let top = tint.resolvedColor(with: traits)
+            var br: CGFloat = 0, bg: CGFloat = 0, bb: CGFloat = 0, ba: CGFloat = 0
+            var tr: CGFloat = 0, tg: CGFloat = 0, tb: CGFloat = 0, ta: CGFloat = 0
+            base.getRed(&br, green: &bg, blue: &bb, alpha: &ba)
+            top.getRed(&tr, green: &tg, blue: &tb, alpha: &ta)
+            return UIColor(
+                red: br + (tr - br) * amount,
+                green: bg + (tg - bg) * amount,
+                blue: bb + (tb - bb) * amount,
+                alpha: ba
+            )
+        })
+    }
+}

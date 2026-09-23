@@ -29,6 +29,8 @@ struct EnvironmentSnapshot: Equatable, Sendable {
     var pressureStationDistance_10km: Int = 0
     /// 取得した気象庁データの出典URL
     var sourceURL: String = ""
+    /// 観測値の時刻。アメダスは10分ごとなので記録時刻とは少しずれる
+    var observedAt: Date? = nil
 
     // MARK: - 端末の気圧計（現地気圧。観測所の海面気圧とは別物）
     var devicePressure_10hpa: Int = 0
@@ -71,6 +73,7 @@ extension SymptomRecord {
             pressureStationID: sPressureStationID,
             pressureStationDistance_10km: nPressureStationDistance_10km,
             sourceURL: sWeatherSourceURL,
+            observedAt: dWeatherObservedAt,
             devicePressure_10hpa: nDevicePressure_10hpa,
             indoorTemp_10c: nIndoorTemp_10c,
             indoorHumidity_p: nIndoorHumidity_p,
@@ -98,6 +101,7 @@ extension SymptomRecord {
         sPressureStationID = snapshot.pressureStationID
         nPressureStationDistance_10km = snapshot.pressureStationDistance_10km
         sWeatherSourceURL = snapshot.sourceURL
+        dWeatherObservedAt = snapshot.observedAt
         nDevicePressure_10hpa = snapshot.devicePressure_10hpa
         nIndoorTemp_10c = snapshot.indoorTemp_10c
         nIndoorHumidity_p = snapshot.indoorHumidity_p

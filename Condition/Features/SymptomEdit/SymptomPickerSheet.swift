@@ -29,28 +29,11 @@ struct SymptomPickerSheet: View {
 
     private var settings: AppSettings { AppSettings.shared }
 
-    /// シートの背景。記録画面の上に症状/対処シート、その上にタグ編集シートと
-    /// 3枚重なるので、下の画面と同じ灰色だとどれを操作しているのか分からなくなる。
+    /// シートの背景。記録画面の上に症状/対処シートが重なるので、
+    /// 下の画面と同じ灰色だとどれを操作しているのか分からなくなる。
     /// 色相でシートの種類が分かるように、標準の灰色へ淡く色を混ぜる
     private var sheetBackground: Color {
-        let tint: UIColor = kind == .symptom ? .tintColor : .systemOrange
-        // ライト/ダークそれぞれで解決してから混ぜる。
-        // 固定色を薄く敷くとダークモードで白っぽく浮いてしまうため
-        return Color(UIColor { traits in
-            let base = UIColor.systemGroupedBackground.resolvedColor(with: traits)
-            let top = tint.resolvedColor(with: traits)
-            var br: CGFloat = 0, bg: CGFloat = 0, bb: CGFloat = 0, ba: CGFloat = 0
-            var tr: CGFloat = 0, tg: CGFloat = 0, tb: CGFloat = 0, ta: CGFloat = 0
-            base.getRed(&br, green: &bg, blue: &bb, alpha: &ba)
-            top.getRed(&tr, green: &tg, blue: &tb, alpha: &ta)
-            let amount: CGFloat = 0.07
-            return UIColor(
-                red: br + (tr - br) * amount,
-                green: bg + (tg - bg) * amount,
-                blue: bb + (tb - bb) * amount,
-                alpha: ba
-            )
-        })
+        .azTintedSheetBackground(kind == .symptom ? .tintColor : .systemOrange)
     }
 
     var body: some View {
