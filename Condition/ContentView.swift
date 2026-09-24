@@ -31,7 +31,8 @@ struct ContentView: View {
 
             AnalysisPageView(page: .one)
                 .tabItem {
-                    Label("1", systemImage: AnalysisPage.one.tabSymbol)
+                    // アイコン内に番号があるためタブ名は表示しない
+                    Image(systemName: AnalysisPage.one.tabSymbol)
                         .accessibilityIdentifier("tab.graph")
                         .accessibilityLabel(AnalysisPage.one.accessibilityTitle)
                 }
@@ -39,7 +40,7 @@ struct ContentView: View {
 
             AnalysisPageView(page: .two)
                 .tabItem {
-                    Label("2", systemImage: AnalysisPage.two.tabSymbol)
+                    Image(systemName: AnalysisPage.two.tabSymbol)
                         .accessibilityIdentifier("tab.statistics")
                         .accessibilityLabel(AnalysisPage.two.accessibilityTitle)
                 }
@@ -47,7 +48,7 @@ struct ContentView: View {
 
             AnalysisPageView(page: .three)
                 .tabItem {
-                    Label("3", systemImage: AnalysisPage.three.tabSymbol)
+                    Image(systemName: AnalysisPage.three.tabSymbol)
                         .accessibilityIdentifier("tab.analysis3")
                         .accessibilityLabel(AnalysisPage.three.accessibilityTitle)
                 }

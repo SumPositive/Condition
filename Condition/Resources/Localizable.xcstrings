@@ -210,25 +210,25 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "分析 %d"
+            "value": "ページ %d"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Analysis %d"
+            "value": "Page %d"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "분석 %d"
+            "value": "페이지 %d"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "分析 %d"
+            "value": "頁面 %d"
           }
         }
       }
@@ -471,25 +471,54 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ページを選び、ドラッグで順番を変更します。右端の番号から別のページへ移動できます"
+            "value": "右にあるページをタップして他のページに移動することができます\n\n行を長押し上下に動かせば順番を変えることができます（非表示は順番を変更できません）"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Choose a page and drag to reorder. Use the number on the right to move a panel to another page."
+            "value": "Tap the page on the right to move it to another page.\n\nTouch and hold a row, then move it up or down to change its order. (Items cannot be reordered in Hidden.)"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "페이지를 선택하고 드래그하여 순서를 변경합니다. 오른쪽 번호로 다른 페이지로 이동할 수 있습니다"
+            "value": "오른쪽의 페이지를 탭하면 다른 페이지로 이동할 수 있습니다.\n\n행을 길게 누른 뒤 위아래로 움직이면 순서를 바꿀 수 있습니다. (숨김에서는 순서를 변경할 수 없습니다.)"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "選擇頁面後拖曳以變更順序。可從右側編號移至其他頁面"
+            "value": "點按右側的頁面即可移至其他頁面。\n\n長按列表項目並上下移動即可變更順序。（在隱藏中無法變更順序。）"
+          }
+        }
+      }
+    },
+    "analysis.layout.hidden": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "非表示"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hidden"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "숨김"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隱藏"
           }
         }
       }

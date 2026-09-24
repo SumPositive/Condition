@@ -11,7 +11,8 @@ enum AnalysisPage: Int, CaseIterable, Codable, Identifiable {
   case three = 3
 
   var id: Int { rawValue }
-  var tabSymbol: String { "\(rawValue).square" }
+  /// 分析ページ番号をカレンダー型アイコンで示す
+  var tabSymbol: String { "\(rawValue).calendar" }
   var accessibilityTitle: String {
     String(format: String(localized: "analysis.page.accessibilityFormat"), rawValue)
   }
@@ -152,6 +153,11 @@ struct AnalysisLayout: Codable, Equatable {
     panels(in: page).filter { !hidden.contains($0) }
   }
 
+  /// 従来の表示OFFを含む非表示図表を、元の配置順で返す
+  var hiddenPanels: [AnalysisPanelID] {
+    AnalysisPage.allCases.flatMap { panels(in: $0) }.filter { hidden.contains($0) }
+  }
+
   func period(in page: AnalysisPage) -> GraphPeriod {
     let raw: Int
     switch page {
@@ -187,6 +193,12 @@ struct AnalysisLayout: Codable, Equatable {
     var destinationPanels = panels(in: destination)
     destinationPanels.append(panel)
     setPanels(destinationPanels, in: destination)
+    hidden.remove(panel)
+  }
+
+  /// 図表をページから外さず非表示の配置へ移す
+  mutating func moveToHidden(_ panel: AnalysisPanelID) {
+    hidden.insert(panel)
   }
 
   mutating func normalize() {

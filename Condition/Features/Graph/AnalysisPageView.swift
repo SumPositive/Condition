@@ -773,38 +773,88 @@ private struct AnalysisSymptomSummaryPanel: View {
   }
 }
 
+private enum AnalysisLayoutDestination: Int, CaseIterable, Identifiable {
+  case page1 = 1
+  case page2 = 2
+  case page3 = 3
+  case hidden = 4
+
+  var id: Int { rawValue }
+
+  init(page: AnalysisPage) {
+    self = AnalysisLayoutDestination(rawValue: page.rawValue) ?? .page1
+  }
+
+  var page: AnalysisPage? {
+    switch self {
+    case .page1: return .one
+    case .page2: return .two
+    case .page3: return .three
+    case .hidden: return nil
+    }
+  }
+
+}
+
 struct AnalysisLayoutSettingsView: View {
   var initialPage: AnalysisPage = .one
   var isModal = false
   @State private var settings = AppSettings.shared
-  @State private var selectedPage: AnalysisPage
+  @State private var selectedDestination: AnalysisLayoutDestination
+  @State private var expandedPanel: AnalysisPanelID?
   @State private var showResetConfirmation = false
   @Environment(\.dismiss) private var dismiss
 
   init(initialPage: AnalysisPage = .one, isModal: Bool = false) {
     self.initialPage = initialPage
     self.isModal = isModal
-    _selectedPage = State(initialValue: initialPage)
+    _selectedDestination = State(initialValue: AnalysisLayoutDestination(page: initialPage))
   }
 
   var body: some View {
     List {
       Section {
-        Picker("analysis.layout.page", selection: $selectedPage) {
-          ForEach(AnalysisPage.allCases) { page in Text("\(page.rawValue)").tag(page) }
+        AZRadioPicker(
+          options: AnalysisLayoutDestination.allCases,
+          selection: $selectedDestination,
+          minOptionWidth: 0,
+          maxOptionWidth: 120,
+          horizontalPadding: 12,
+          verticalPadding: 8,
+          optionSpacing: 4,
+          groupPadding: 2,
+          wrapsOptions: false,
+          fillsWidth: true
+        ) { destination in
+          if let page = destination.page {
+            // 分析タブと同じアイコンで配置先を示す
+            Image(systemName: page.tabSymbol)
+              .accessibilityLabel(page.accessibilityTitle)
+          } else {
+            Text("analysis.layout.hidden")
+          }
         }
-        .pickerStyle(.segmented)
-      } footer: {
-        Text("analysis.layout.help")
+        .dynamicTypeSize(...DynamicTypeSize.accessibility3)
       }
 
       Section {
-        ForEach(settings.analysisLayout.panels(in: selectedPage)) { panel in
+        ForEach(selectedPanels) { panel in
           panelRow(panel)
+            .moveDisabled(selectedDestination == .hidden)
         }
         .onMove(perform: movePanels)
       } header: {
-        Text(String(format: String(localized: "analysis.page.titleFormat"), selectedPage.rawValue))
+        HStack(spacing: 4) {
+          Text(selectedDestinationTitle)
+          // 配置ヘルプは利用レベルにかかわらずアイコンから確認できる
+          BeginnerHelpBanner(
+            "analysis.layout.help",
+            storageKey: "helpDismissed.analysisLayout",
+            compact: true,
+            tight: true
+          )
+        }
+        .accessibilityElement(children: .contain)
       }
       .environment(\.editMode, .constant(.active))
 
@@ -828,8 +878,9 @@ struct AnalysisLayoutSettingsView: View {
           Button {
             dismiss()
           } label: {
-            Image(systemName: "xmark").fontWeight(.semibold)
+            Image(systemName: "chevron.down").fontWeight(.semibold)
           }
+          .accessibilityLabel(Text("action.close"))
         }
       }
     }
@@ -843,59 +894,69 @@ struct AnalysisLayoutSettingsView: View {
     }
   }
 
+  private var selectedPanels: [AnalysisPanelID] {
+    if let page = selectedDestination.page {
+      return settings.analysisLayout.visiblePanels(in: page)
+    }
+    return settings.analysisLayout.hiddenPanels
+  }
+
+  private var selectedDestinationTitle: String {
+    if let page = selectedDestination.page {
+      return String(format: String(localized: "analysis.page.titleFormat"), page.rawValue)
+    }
+    return String(localized: "analysis.layout.hidden")
+  }
+
   private func panelRow(_ panel: AnalysisPanelID) -> some View {
     HStack(spacing: 12) {
-      Button {
-        toggleVisibility(panel)
-      } label: {
-        Image(systemName: settings.analysisLayout.hidden.contains(panel) ? "eye.slash" : "eye")
-          .frame(width: 24)
-      }
-      .buttonStyle(.plain)
-      .accessibilityLabel(Text(LocalizedStringKey(panel.titleKey)))
       Text(LocalizedStringKey(panel.titleKey))
       Spacer()
-      Menu {
-        ForEach(AnalysisPage.allCases) { page in
-          Button {
-            if page != selectedPage { move(panel, to: page) }
-          } label: {
-            if page == selectedPage {
-              Label("\(page.rawValue)", systemImage: "checkmark")
-            } else {
-              Text("\(page.rawValue)")
-            }
+      AZDropdownPicker(
+        options: AnalysisLayoutDestination.allCases,
+        selection: Binding(
+          get: { selectedDestination },
+          set: { destination in
+            if destination != selectedDestination { move(panel, to: destination) }
           }
-          .disabled(page == selectedPage)
+        ),
+        isExpanded: Binding(
+          get: { expandedPanel == panel },
+          set: { isExpanded in expandedPanel = isExpanded ? panel : nil }
+        ),
+        minWidth: 56
+      ) { destination in
+        if let page = destination.page {
+          // 閉じた状態と候補で分析タブと同じアイコンを使う
+          Image(systemName: page.tabSymbol)
+            .accessibilityLabel(page.accessibilityTitle)
+        } else {
+          Text("analysis.layout.hidden")
         }
-      } label: {
-        Label("\(selectedPage.rawValue)", systemImage: "arrow.left.arrow.right")
-          .labelStyle(.titleAndIcon)
       }
     }
   }
 
-  private func toggleVisibility(_ panel: AnalysisPanelID) {
+  private func move(_ panel: AnalysisPanelID, to destination: AnalysisLayoutDestination) {
     var layout = settings.analysisLayout
-    if layout.hidden.contains(panel) {
-      layout.hidden.remove(panel)
+    if let page = destination.page {
+      layout.move(panel, to: page)
     } else {
-      layout.hidden.insert(panel)
+      layout.moveToHidden(panel)
     }
-    settings.analysisLayout = layout
-  }
-
-  private func move(_ panel: AnalysisPanelID, to page: AnalysisPage) {
-    var layout = settings.analysisLayout
-    layout.move(panel, to: page)
     settings.analysisLayout = layout
   }
 
   private func movePanels(from source: IndexSet, to destination: Int) {
+    guard let page = selectedDestination.page else { return }
     var layout = settings.analysisLayout
-    var panels = layout.panels(in: selectedPage)
-    panels.move(fromOffsets: source, toOffset: destination)
-    layout.setPanels(panels, in: selectedPage)
+    var visible = layout.visiblePanels(in: page)
+    visible.move(fromOffsets: source, toOffset: destination)
+    var iterator = visible.makeIterator()
+    let panels = layout.panels(in: page).map { panel in
+      layout.hidden.contains(panel) ? panel : iterator.next() ?? panel
+    }
+    layout.setPanels(panels, in: page)
     settings.analysisLayout = layout
   }
 

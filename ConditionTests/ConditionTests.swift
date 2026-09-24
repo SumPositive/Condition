@@ -134,8 +134,8 @@ struct AnalysisLayoutTests {
         #expect(Set(allPanels).count == allPanels.count)
     }
 
-    @Test("図表を移動しても非表示状態を維持する")
-    func movingPanelKeepsVisibility() {
+    @Test("非表示の図表をページへ移動すると表示する")
+    func movingHiddenPanelToPageMakesItVisible() {
         var layout = AnalysisLayout.migrated(
             graphOrder: GraphKind.allCases.map(\.rawValue),
             hiddenGraphs: [GraphKind.bp.rawValue],
@@ -148,7 +148,23 @@ struct AnalysisLayoutTests {
 
         #expect(!layout.page1.contains(.graphBloodPressure))
         #expect(layout.page3.last == .graphBloodPressure)
-        #expect(layout.hidden.contains(.graphBloodPressure))
+        #expect(!layout.hidden.contains(.graphBloodPressure))
+    }
+
+    @Test("非表示へ移動すると表示ページから除外する")
+    func movingPanelToHiddenRemovesItFromVisiblePanels() {
+        var layout = AnalysisLayout.migrated(
+            graphOrder: GraphKind.allCases.map(\.rawValue),
+            hiddenGraphs: [],
+            statOrder: StatSection.allCases.map(\.rawValue),
+            hiddenStats: [],
+            statDays: GraphPeriod.threeMonths.rawValue
+        )
+
+        layout.moveToHidden(.graphBloodPressure)
+
+        #expect(!layout.visiblePanels(in: .one).contains(.graphBloodPressure))
+        #expect(layout.hiddenPanels.contains(.graphBloodPressure))
     }
 }
 
