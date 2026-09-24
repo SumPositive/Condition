@@ -2815,25 +2815,25 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "動画広告を見て取得する"
+            "value": "動画広告を見て気象データを取得"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Watch a video ad and fetch"
+            "value": "Watch a video ad to get weather data"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "동영상 광고 보고 가져오기"
+            "value": "동영상 광고를 보고 기상 데이터 가져오기"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "觀看影片廣告並取得"
+            "value": "觀看影片廣告以取得氣象資料"
           }
         }
       }
@@ -15880,28 +15880,57 @@
     "symptom.weather.pressureStationNote": {
       "extractionState": "manual",
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pressure is from the %1$@ station (about %2$.0f km away). Only 154 stations nationwide observe pressure."
-          }
-        },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "気圧は %1$@ 観測所（約%2$.0fkm）の値です。気圧を観測する地点は全国で154か所しかないため、離れた地点の値を使っています。"
+            "value": "気圧は %1$@ 観測所（約%2$.0fkm）の値です。気圧を観測する地点は全国で154か所しかないため、離れた地点の値になる場合があります"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pressure is from the %1$@ station (about %2$.0f km away). Only 154 stations nationwide observe pressure, so it may come from a distant point."
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "기압은 %1$@ 관측소(약 %2$.0fkm)의 값입니다. 기압을 관측하는 지점은 전국 154곳뿐입니다."
+            "value": "기압은 %1$@ 관측소(약 %2$.0fkm)의 값입니다. 기압을 관측하는 지점은 전국 154곳뿐이므로 멀리 떨어진 지점의 값이 될 수 있습니다"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "氣壓為 %1$@ 觀測所（約%2$.0f公里）的數值。全國僅154處觀測氣壓。"
+            "value": "氣壓為 %1$@ 觀測所（約%2$.0f公里）的數值。全國僅154處觀測氣壓，因此可能採用較遠地點的數值"
+          }
+        }
+      }
+    },
+    "symptom.weather.sameStationNote": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "気温・湿度・気圧は %@ 観測所の値です。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Temperature, humidity and pressure are from the %@ station."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기온·습도·기압은 %@ 관측소 값입니다."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "氣溫、濕度與氣壓為 %@ 觀測所的數值。"
           }
         }
       }
@@ -16025,28 +16054,28 @@
     "symptom.weather.stationNote": {
       "extractionState": "manual",
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Temperature and humidity are from the %@ station, not measured at your exact location."
-          }
-        },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "気温・湿度は %@ 観測所の値です。記録した場所そのものの実測値ではありません。"
+            "value": "気温・湿度は %@ 観測所の値です。"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Temperature and humidity are from the %@ station."
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "기온·습도는 %@ 관측소 값입니다. 기록한 장소의 실측값이 아닙니다."
+            "value": "기온·습도는 %@ 관측소 값입니다."
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "氣溫與濕度為 %@ 觀測所的數值，並非記錄地點的實測值。"
+            "value": "氣溫與濕度為 %@ 觀測所的數值。"
           }
         }
       }

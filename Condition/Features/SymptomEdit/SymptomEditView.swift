@@ -123,7 +123,11 @@ struct SymptomEditView: View {
                     snapshot: vm.environment,
                     recordDate: vm.startAt
                 ) { updated in
-                    vm.environment = updated
+                    // 環境シートは閉じるたびに結果を返すので、開いただけでも
+                    // ここが呼ばれる。値が変わっていなければ代入しない
+                    // （代入すると markModified が走り、キャンセルが
+                    // 二段タップの破棄モードになってしまう）
+                    if updated != vm.environment { vm.environment = updated }
                 }
             }
             // 未保存の変更があるときはスワイプで閉じさせない（測定シートと同じ）。

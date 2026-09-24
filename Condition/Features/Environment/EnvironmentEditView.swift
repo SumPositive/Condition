@@ -11,8 +11,6 @@ struct EnvironmentEditView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var vm: EnvironmentEditViewModel
-    /// 1時間以内の再取得で出す、広告視聴の確認
-    @State private var showAdGate = false
     /// リワード広告。シートを開いた時点で読み込んでおく
     @StateObject private var adLoader = RewardedAdLoader()
 
@@ -116,11 +114,11 @@ struct EnvironmentEditView: View {
         Section {
             VStack(alignment: .leading, spacing: 6) {
                 Button {
-                    // 前回の取得から1時間以内なら、先に広告を見てもらう
+                    // 広告が必要なことはボタンで伝え、確認を挟まず表示する
                     if vm.canFetchWithoutAd {
                         Task { await vm.fetchAll() }
                     } else {
-                        showAdGate = true
+                        adLoader.present()
                     }
                 } label: {
                     HStack(spacing: 8) {
@@ -131,7 +129,9 @@ struct EnvironmentEditView: View {
                             Image(systemName: vm.canFetchWithoutAd
                                   ? "location.fill" : "play.rectangle.fill")
                         }
-                        Text(vm.isFetching ? "symptom.weather.fetching" : "symptom.weather.fetchJMA")
+                        Text(vm.isFetching ? "symptom.weather.fetching"
+                             : vm.canFetchWithoutAd ? "symptom.weather.fetchJMA"
+                             : "environment.adGate.watch")
                             .fontWeight(.semibold)
                     }
                     .lineLimit(1)
@@ -157,16 +157,7 @@ struct EnvironmentEditView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .confirmationDialog(
-                Text("environment.adGate.title"),
-                isPresented: $showAdGate,
-                titleVisibility: .visible
-            ) {
-                Button("environment.adGate.watch") { adLoader.present() }
-                Button("action.cancel", role: .cancel) {}
-            } message: {
-                Text("environment.adGate.message")
-            }
+
         }
         // セクションの枠を出さず、カプセルだけを見せる
         .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 4, trailing: 16))
@@ -237,18 +228,27 @@ struct EnvironmentEditView: View {
     @ViewBuilder
     private var outdoorFooter: some View {
         VStack(alignment: .leading, spacing: 4) {
-            if !vm.stationName.isEmpty {
+            // 観測所番号が一致する場合だけまとめ、未取得同士の空文字は一致と扱わない
+            if !vm.stationID.isEmpty, vm.stationID == vm.pressureStationID,
+               !vm.stationName.isEmpty {
                 Text(String(
-                    format: String(localized: "symptom.weather.stationNote"),
+                    format: String(localized: "symptom.weather.sameStationNote"),
                     vm.stationName
                 ))
-            }
-            // 気圧観測所は全国154か所しかなく、気温側と別地点になることが多い
-            if !vm.pressureStationName.isEmpty, let distance = vm.pressureDistanceKm {
-                Text(String(
-                    format: String(localized: "symptom.weather.pressureStationNote"),
-                    vm.pressureStationName, distance
-                ))
+            } else {
+                if !vm.stationName.isEmpty {
+                    Text(String(
+                        format: String(localized: "symptom.weather.stationNote"),
+                        vm.stationName
+                    ))
+                }
+                // 別の観測所から取得した場合は、気圧側の観測所と距離を示す
+                if !vm.pressureStationName.isEmpty, let distance = vm.pressureDistanceKm {
+                    Text(String(
+                        format: String(localized: "symptom.weather.pressureStationNote"),
+                        vm.pressureStationName, distance
+                    ))
+                }
             }
             if vm.source == .jma {
                 Text("symptom.weather.jmaAttribution")

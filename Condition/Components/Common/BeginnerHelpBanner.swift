@@ -88,6 +88,9 @@ struct BeginnerHelpBanner: View {
                     .dynamicTypeSize(helpSheetDynamicTypeSize)
                     // 本文に合わせた高さを基本にし、長文は大きいシートへ逃がす
                     .presentationDetents([.height(helpSheetHeight), .large])
+                    // 読むだけのシートなので閉じるボタンは置かない（設計書 5.2）。
+                    // ただしハンドルは残す。長文で .large まで開くと外側をタップする
+                    // 余地がほぼ無くなり、下へ引く操作が唯一の出口になるため
                     .presentationDragIndicator(.visible)
                     .presentationBackground(Color(.systemBackground))
             }
