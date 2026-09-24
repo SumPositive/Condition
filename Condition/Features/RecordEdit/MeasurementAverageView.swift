@@ -96,6 +96,8 @@ private struct MeasurementAverageSnapshot: Equatable {
     let note1: String
     let note2: String
     let caution: Bool
+    // 環境だけの編集も変更として検出する
+    let environment: EnvironmentSnapshot
 }
 
 /// ばらつき（標準偏差）が「赤」になっている主因の測定値を特定する。
@@ -195,6 +197,12 @@ struct MeasurementAverageView: View {
     @State private var dateOpt: DateOpt = AppSettings.shared.autoDateOpt(for: Date())
     /// 血圧の測定箇所（左右）。新規は常に不明（・）で開始する。
     @State private var bpSide: BpSide = .unknown
+    // 環境は親の測定記録を保存するまで編集中の値として保持する
+    @State private var environment = EnvironmentSnapshot()
+    /// 復元時の日時変更と、ユーザーによる日時変更を区別する
+    @State private var environmentRecordDate: Date?
+    @State private var showEnvironmentSheet = false
+    @State private var tableViewportWidth: CGFloat = 0
     @State private var showDatePicker = false
     @State private var showDeleteAlert = false
     @State private var isDateOptExpanded = false
@@ -334,13 +342,14 @@ struct MeasurementAverageView: View {
             equipment: equipment,
             note1: note1,
             note2: note2,
-            caution: caution
+            caution: caution,
+            environment: environment
         )
     }
 
     /// メモ欄に何か入力されているか（新規シートの「変更あり」判定に使う）
     private var hasAnyMemoInput: Bool {
-        !equipment.isEmpty || !note1.isEmpty || !note2.isEmpty || caution
+        !equipment.isEmpty || !note1.isEmpty || !note2.isEmpty || caution || environment.hasAnyValue
     }
 
     var body: some View {
@@ -415,6 +424,18 @@ struct MeasurementAverageView: View {
             .sheet(isPresented: $showDatePicker) {
                 DatePickerSheet(date: $dateTime) {
                     dateOpt = settings.autoDateOpt(for: dateTime)
+                }
+            }
+            .sheet(isPresented: $showEnvironmentSheet) {
+                EnvironmentEditView(snapshot: environment, recordDate: dateTime) { updated in
+                    if updated != environment { environment = updated }
+                    environmentRecordDate = dateTime
+                }
+            }
+            // 記録日時を変更した端末気圧を、その日時の実測値として残さない
+            .onChange(of: dateTime) { _, newDate in
+                if let environmentRecordDate, environmentRecordDate != newDate {
+                    environment.devicePressure_10hpa = 0
                 }
             }
             .interactiveDismissDisabled(hasUnsavedChanges)
@@ -545,27 +566,64 @@ struct MeasurementAverageView: View {
         columns.contains(.bpHi) || columns.contains(.bpLo)
     }
 
-    /// 「追加」ボタンと、血圧の部位（左右）セグメントを1行に並べる。
-    /// 部位は上下共通なので列見出しの上に浮かせず、ここにラベル付きでまとめる。
-    /// 血圧列が無いときはセグメントを出さない。追加ボタンは最大回数で消えるが、
-    /// セグメントはそれと独立して表示し続ける。
-    @ViewBuilder
+    /// 左端を番号・ヘルプ列に合わせ、右端に共通の環境シートを置く
     private var addTrialAndBpSideRow: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             if trialCount < maxTrials {
                 addTrialButton
+            } else {
+                Color.clear.frame(width: trialLabelWidth, height: 1)
             }
             if showsBpSide {
-                // 追加ボタンのすぐ右に左寄せで並べ、余った幅は右側の余白として吸わせる
                 Text("record.measurementAvg.bpSideLabel")
                     .font(.footnote)
-                    // 「上」列見出しと同じ色をやや薄めて、血圧まわりの表示だと分かるようにする
                     .foregroundStyle(AvgColumn.bpHi.color.opacity(0.7))
-                    .padding(.leading, 8)
                 bpSideSegment
-                Spacer(minLength: 0)
             }
+            Spacer(minLength: 4)
+            Button {
+                commitInputText()
+                dismissMemoFocus()
+                showEnvironmentSheet = true
+            } label: {
+                // 環境シートの見出しと同じアイコンを使う
+                Label("environment.title", systemImage: "thermometer.sun")
+                    .font(.callout)
+            }
+            .buttonStyle(.borderless)
         }
+        .lineLimit(1)
+        .minimumScaleFactor(0.7)
+        .frame(width: tableViewportWidth == 0 ? nil : max(0, tableViewportWidth - 24))
+    }
+
+    /// 入力済みの値だけをまとめ、屋外・室内・端末を区別する
+    private var environmentSummary: String {
+        var groups: [String] = []
+        var outdoor: [String] = []
+        if environment.isTempSet {
+            outdoor.append(String(format: "%.1f℃", Double(environment.temp_10c) / 10))
+        }
+        if environment.isHumiditySet { outdoor.append("\(environment.humidity_p)%") }
+        if 0 < environment.pressure_10hpa {
+            outdoor.append(String(format: "%.1fhPa", Double(environment.pressure_10hpa) / 10))
+        }
+        if !outdoor.isEmpty {
+            groups.append(String(localized: "environment.summary.outdoorLabel") + " " + outdoor.joined(separator: " "))
+        }
+        var indoor: [String] = []
+        if environment.isIndoorTempSet {
+            indoor.append(String(format: "%.1f℃", Double(environment.indoorTemp_10c) / 10))
+        }
+        if environment.isIndoorHumiditySet { indoor.append("\(environment.indoorHumidity_p)%") }
+        if !indoor.isEmpty {
+            groups.append(String(localized: "environment.summary.indoorLabel") + " " + indoor.joined(separator: " "))
+        }
+        if 0 < environment.devicePressure_10hpa {
+            groups.append(String(localized: "environment.summary.deviceLabel") + " "
+                          + String(format: "%.1fhPa", Double(environment.devicePressure_10hpa) / 10))
+        }
+        return groups.joined(separator: "  /  ")
     }
 
     private var bpSideSegment: some View {
@@ -611,8 +669,17 @@ struct MeasurementAverageView: View {
                             // 部位は上下（収縮期・拡張期）共通なので列見出しの上に浮かせず、
                             // 表のスクロール範囲を圧迫しないこの行にまとめる。血圧列が無ければ非表示。
                             addTrialAndBpSideRow
-                                .padding(.leading, trialLabelWidth + 4)
                                 .padding(.top, 2)
+                            // 環境未入力時は行を作らず、入力後は画面幅内の右端に1行で表示する
+                            if !environmentSummary.isEmpty {
+                                Text(environmentSummary)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.5)
+                                    .frame(width: tableViewportWidth == 0 ? nil : max(0, tableViewportWidth - 24), alignment: .trailing)
+                                    .padding(.top, 2)
+                            }
                             Divider().padding(.vertical, 4)
                             summaryRow(metric: .average)
                             summaryRow(metric: .standardDeviation)
@@ -621,6 +688,10 @@ struct MeasurementAverageView: View {
                         .padding(.vertical, 10)
                     }
                     .scrollIndicators(.hidden)
+                    // 操作行は表全体の幅ではなく、画面に見える幅に収める
+                    .onGeometryChange(for: CGFloat.self, of: { $0.size.width }) {
+                        tableViewportWidth = $0
+                    }
                     // 標準偏差の下に、ダイアル式の記録編集と同じメモ欄を置く
                     memoSection
                         .padding(.horizontal, 12)
@@ -744,7 +815,8 @@ struct MeasurementAverageView: View {
                     .strokeBorder(isFocused ? column.color : Color(.separator),
                                   lineWidth: isFocused ? 1.5 : 0.5)
                 Text(cellDisplayText(column: column, trial: trial, focused: isFocused))
-                    .font(.callout.monospacedDigit())
+                    // 入力中の数値も平均値と同じ大きさ・太さで読みやすくする
+                    .font(.title3.bold().monospacedDigit())
                     .foregroundStyle(cellDisplayColor(column: column, trial: trial, focused: isFocused))
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
@@ -860,11 +932,19 @@ struct MeasurementAverageView: View {
         Button {
             addTrial()
         } label: {
-            Label("record.measurementAvg.addTrial", systemImage: "plus.circle.fill")
-                .font(.callout.weight(.semibold))
+            HStack(spacing: 0) {
+                // アイコンの中心を左上のヘルプと同じ列に置く
+                Image(systemName: "plus.circle.fill")
+                    .frame(width: trialLabelWidth)
+                if settings.userLevel != .expert {
+                    Text("record.measurementAvg.addTrial")
+                }
+            }
+            .font(.callout.weight(.semibold))
         }
         .buttonStyle(.borderless)
-        .disabled(trialCount >= maxTrials)
+        .accessibilityLabel(Text("record.measurementAvg.addTrial"))
+        .disabled(maxTrials <= trialCount)
     }
 
     // MARK: 平均・標準偏差 行
@@ -1441,6 +1521,8 @@ struct MeasurementAverageView: View {
         note1 = record.sNote1
         note2 = record.sNote2
         caution = record.bCaution
+        environment = record.environmentSnapshot
+        environmentRecordDate = record.dateTime
         guard let set = record.measurementSampleSet else {
             ensureSamplesArrays()
             initialSnapshot = currentSnapshot
@@ -1466,7 +1548,8 @@ struct MeasurementAverageView: View {
             equipment: record.sEquipment,
             note1: record.sNote1,
             note2: record.sNote2,
-            caution: record.bCaution
+            caution: record.bCaution,
+            environment: environment
         )
     }
 
@@ -1833,6 +1916,8 @@ struct MeasurementAverageView: View {
         target.sNote1 = note1.trimmingCharacters(in: .newlines)
         target.sNote2 = note2.trimmingCharacters(in: .newlines)
         target.bCaution = caution
+        // 身体測定の平均値とは独立した付帯情報として保存する
+        target.environmentSnapshot = environment
 
         // 全列が空の行（＝入力せずに残った試行）は詰めて保存する。
         // 残しても平均には影響しないが、修正時に空行として復元されて紛らわしいため。

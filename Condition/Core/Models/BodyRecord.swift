@@ -20,6 +20,8 @@ var sNote1: String = ""
     var sEquipment: String = ""                  // 測定場所・装置
     // 平均値の元になった最大5回分の測定値をJSONで保持
     var sMeasurementSamples: String = ""
+    /// 環境シートの値をJSONで保持する（旧記録は空）
+    var sEnvironment: String = ""
 
     // MARK: - 測定値（0 = 未入力）
     // 血圧（単位: mmHg）

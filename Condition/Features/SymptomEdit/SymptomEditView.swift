@@ -351,7 +351,8 @@ struct SymptomEditView: View {
     private var environmentRow: some View {
         HStack(spacing: 8) {
             // ヘルプは Button の中に入れるとタップが親に吸われるので外に出す
-            Text("environment.title")
+            // 測定画面・環境シートと共通のアイコンを添える
+            Label("environment.title", systemImage: "thermometer.sun")
             BeginnerHelpBanner(
                 "symptom.help.environment",
                 storageKey: "helpDismissed.symptom.environment",

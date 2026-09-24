@@ -7,7 +7,7 @@
 import Foundation
 
 /// 記録時の環境（天候・室内・端末気圧）のスナップショット
-struct EnvironmentSnapshot: Equatable, Sendable {
+struct EnvironmentSnapshot: Codable, Equatable, Sendable {
 
     // MARK: - 天候（屋外）
     /// 0 = 未取得。入力有無は個別フラグで持つ
@@ -47,7 +47,7 @@ struct EnvironmentSnapshot: Equatable, Sendable {
     var isPressureEdited: Bool = false
 
     var hasAnyValue: Bool {
-        source.isPresent || isTempSet || isHumiditySet || devicePressure_10hpa != 0
+        source.isPresent || isTempSet || isHumiditySet || pressure_10hpa != 0 || devicePressure_10hpa != 0
             || isIndoorTempSet || isIndoorHumiditySet
     }
 }
@@ -110,5 +110,24 @@ extension SymptomRecord {
         bTempEdited = snapshot.isTempEdited
         bHumidityEdited = snapshot.isHumidityEdited
         bPressureEdited = snapshot.isPressureEdited
+    }
+}
+
+// MARK: - 測定記録の環境保存
+
+extension BodyRecord {
+    /// 共通シートの全項目をまとめて保存し、旧記録は未設定として読む
+    var environmentSnapshot: EnvironmentSnapshot {
+        get {
+            guard let data = sEnvironment.data(using: .utf8),
+                  let value = try? JSONDecoder().decode(EnvironmentSnapshot.self, from: data)
+            else { return EnvironmentSnapshot() }
+            return value
+        }
+        set {
+            guard let data = try? JSONEncoder().encode(newValue),
+                  let value = String(data: data, encoding: .utf8) else { return }
+            sEnvironment = value
+        }
     }
 }

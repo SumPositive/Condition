@@ -144,6 +144,8 @@ struct RecordImportRecord: Decodable {
     let bodyFat: Double?
     let skeletalMuscle: Double?
     let measurementSamples: MeasurementSampleSet?
+    /// 測定に付けた環境。旧バックアップには無い
+    let environment: EnvironmentSnapshot?
 
     var parsedDate: Date? {
         let iso = ISO8601DateFormatter()
@@ -275,6 +277,11 @@ enum RecordsJSONIO {
             if let sampleSet = record.measurementSampleSet,
                let sampleObject = jsonObject(sampleSet) {
                 object["measurementSamples"] = sampleObject
+            }
+            // 環境の取得元・室内値・端末気圧もバックアップに含める
+            if record.environmentSnapshot.hasAnyValue,
+               let environmentObject = jsonObject(record.environmentSnapshot) {
+                object["environment"] = environmentObject
             }
             recordObjects.append(object)
         }
@@ -616,6 +623,8 @@ enum RecordsJSONIO {
             record.nSkMuscle_10p = clampedDecMeasure(imported.skeletalMuscle, spec: MeasureRange.skMuscle)
             // 旧バックアップではnilとなるため従来記録との互換性を保てる
             record.measurementSampleSet = imported.measurementSamples
+            // 旧形式に環境が無い場合は既存の環境を保持する
+            if let environment = imported.environment { record.environmentSnapshot = environment }
         }
 
         do {

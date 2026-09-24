@@ -37,7 +37,8 @@ struct EnvironmentEditView: View {
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     HStack(spacing: 4) {
-                        Image(systemName: "cloud.sun.fill")
+                        // 環境ボタンと共通のアイコンで表示する
+                        Image(systemName: "thermometer.sun")
                         Text("environment.title")
                     }
                     .font(.headline)
