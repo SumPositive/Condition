@@ -363,11 +363,8 @@ struct SettingsView: View {
 
                 // MARK: - 分析
                 Section("settings.analysis") {
-                    NavigationLink("graph.settings") {
-                        GraphSettingsView()
-                    }
-                    NavigationLink("statistics.settings") {
-                        StatSettingsView()
+                    NavigationLink("analysis.layout.title") {
+                        AnalysisLayoutSettingsView()
                     }
                 }
 
@@ -1766,6 +1763,7 @@ private struct DateOptEstimateDistributionView: View {
 
 struct GraphSettingsView: View {
     var isModal: Bool = false
+    var showsLayout: Bool = true
     @State private var settings = AppSettings.shared
     @Environment(\.dismiss) private var dismiss
 
@@ -1803,24 +1801,36 @@ struct GraphSettingsView: View {
                 }
             }
 
-            Section {
-                ForEach(settings.graphDisplayOrder, id: \.self) { raw in
-                    if let kind = GraphKind(rawValue: raw) {
-                        graphDisplayOrderRow(kind: kind, raw: raw)
-                    }
+            if !showsLayout {
+                // 配置は共通画面で扱い、図表内部の補助線だけをここで設定する
+                Section("analysis.layout.details") {
+                    Toggle("metric.meanBloodPressure", isOn: $settings.graphBpMean)
+                    Toggle("metric.weightMovingAverage", isOn: $settings.graphWeightMA)
+                    Toggle("analysis.details.showAverageSD", isOn: $settings.statShowAvg)
+                    Toggle("analysis.details.show24hLine", isOn: $settings.statShow24HLine)
                 }
-                .onMove { from, to in
-                    settings.graphDisplayOrder.move(fromOffsets: from, toOffset: to)
-                }
-            } header: {
-                Text("graph.displayOrder")
-            } footer: {
-                Text("chart.orderIsReflectedInGraphView")
             }
-            .environment(\.editMode, .constant(.active))
+
+            if showsLayout {
+                Section {
+                    ForEach(settings.graphDisplayOrder, id: \.self) { raw in
+                        if let kind = GraphKind(rawValue: raw) {
+                            graphDisplayOrderRow(kind: kind, raw: raw)
+                        }
+                    }
+                    .onMove { from, to in
+                        settings.graphDisplayOrder.move(fromOffsets: from, toOffset: to)
+                    }
+                } header: {
+                    Text("graph.displayOrder")
+                } footer: {
+                    Text("chart.orderIsReflectedInGraphView")
+                }
+                .environment(\.editMode, .constant(.active))
+            }
         }
         .scrollIndicators(.hidden)
-        .navigationTitle("graph.settings")
+        .navigationTitle(LocalizedStringKey(showsLayout ? "graph.settings" : "analysis.details.title"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if isModal {

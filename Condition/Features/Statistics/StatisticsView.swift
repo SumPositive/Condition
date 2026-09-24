@@ -97,7 +97,10 @@ private struct StatisticsContentView: View {
     /// ドラッグ中のみ使う一時的な追加高さ
     @State private var draftExtraHeights: [Int: CGFloat] = [:]
 
-    init(cutoffDate: Date, expandCutoffIfNeeded: @escaping (Int) -> Void) {
+    init(
+        cutoffDate: Date,
+        expandCutoffIfNeeded: @escaping (Int) -> Void
+    ) {
         let predicate = #Predicate<BodyRecord> {
             cutoffDate <= $0.dateTime && $0.dateTime < bodyRecordGoalDate
         }

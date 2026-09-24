@@ -29,25 +29,29 @@ struct ContentView: View {
                 }
                 .tag(RootTab.records)
 
-            GraphView()
+            AnalysisPageView(page: .one)
                 .tabItem {
-                    Label(
-                        "tab.graph",
-                        systemImage: "chart.line.uptrend.xyaxis"
-                    )
-                    .accessibilityIdentifier("tab.graph")
+                    Label("1", systemImage: AnalysisPage.one.tabSymbol)
+                        .accessibilityIdentifier("tab.graph")
+                        .accessibilityLabel(AnalysisPage.one.accessibilityTitle)
                 }
-                .tag(RootTab.graph)
+                .tag(RootTab.analysis1)
 
-            StatisticsView()
+            AnalysisPageView(page: .two)
                 .tabItem {
-                    Label(
-                        "tab.statistics",
-                        systemImage: "chart.dots.scatter"
-                    )
-                    .accessibilityIdentifier("tab.statistics")
+                    Label("2", systemImage: AnalysisPage.two.tabSymbol)
+                        .accessibilityIdentifier("tab.statistics")
+                        .accessibilityLabel(AnalysisPage.two.accessibilityTitle)
                 }
-                .tag(RootTab.statistics)
+                .tag(RootTab.analysis2)
+
+            AnalysisPageView(page: .three)
+                .tabItem {
+                    Label("3", systemImage: AnalysisPage.three.tabSymbol)
+                        .accessibilityIdentifier("tab.analysis3")
+                        .accessibilityLabel(AnalysisPage.three.accessibilityTitle)
+                }
+                .tag(RootTab.analysis3)
 
             SettingsView()
                 .tabItem {
@@ -160,9 +164,11 @@ struct ContentView: View {
         case .records:
             switchTab(to: .records)
         case .graph:
-            switchTab(to: .graph)
+            switchTab(to: .analysis1)
         case .statistics:
-            switchTab(to: .statistics)
+            switchTab(to: .analysis2)
+        case .analysis3:
+            switchTab(to: .analysis3)
         }
     }
 
@@ -170,7 +176,7 @@ struct ContentView: View {
     private func isSheetAction(_ action: LaunchAction) -> Bool {
         switch action {
         case .newSingle, .newMulti: return true
-        case .none, .records, .graph, .statistics: return false
+        case .none, .records, .graph, .statistics, .analysis3: return false
         }
     }
 
@@ -224,15 +230,17 @@ struct ContentView: View {
 
 private enum RootTab: Hashable {
     case records
-    case graph
-    case statistics
+    case analysis1
+    case analysis2
+    case analysis3
     case settings
 
     var analyticsName: String {
         switch self {
         case .records: return "records"
-        case .graph: return "graph"
-        case .statistics: return "statistics"
+        case .analysis1: return "analysis_1"
+        case .analysis2: return "analysis_2"
+        case .analysis3: return "analysis_3"
         case .settings: return "settings"
         }
     }
@@ -240,5 +248,5 @@ private enum RootTab: Hashable {
 
 #Preview {
     ContentView()
-        .modelContainer(for: BodyRecord.self, inMemory: true)
+        .modelContainer(for: [BodyRecord.self, SymptomRecord.self], inMemory: true)
 }

@@ -114,6 +114,7 @@ final class AppAnalytics {
         let hiddenStats = Set(settings.statHiddenSections)
         let statsOrder = settings.statSectionOrder
         let visibleStats = statsOrder.filter { !hiddenStats.contains($0) }
+        let layout = settings.analysisLayout
 
         return [
             "user_level": settings.userLevel.rawValue,
@@ -140,6 +141,13 @@ final class AppAnalytics {
             "order_record_fields": recordFieldsOrder.map(String.init).joined(separator: ","),
             "order_graphs": graphsOrder.map(String.init).joined(separator: ","),
             "order_stats": statsOrder.map(String.init).joined(separator: ","),
+            // 3ページ方式で実際に表示している図表と期間
+            "analysis_page_1": layout.visiblePanels(in: .one).map(\.rawValue).joined(separator: ","),
+            "analysis_page_2": layout.visiblePanels(in: .two).map(\.rawValue).joined(separator: ","),
+            "analysis_page_3": layout.visiblePanels(in: .three).map(\.rawValue).joined(separator: ","),
+            "analysis_period_1": layout.period(in: .one).rawValue,
+            "analysis_period_2": layout.period(in: .two).rawValue,
+            "analysis_period_3": layout.period(in: .three).rawValue,
         ]
     }
 

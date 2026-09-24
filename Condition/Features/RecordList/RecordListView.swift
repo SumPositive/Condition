@@ -417,12 +417,24 @@ struct RecordListView: View {
         // DemoDataGenerator 自体が #if DEBUG なので、条件を揃えておかないと
         // Release のシミュレータ構成でビルドが通らない
         #if DEBUG && targetEnvironment(simulator)
-        if !settings.hkDisabledByDemo {
+        if !settings.hkDisabledByDemo
+            || !symptomRecords.contains(where: { $0.sWeatherSourceURL == "vitalin-demo://symptoms" }) {
             Button {
-                AppSettings.shared.hkDisabledByDemo = true
-                AppSettings.shared.hkEnabled = false
-                DemoDataGenerator.generate(in: context)
-                toastMessage = String(localized: "demo.addedOneYear")
+                do {
+                    // 旧Demo利用中なら測定記録を作り直さず、症状サンプルだけ補う
+                    if settings.hkDisabledByDemo {
+                        try DemoDataGenerator.generateSymptoms(in: context)
+                        try context.save()
+                    } else {
+                        try DemoDataGenerator.generate(in: context)
+                    }
+                    AppSettings.shared.hkDisabledByDemo = true
+                    AppSettings.shared.hkEnabled = false
+                    toastMessage = String(localized: "demo.addedOneYear")
+                } catch {
+                    context.rollback()
+                    toastMessage = String(localized: "analysis.demoFailed")
+                }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                     toastMessage = nil
                 }
@@ -693,8 +705,8 @@ private struct DemoDataGenerator {
         skMuscleBase: 305, skMuscleRange: 40
     )
 
-    static func generate(in context: ModelContext) {
-        try? context.delete(model: BodyRecord.self)
+    static func generate(in context: ModelContext) throws {
+        try context.delete(model: BodyRecord.self)
 
         let isJa = Locale.preferredLanguages.first?.hasPrefix("ja") ?? true
         let profile = isJa ? jaProfile : enProfile
@@ -739,8 +751,55 @@ private struct DemoDataGenerator {
                 context.insert(record)
             }
         }
-        try? context.save()
+        try generateSymptoms(in: context)
+        try context.save()
     }
+
+    /// 実記録を維持し、以前追加した症状Demoだけを置き換える
+    static func generateSymptoms(in context: ModelContext) throws {
+        let previous = try context.fetch(FetchDescriptor<SymptomRecord>(
+            predicate: #Predicate { $0.sWeatherSourceURL == "vitalin-demo://symptoms" }
+        ))
+        for record in previous { context.delete(record) }
+        let calendar = Calendar.current
+        let now = Date()
+        let today = calendar.startOfDay(for: now)
+        let ids = ["headache", "stiffShoulder", "fatigue", "dizziness"]
+        for offset in 0..<365 {
+            for (index, id) in ids.enumerated() {
+                // 頻度・程度・終息の有無が違うサンプルを規則的に作る
+                guard offset % (3 + index * 2) == 0 || offset % 17 == index else { continue }
+                let day = calendar.date(byAdding: .day, value: -offset, to: today)!
+                let planned = calendar.date(bySettingHour: 7 + index * 3, minute: 15, second: 0, of: day)!
+                let start = min(planned, now.addingTimeInterval(-Double(index + 1) * 1800))
+                let record = SymptomRecord(startAt: start, symptomID: id)
+                record.severity = offset % 17 == index ? .notPresent
+                    : [SymptomSeverity.mild, .moderate, .severe][(offset + index) % 3]
+                if record.severity != .notPresent {
+                    if offset == 0 { record.bOngoing = true }
+                    else if offset % 11 != 0 {
+                        record.endAt = min(now, start.addingTimeInterval(Double(1 + (offset + index) % 30) * 3600))
+                    }
+                }
+                // 合成した環境値は観測所由来とせず、手入力として保存する
+                var environment = EnvironmentSnapshot()
+                environment.source = .manual
+                environment.temp_10c = 150 + offset % 180
+                environment.isTempSet = true
+                environment.humidity_p = 40 + offset % 40
+                environment.isHumiditySet = true
+                environment.pressure_10hpa = 10000 + offset % 240
+                environment.isTempEdited = true
+                environment.isHumidityEdited = true
+                environment.isPressureEdited = true
+                record.apply(environment)
+                // メモ欄へ識別子を出さず、画面に表示しない出典URLでDemoを識別する
+                record.sWeatherSourceURL = "vitalin-demo://symptoms"
+                context.insert(record)
+            }
+        }
+    }
+
 }
 #endif
 

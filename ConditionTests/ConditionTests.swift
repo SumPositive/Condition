@@ -73,6 +73,85 @@ struct BodyRecordTests {
     }
 }
 
+// MARK: - 症状分析テスト
+
+@Suite("Symptom Analysis Tests")
+struct SymptomAnalysisTests {
+
+    private let calendar = Calendar(identifier: .gregorian)
+
+    private func date(_ day: Int, hour: Int = 0) -> Date {
+        calendar.date(from: DateComponents(year: 2026, month: 9, day: day, hour: hour))!
+    }
+
+    @Test("継続症状は期間内で重なる日だけ数える")
+    func ongoingRecordCountsOverlappingDays() {
+        let record = SymptomRecord(startAt: date(1, hour: 12), symptomID: "headache")
+        record.severity = .moderate
+        record.bOngoing = true
+        let range = SymptomAnalysisRange(start: date(3), end: date(6), calendar: calendar)
+
+        #expect(!range.containsStart(record))
+        #expect(range.overlaps(record))
+        #expect(range.symptomDays([record]) == 3)
+    }
+
+    @Test("点の記録は開始日のみ数え、なしは症状日へ含めない")
+    func pointAndAbsentRecordsStayDistinct() {
+        let point = SymptomRecord(startAt: date(3, hour: 10), symptomID: "headache")
+        point.severity = .mild
+        let absent = SymptomRecord(startAt: date(4, hour: 10), symptomID: "headache")
+        absent.severity = .notPresent
+        let range = SymptomAnalysisRange(start: date(3), end: date(6), calendar: calendar)
+
+        #expect(range.symptomDays([point, absent]) == 1)
+    }
+}
+
+// MARK: - 分析ページ配置テスト
+
+@Suite("Analysis Layout Tests")
+struct AnalysisLayoutTests {
+
+    @Test("旧グラフと統計の配置をページ1と2へ移行する")
+    func migratesLegacyLayout() {
+        let layout = AnalysisLayout.migrated(
+            graphOrder: [GraphKind.weight.rawValue, GraphKind.bp.rawValue],
+            hiddenGraphs: [GraphKind.bp.rawValue],
+            statOrder: [StatSection.weightSummary.rawValue, StatSection.bpSummary.rawValue],
+            hiddenStats: [StatSection.bpSummary.rawValue],
+            statDays: GraphPeriod.sixMonths.rawValue
+        )
+
+        #expect(Array(layout.page1.prefix(2)) == [.graphWeight, .graphBloodPressure])
+        #expect(Array(layout.page2.prefix(2)) == [.statWeightSummary, .statBloodPressureSummary])
+        #expect(layout.hidden.contains(.graphBloodPressure))
+        #expect(layout.hidden.contains(.statBloodPressureSummary))
+        #expect(layout.period(in: .two) == .sixMonths)
+        #expect(Array(layout.page3.prefix(3)) == [.symptomCalendar, .symptomFrequency, .symptomSummary])
+        let allPanels = layout.page1 + layout.page2 + layout.page3
+        #expect(allPanels.count == AnalysisPanelID.allCases.count)
+        #expect(Set(allPanels).count == allPanels.count)
+    }
+
+    @Test("図表を移動しても非表示状態を維持する")
+    func movingPanelKeepsVisibility() {
+        var layout = AnalysisLayout.migrated(
+            graphOrder: GraphKind.allCases.map(\.rawValue),
+            hiddenGraphs: [GraphKind.bp.rawValue],
+            statOrder: StatSection.allCases.map(\.rawValue),
+            hiddenStats: [],
+            statDays: GraphPeriod.threeMonths.rawValue
+        )
+
+        layout.move(.graphBloodPressure, to: .three)
+
+        #expect(!layout.page1.contains(.graphBloodPressure))
+        #expect(layout.page3.last == .graphBloodPressure)
+        #expect(layout.hidden.contains(.graphBloodPressure))
+    }
+}
+
 // MARK: - 複数回測定テスト
 
 @Suite("Measurement Sample Tests")

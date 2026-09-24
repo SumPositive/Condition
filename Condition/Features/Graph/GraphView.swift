@@ -1725,7 +1725,7 @@ struct LineChartView: View {
 
 // MARK: - BMIグラフパネル
 
-private struct BMIChartView: View {
+struct BMIChartView: View {
     let records: [BodyRecord]
     let heightCm: Int
     let period: GraphPeriod

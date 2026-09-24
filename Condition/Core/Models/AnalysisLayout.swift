@@ -1,0 +1,274 @@
+//
+//  分析ページの配置モデル
+//  測定・統計・症状の図表を3ページへ割り当て、順位と表示状態を保持する
+//
+
+import Foundation
+
+enum AnalysisPage: Int, CaseIterable, Codable, Identifiable {
+  case one = 1
+  case two = 2
+  case three = 3
+
+  var id: Int { rawValue }
+  var tabSymbol: String { "\(rawValue).square" }
+  var accessibilityTitle: String {
+    String(format: String(localized: "analysis.page.accessibilityFormat"), rawValue)
+  }
+}
+
+/// 異なるenumの数値衝突を避けるため、図表IDは名前空間付き文字列で永続化する
+enum AnalysisPanelID: String, CaseIterable, Codable, Identifiable {
+  case graphBloodPressure = "graph.bloodPressure"
+  case graphPulsePressure = "graph.pulsePressure"
+  case graphHeartRate = "graph.heartRate"
+  case graphBodyTemperature = "graph.bodyTemperature"
+  case graphWeight = "graph.weight"
+  case graphBodyFat = "graph.bodyFat"
+  case graphSkeletalMuscle = "graph.skeletalMuscle"
+  case graphBMI = "graph.bmi"
+  case graphWeightChange = "graph.weightChange"
+
+  case statBloodPressureDistribution = "statistics.bloodPressureDistribution"
+  case statBloodPressureRatio = "statistics.bloodPressureRatio"
+  case statBloodPressureByCategory = "statistics.bloodPressureByCategory"
+  case statBloodPressure24Hours = "statistics.bloodPressure24Hours"
+  case statBloodPressureSummary = "statistics.bloodPressureSummary"
+  case statBloodPressureLeftRight = "statistics.bloodPressureLeftRight"
+  case statWeightSummary = "statistics.weightSummary"
+  case statBodyTemperatureSummary = "statistics.bodyTemperatureSummary"
+  case statBodyTemperature24Hours = "statistics.bodyTemperature24Hours"
+  case statBodyTemperatureDistribution = "statistics.bodyTemperatureDistribution"
+  case statWeightBloodPressure = "statistics.weightBloodPressure"
+
+  case symptomCalendar = "symptom.calendar"
+  case symptomFrequency = "symptom.frequency"
+  case symptomSummary = "symptom.summary"
+
+  var id: String { rawValue }
+
+  var titleKey: String {
+    if let kind = graphKind { return kind.title }
+    if let section = statSection { return section.title }
+    switch self {
+    case .symptomCalendar: return "analysis.calendar"
+    case .symptomFrequency: return "analysis.trend"
+    case .symptomSummary: return "analysis.symptomSummary"
+    default: return "analysis.unknownPanel"
+    }
+  }
+
+  var defaultPage: AnalysisPage {
+    if graphKind != nil { return .one }
+    if statSection != nil { return .two }
+    return .three
+  }
+
+  /// 症状図表かを種類から判定する
+  var isSymptomPanel: Bool { graphKind == nil && statSection == nil }
+
+  var graphKind: GraphKind? {
+    switch self {
+    case .graphBloodPressure: return .bp
+    case .graphPulsePressure: return .bpAvg
+    case .graphHeartRate: return .pulse
+    case .graphBodyTemperature: return .temp
+    case .graphWeight: return .weight
+    case .graphBodyFat: return .bodyFat
+    case .graphSkeletalMuscle: return .skMuscle
+    case .graphBMI: return .bmi
+    case .graphWeightChange: return .weightChange
+    default: return nil
+    }
+  }
+
+  init?(graphKind: GraphKind) {
+    switch graphKind {
+    case .bp: self = .graphBloodPressure
+    case .bpAvg: self = .graphPulsePressure
+    case .pulse: self = .graphHeartRate
+    case .temp: self = .graphBodyTemperature
+    case .weight: self = .graphWeight
+    case .bodyFat: self = .graphBodyFat
+    case .skMuscle: self = .graphSkeletalMuscle
+    case .bmi: self = .graphBMI
+    case .weightChange: self = .graphWeightChange
+    }
+  }
+
+  var statSection: StatSection? {
+    switch self {
+    case .statBloodPressureDistribution: return .bpJsh
+    case .statBloodPressureRatio: return .bpRatio
+    case .statBloodPressureByCategory: return .bpDateOptCorr
+    case .statBloodPressure24Hours: return .bp24h
+    case .statBloodPressureSummary: return .bpSummary
+    case .statBloodPressureLeftRight: return .bpLeftRight
+    case .statWeightSummary: return .weightSummary
+    case .statBodyTemperatureSummary: return .tempSummary
+    case .statBodyTemperature24Hours: return .temp24h
+    case .statBodyTemperatureDistribution: return .tempHist
+    case .statWeightBloodPressure: return .weightBpScatter
+    default: return nil
+    }
+  }
+
+  init?(statSection: StatSection) {
+    switch statSection {
+    case .bpJsh: self = .statBloodPressureDistribution
+    case .bpRatio: self = .statBloodPressureRatio
+    case .bpDateOptCorr: self = .statBloodPressureByCategory
+    case .bp24h: self = .statBloodPressure24Hours
+    case .bpSummary: self = .statBloodPressureSummary
+    case .bpLeftRight: self = .statBloodPressureLeftRight
+    case .weightSummary: self = .statWeightSummary
+    case .tempSummary: self = .statBodyTemperatureSummary
+    case .temp24h: self = .statBodyTemperature24Hours
+    case .tempHist: self = .statBodyTemperatureDistribution
+    case .weightBpScatter: self = .statWeightBloodPressure
+    }
+  }
+}
+
+struct AnalysisLayout: Codable, Equatable {
+  var version = 1
+  var page1: [AnalysisPanelID]
+  var page2: [AnalysisPanelID]
+  var page3: [AnalysisPanelID]
+  var hidden: Set<AnalysisPanelID>
+  var period1: Int
+  var period2: Int
+  var period3: Int
+
+  func panels(in page: AnalysisPage) -> [AnalysisPanelID] {
+    switch page {
+    case .one: return page1
+    case .two: return page2
+    case .three: return page3
+    }
+  }
+
+  func visiblePanels(in page: AnalysisPage) -> [AnalysisPanelID] {
+    panels(in: page).filter { !hidden.contains($0) }
+  }
+
+  func period(in page: AnalysisPage) -> GraphPeriod {
+    let raw: Int
+    switch page {
+    case .one: raw = period1
+    case .two: raw = period2
+    case .three: raw = period3
+    }
+    return GraphPeriod(rawValue: raw) ?? .threeMonths
+  }
+
+  mutating func setPeriod(_ period: GraphPeriod, in page: AnalysisPage) {
+    switch page {
+    case .one: period1 = period.rawValue
+    case .two: period2 = period.rawValue
+    case .three: period3 = period.rawValue
+    }
+  }
+
+  mutating func setPanels(_ panels: [AnalysisPanelID], in page: AnalysisPage) {
+    switch page {
+    case .one: page1 = panels
+    case .two: page2 = panels
+    case .three: page3 = panels
+    }
+  }
+
+  mutating func move(_ panel: AnalysisPanelID, to destination: AnalysisPage) {
+    for page in AnalysisPage.allCases {
+      var values = panels(in: page)
+      values.removeAll { $0 == panel }
+      setPanels(values, in: page)
+    }
+    var destinationPanels = panels(in: destination)
+    destinationPanels.append(panel)
+    setPanels(destinationPanels, in: destination)
+  }
+
+  mutating func normalize() {
+    var seen = Set<AnalysisPanelID>()
+    for page in AnalysisPage.allCases {
+      let unique = panels(in: page).filter { seen.insert($0).inserted }
+      setPanels(unique, in: page)
+    }
+    // アップデートで増えた図表は既定ページの末尾へ補う
+    for panel in AnalysisPanelID.allCases where !seen.contains(panel) {
+      var values = panels(in: panel.defaultPage)
+      values.append(panel)
+      setPanels(values, in: panel.defaultPage)
+      seen.insert(panel)
+    }
+    hidden = hidden.intersection(seen)
+  }
+
+  static func migrated(
+    graphOrder: [Int],
+    hiddenGraphs: [Int],
+    statOrder: [Int],
+    hiddenStats: [Int],
+    statDays: Int
+  ) -> AnalysisLayout {
+    let graphPanels = graphOrder.compactMap(GraphKind.init(rawValue:)).compactMap {
+      AnalysisPanelID(graphKind: $0)
+    }
+    let statPanels = statOrder.compactMap(StatSection.init(rawValue:)).compactMap {
+      AnalysisPanelID(statSection: $0)
+    }
+    var hidden = Set(
+      hiddenGraphs.compactMap(GraphKind.init(rawValue:)).compactMap {
+        AnalysisPanelID(graphKind: $0)
+      })
+    hidden.formUnion(
+      hiddenStats.compactMap(StatSection.init(rawValue:)).compactMap {
+        AnalysisPanelID(statSection: $0)
+      })
+    var result = AnalysisLayout(
+      page1: graphPanels,
+      page2: statPanels,
+      page3: [.symptomCalendar, .symptomFrequency, .symptomSummary],
+      hidden: hidden,
+      period1: GraphPeriod.month.rawValue,
+      period2: GraphPeriod(rawValue: statDays)?.rawValue ?? GraphPeriod.threeMonths.rawValue,
+      period3: GraphPeriod.threeMonths.rawValue
+    )
+    result.normalize()
+    return result
+  }
+}
+
+/// 記録開始件数と、期間に重なる症状日数を同じ境界規則で集計する
+struct SymptomAnalysisRange {
+  let start: Date
+  let end: Date
+  var calendar = Calendar.current
+
+  func containsStart(_ record: SymptomRecord) -> Bool {
+    start <= record.startAt && record.startAt < end
+  }
+
+  func overlaps(_ record: SymptomRecord) -> Bool {
+    guard record.startAt < end else { return false }
+    if record.bOngoing { return true }
+    if let finish = record.endAt, record.startAt < finish { return start < finish }
+    return start <= record.startAt
+  }
+
+  func symptomDays(_ records: [SymptomRecord]) -> Int {
+    var days = Set<Date>()
+    for record in records where 1 < record.nSeverity && overlaps(record) {
+      var day = calendar.startOfDay(for: max(start, record.startAt))
+      let finish = record.bOngoing ? end : min(end, record.endAt ?? record.startAt)
+      // 終息時刻ちょうどの翌日は数えず、点の記録は開始日だけ数える
+      repeat {
+        days.insert(day)
+        guard let next = calendar.date(byAdding: .day, value: 1, to: day) else { break }
+        day = next
+      } while day < finish
+    }
+    return days.count
+  }
+}

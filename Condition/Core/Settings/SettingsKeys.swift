@@ -35,6 +35,7 @@ enum SettingsKeys {
     static let settGraphHiddenPanels   = "KVS_SettGraphHiddenPanels"  // グラフ専用非表示パネル ([Int])
     static let settGraphHeightOverrides = "KVS_SettGraphHeightOverrides" // グラフ別追加高さ (JSON {kindRaw: extraHeight CGFloat})
     static let settStatHeightOverrides  = "KVS_SettStatHeightOverrides"  // 統計図別追加高さ (JSON {sectionRaw: extraHeight CGFloat})
+    static let settAnalysisLayout       = "KVS_SettAnalysisLayout"       // 3分析ページの配置・表示・期間 (JSONデータ)
 
     // MARK: - 機能切替
     static let bGoal            = "KVS_bGoal"           // 目標値機能
@@ -93,6 +94,7 @@ enum SettingsKeys {
         settStatBpDistributionHiddenDateOpts,
         settGraphDisplayOrder,
         settGraphHiddenPanels,
+        settAnalysisLayout,
         bGoal,
         dateOptWakeHour,
         dateOptRestHour,

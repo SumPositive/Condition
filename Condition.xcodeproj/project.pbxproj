@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A11400000000000000000001 /* AnalysisLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11400000000000000000002 /* AnalysisLayout.swift */; };
+		A11400000000000000000003 /* AnalysisPageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11400000000000000000004 /* AnalysisPageView.swift */; };
 		04F485DCB1ADFC0859E7298C /* AppConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 332C7D7242BE0FB4EF8FAFFA /* AppConstants.swift */; };
 		0A1A2B3C4D5E6F708192A3B4 /* AZPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A1A2B3C4D5E6F708192A3B3 /* AZPicker.swift */; };
 		0A1A2B3C4D5E6F708192A3C2 /* AZMemoEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A1A2B3C4D5E6F708192A3C1 /* AZMemoEditor.swift */; };
@@ -88,6 +90,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		A11400000000000000000002 /* AnalysisLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisLayout.swift; sourceTree = "<group>"; };
+		A11400000000000000000004 /* AnalysisPageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisPageView.swift; sourceTree = "<group>"; };
 		031D6782445FA50A16B167EC /* RecordListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordListView.swift; sourceTree = "<group>"; };
 		037CD7BBB175D96B6BA9D41C /* RecordEditViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordEditViewModel.swift; sourceTree = "<group>"; };
 		0A1A2B3C4D5E6F708192A3B3 /* AZPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AZPicker.swift; sourceTree = "<group>"; };
@@ -181,6 +185,7 @@
 		06A0B05E77F7430C9454F28D /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				A11400000000000000000002 /* AnalysisLayout.swift */,
 				5EC17368E8623A56C4CAE2C3 /* EnvironmentSnapshot.swift */,
 				AACAB853FA29CC02FA76F4AE /* SymptomRecord.swift */,
 				9CD338BE1F57A4E005A16F3C /* SymptomCatalog.swift */,
@@ -261,6 +266,7 @@
 		673344F6A0605B4FC46E6699 /* Graph */ = {
 			isa = PBXGroup;
 			children = (
+				A11400000000000000000004 /* AnalysisPageView.swift */,
 				4066E230081BA97894E9514C /* GraphView.swift */,
 			);
 			path = Graph;
@@ -574,6 +580,8 @@
 				8206959AD5C6A8FA4D0CF941 /* ContentView.swift in Sources */,
 				F15A862490DED9463FCB6F26 /* DateOpt.swift in Sources */,
 				D6C3A1A72F3E9B12734FC1FB /* GraphView.swift in Sources */,
+				A11400000000000000000001 /* AnalysisLayout.swift in Sources */,
+				A11400000000000000000003 /* AnalysisPageView.swift in Sources */,
 				C31B57052FB944B10090CAEC /* RecentConflictSheet.swift in Sources */,
 				22D5E84A1E28C0A1784D9244 /* HealthKitService.swift in Sources */,
 				2CCB75F6B884B4807D49F2DD /* SettingsKeys.swift in Sources */,

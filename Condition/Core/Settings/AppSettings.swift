@@ -90,14 +90,15 @@ enum LaunchAction: Int, CaseIterable, Identifiable {
     case newMulti   = 1   // 新しい記録（複数回測定の平均）
     case newSingle  = 2   // 新しい記録（単発）
     case records    = 5   // 記録（一覧）
-    case graph      = 3   // グラフ
-    case statistics = 4   // 統計
+    case graph      = 3   // 旧グラフ。rawValueを保ったまま分析ページ1へ移行
+    case statistics = 4   // 旧統計。rawValueを保ったまま分析ページ2へ移行
+    case analysis3  = 6   // 分析ページ3
 
     var id: Int { rawValue }
 
-    // rawValue は永続化互換のため飛び番だが、UIの並びは records をグラフの前に置く
+    // rawValue は永続化互換のため飛び番だが、UIでは記録の後に分析ページ1〜3を並べる
     static var allCases: [LaunchAction] {
-        [.none, .newMulti, .newSingle, .records, .graph, .statistics]
+        [.none, .newMulti, .newSingle, .records, .graph, .statistics, .analysis3]
     }
 
     var titleKey: String {
@@ -106,8 +107,9 @@ enum LaunchAction: Int, CaseIterable, Identifiable {
         case .newMulti:   return "settings.launchAction.newMulti"
         case .newSingle:  return "settings.launchAction.newSingle"
         case .records:    return "settings.launchAction.records"
-        case .graph:      return "settings.launchAction.graph"
-        case .statistics: return "settings.launchAction.statistics"
+        case .graph:      return "settings.launchAction.analysis1"
+        case .statistics: return "settings.launchAction.analysis2"
+        case .analysis3:  return "settings.launchAction.analysis3"
         }
     }
 }
@@ -156,6 +158,16 @@ final class AppSettings {
     var statHeightOverrides: [Int: Double] = [:] {
         didSet { saveStatHeightOverrides() }
     }
+    /// 3つの分析ページに属する図表、順位、表示状態、期間
+    var analysisLayout = AnalysisLayout.migrated(
+        graphOrder: GraphKind.allCases.map(\.rawValue),
+        hiddenGraphs: [],
+        statOrder: StatSection.allCases.map(\.rawValue),
+        hiddenStats: [],
+        statDays: GraphPeriod.threeMonths.rawValue
+    ) {
+        didSet { saveAnalysisLayout() }
+    }
 
     private func saveGraphHeightOverrides() {
         let stringKeyed = Dictionary(uniqueKeysWithValues: graphHeightOverrides.map { (String($0.key), $0.value) })
@@ -189,6 +201,28 @@ final class AppSettings {
             if let key = Int(k) { result[key] = v }
         }
         statHeightOverrides = result
+    }
+
+    private func saveAnalysisLayout() {
+        guard let data = try? JSONEncoder().encode(analysisLayout) else { return }
+        ud.set(data, forKey: SettingsKeys.settAnalysisLayout)
+    }
+
+    private func loadAnalysisLayout() {
+        if let data = ud.data(forKey: SettingsKeys.settAnalysisLayout),
+           var saved = try? JSONDecoder().decode(AnalysisLayout.self, from: data) {
+            saved.normalize()
+            analysisLayout = saved
+            return
+        }
+        // 旧グラフ・統計の順序と非表示を、そのまま分析ページ1・2へ移す
+        analysisLayout = AnalysisLayout.migrated(
+            graphOrder: graphDisplayOrder,
+            hiddenGraphs: graphHiddenPanels,
+            statOrder: statSectionOrder,
+            hiddenStats: statHiddenSections,
+            statDays: statDays
+        )
     }
 
     // MARK: - グラフ設定（記録入力共通）
@@ -673,6 +707,7 @@ final class AppSettings {
         if let arr = ud.array(forKey: SettingsKeys.settStatBpDistributionHiddenDateOpts) as? [Int] {
             statBpDistributionHiddenDateOpts = arr
         }
+        loadAnalysisLayout()
 
         if ud.object(forKey: SettingsKeys.bGoal) != nil { goalEnabled = ud.bool(forKey: SettingsKeys.bGoal) }
 
