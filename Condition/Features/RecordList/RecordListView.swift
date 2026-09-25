@@ -705,6 +705,28 @@ private struct DemoDataGenerator {
         skMuscleBase: 305, skMuscleRange: 40
     )
 
+    /// 症状と環境の図表を全項目で確認できる合成環境データ
+    private static func demoEnvironment(dayOffset: Int) -> EnvironmentSnapshot {
+        var environment = EnvironmentSnapshot()
+        environment.source = .manual
+        environment.temp_10c = 150 + dayOffset % 180
+        environment.humidity_p = 40 + dayOffset % 40
+        environment.pressure_10hpa = 10000 + dayOffset % 240
+        environment.pressureDelta24h_10hpa = dayOffset % 161 - 80
+        environment.devicePressure_10hpa = 9800 + dayOffset % 180
+        environment.indoorTemp_10c = 180 + dayOffset % 100
+        environment.indoorHumidity_p = 35 + dayOffset % 35
+        environment.isTempSet = true
+        environment.isHumiditySet = true
+        environment.isPressureDelta24hSet = true
+        environment.isIndoorTempSet = true
+        environment.isIndoorHumiditySet = true
+        environment.isTempEdited = true
+        environment.isHumidityEdited = true
+        environment.isPressureEdited = true
+        return environment
+    }
+
     static func generate(in context: ModelContext) throws {
         try context.delete(model: BodyRecord.self)
 
@@ -748,6 +770,7 @@ private struct DemoDataGenerator {
                 record.nBodyFat_10p  = max(100, rand(profile.bodyFatBase, profile.bodyFatRange, step: 5))
                 record.nSkMuscle_10p = max(150, rand(profile.skMuscleBase,profile.skMuscleRange, step: 5))
                 record.bCaution = record.nBpHi_mmHg >= 140 || record.nBpLo_mmHg >= 90
+                record.environmentSnapshot = demoEnvironment(dayOffset: dayOffset)
                 context.insert(record)
             }
         }
@@ -781,18 +804,8 @@ private struct DemoDataGenerator {
                         record.endAt = min(now, start.addingTimeInterval(Double(1 + (offset + index) % 30) * 3600))
                     }
                 }
-                // 合成した環境値は観測所由来とせず、手入力として保存する
-                var environment = EnvironmentSnapshot()
-                environment.source = .manual
-                environment.temp_10c = 150 + offset % 180
-                environment.isTempSet = true
-                environment.humidity_p = 40 + offset % 40
-                environment.isHumiditySet = true
-                environment.pressure_10hpa = 10000 + offset % 240
-                environment.isTempEdited = true
-                environment.isHumidityEdited = true
-                environment.isPressureEdited = true
-                record.apply(environment)
+                // 測定と同じ合成環境を入れ、分布比較をDemoだけで確認できるようにする
+                record.apply(demoEnvironment(dayOffset: offset))
                 // メモ欄へ識別子を出さず、画面に表示しない出典URLでDemoを識別する
                 record.sWeatherSourceURL = "vitalin-demo://symptoms"
                 context.insert(record)

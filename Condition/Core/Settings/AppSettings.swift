@@ -168,6 +168,25 @@ final class AppSettings {
     ) {
         didSet { saveAnalysisLayout() }
     }
+    /// 各分析ページで最後に選んだ症状ID
+    var analysisSymptomFilters: [String: String] = [:] {
+        didSet { ud.set(analysisSymptomFilters, forKey: SettingsKeys.settAnalysisSymptomFilters) }
+    }
+
+    /// ページごとの症状絞り込みを返す
+    func analysisSymptomFilter(in page: AnalysisPage) -> String {
+        analysisSymptomFilters[String(page.rawValue)] ?? ""
+    }
+
+    /// 空文字は「すべて」としてページ別に保存する
+    func setAnalysisSymptomFilter(_ symptomID: String, in page: AnalysisPage) {
+        let key = String(page.rawValue)
+        if symptomID.isEmpty {
+            analysisSymptomFilters.removeValue(forKey: key)
+        } else {
+            analysisSymptomFilters[key] = symptomID
+        }
+    }
 
     private func saveGraphHeightOverrides() {
         let stringKeyed = Dictionary(uniqueKeysWithValues: graphHeightOverrides.map { (String($0.key), $0.value) })
@@ -708,6 +727,12 @@ final class AppSettings {
             statBpDistributionHiddenDateOpts = arr
         }
         loadAnalysisLayout()
+        if let filters = ud.dictionary(forKey: SettingsKeys.settAnalysisSymptomFilters)
+            as? [String: String]
+        {
+            // ページごとの選択を次回起動時にも引き継ぐ
+            analysisSymptomFilters = filters
+        }
 
         if ud.object(forKey: SettingsKeys.bGoal) != nil { goalEnabled = ud.bool(forKey: SettingsKeys.bGoal) }
 

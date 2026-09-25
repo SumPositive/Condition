@@ -54,7 +54,8 @@ enum AnalysisPanelID: String, CaseIterable, Codable, Identifiable {
     switch self {
     case .symptomCalendar: return "analysis.calendar"
     case .symptomFrequency: return "analysis.trend"
-    case .symptomSummary: return "analysis.symptomSummary"
+    // 保存済み配置IDを維持したまま、文字中心の集計を環境図表へ置き換える
+    case .symptomSummary: return "analysis.symptomEnvironment"
     default: return "analysis.unknownPanel"
     }
   }

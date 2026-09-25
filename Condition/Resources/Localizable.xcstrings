@@ -297,25 +297,25 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "このページに配置した測定・統計・症状の図表を、共通の期間で確認できます。期間は分析ページごとに保存されます"
+            "value": "分析ページには、測定グラフ・統計・症状の図表を自由に配置できます。ページごとに選んだ期間で図表をまとめて確認でき、期間はページごとに保存されます"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Review the measurement, statistics, and symptom panels placed on this page using one shared period. Each analysis page remembers its own period."
+            "value": "You can freely place measurement charts, statistics, and symptom panels on analysis pages. Each page displays its panels for one selected period and remembers that period."
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "이 페이지에 배치한 측정·통계·증상 도표를 공통 기간으로 확인할 수 있습니다. 기간은 분석 페이지별로 저장됩니다"
+            "value": "분석 페이지에 측정 그래프, 통계, 증상 도표를 자유롭게 배치할 수 있습니다. 각 페이지에서 선택한 기간으로 도표를 함께 확인할 수 있으며 기간은 페이지별로 저장됩니다"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "可用同一期間查看配置在此頁面的測量、統計與症狀圖表。每個分析頁面會分別記住期間"
+            "value": "可在分析頁面自由配置測量圖表、統計與症狀圖表。每個頁面會以所選期間集中顯示圖表，並分別記住該期間"
           }
         }
       }
@@ -326,25 +326,25 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "図表の配置、表示、順番を変更します"
+            "value": "図表をページ間で移動し、順番や非表示を設定します"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Change panel placement, visibility, and order"
+            "value": "Move panels between pages and set their order or hide them"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "도표의 배치, 표시, 순서를 변경합니다"
+            "value": "도표를 페이지 사이에서 이동하고 순서 또는 숨김을 설정합니다"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "變更圖表的配置、顯示與順序"
+            "value": "在頁面之間移動圖表，並設定順序或隱藏"
           }
         }
       }
@@ -403,6 +403,272 @@
           "stringUnit": {
             "state": "translated",
             "value": "依症狀彙整"
+          }
+        }
+      }
+    },
+    "analysis.symptomEnvironment": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "症状と環境"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Symptoms and environment"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "증상과 환경"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "症狀與環境"
+          }
+        }
+      }
+    },
+    "analysis.environment.metric": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "環境項目"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Environmental factor"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "환경 항목"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "環境項目"
+          }
+        }
+      }
+    },
+    "analysis.environment.metric.outdoorTemp": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": { "stringUnit": { "state": "translated", "value": "屋外気温" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Outdoor temperature" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "실외 기온" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "室外氣溫" } }
+      }
+    },
+    "analysis.environment.metric.outdoorHumidity": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": { "stringUnit": { "state": "translated", "value": "屋外湿度" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Outdoor humidity" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "실외 습도" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "室外濕度" } }
+      }
+    },
+    "analysis.environment.metric.stationPressure": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": { "stringUnit": { "state": "translated", "value": "観測所気圧" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Station pressure" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "관측소 기압" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "觀測站氣壓" } }
+      }
+    },
+    "analysis.environment.metric.pressureDelta": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": { "stringUnit": { "state": "translated", "value": "24時間気圧差" } },
+        "en": { "stringUnit": { "state": "translated", "value": "24-hour pressure change" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "24시간 기압차" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "24 小時氣壓差" } }
+      }
+    },
+    "analysis.environment.metric.indoorTemp": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": { "stringUnit": { "state": "translated", "value": "室温" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Indoor temperature" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "실내 온도" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "室溫" } }
+      }
+    },
+    "analysis.environment.metric.indoorHumidity": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": { "stringUnit": { "state": "translated", "value": "室内湿度" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Indoor humidity" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "실내 습도" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "室內濕度" } }
+      }
+    },
+    "analysis.environment.metric.devicePressure": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": { "stringUnit": { "state": "translated", "value": "端末気圧" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Device pressure" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "기기 기압" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "裝置氣壓" } }
+      }
+    },
+    "analysis.environment.share": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "記録割合"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Share of records"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기록 비율"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "記錄比例"
+          }
+        }
+      }
+    },
+    "analysis.environment.allRecords": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すべての環境記録"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All environment records"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "모든 환경 기록"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "所有環境記錄"
+          }
+        }
+      }
+    },
+    "analysis.environment.coverageFormat": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "症状記録 %1$d件・環境記録 %2$d件"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$d symptom records · %2$d environment records"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "증상 기록 %1$d건 · 환경 기록 %2$d건"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "症狀記錄 %1$d 筆・環境記錄 %2$d 筆"
+          }
+        }
+      }
+    },
+    "analysis.environment.noData": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この環境項目を記録した症状データがありません"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No symptom records include this environmental factor"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 환경 항목을 기록한 증상 데이터가 없습니다"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "沒有記錄此環境項目的症狀資料"
+          }
+        }
+      }
+    },
+    "analysis.environment.note": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "記録された範囲での傾向です。未記録を症状なしとは扱わず、発症率や因果関係は示しません"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This shows patterns only within recorded data. Unrecorded periods are not treated as symptom-free, and the chart does not show incidence or causation."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기록된 범위의 경향입니다. 미기록을 증상 없음으로 간주하지 않으며 발생률이나 인과관계를 나타내지 않습니다"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "僅顯示已記錄資料中的趨勢。不會將未記錄視為無症狀，也不表示發生率或因果關係"
           }
         }
       }
@@ -780,6 +1046,64 @@
           "stringUnit": {
             "state": "translated",
             "value": "選擇症狀"
+          }
+        }
+      }
+    },
+    "analysis.symptomTarget": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "症状図表の対象"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Symptom panel target"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "증상 도표 대상"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "症狀圖表對象"
+          }
+        }
+      }
+    },
+    "analysis.symptomTargetAppliesToPage": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このページの症状図表すべてに適用します"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Applies to all symptom panels on this page"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 페이지의 모든 증상 도표에 적용됩니다"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "套用至此頁面的所有症狀圖表"
           }
         }
       }
@@ -1769,7 +2093,7 @@
     },
     "action.demo": {
       "comment": "A button label that, when tapped, generates 1 year's worth of demo data.",
-      "extractionState": "stale",
+      "extractionState": "manual",
       "isCommentAutoGenerated": true,
       "localizations": {
         "en": {
@@ -3914,7 +4238,7 @@
       }
     },
     "conflict.action.keepPrevious": {
-      "extractionState": "stale",
+      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3943,7 +4267,7 @@
       }
     },
     "conflict.action.useAverage": {
-      "extractionState": "stale",
+      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3972,7 +4296,7 @@
       }
     },
     "conflict.action.useNew": {
-      "extractionState": "stale",
+      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4001,7 +4325,7 @@
       }
     },
     "conflict.average": {
-      "extractionState": "stale",
+      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4030,7 +4354,7 @@
       }
     },
     "conflict.help": {
-      "extractionState": "stale",
+      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4115,7 +4439,7 @@
       }
     },
     "conflict.new": {
-      "extractionState": "stale",
+      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4144,7 +4468,7 @@
       }
     },
     "conflict.previous": {
-      "extractionState": "stale",
+      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4173,7 +4497,7 @@
       }
     },
     "conflict.title": {
-      "extractionState": "stale",
+      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -13383,7 +13707,7 @@
       }
     },
     "settings.merge.10min": {
-      "extractionState": "stale",
+      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -13412,7 +13736,7 @@
       }
     },
     "settings.merge.15min": {
-      "extractionState": "stale",
+      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -13441,7 +13765,7 @@
       }
     },
     "settings.merge.30min": {
-      "extractionState": "stale",
+      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -13470,7 +13794,7 @@
       }
     },
     "settings.merge.5min": {
-      "extractionState": "stale",
+      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -13527,7 +13851,7 @@
       }
     },
     "settings.merge.off": {
-      "extractionState": "stale",
+      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
