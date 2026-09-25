@@ -16,6 +16,15 @@ private enum MeasurementAverageField: Hashable {
     case skMuscle
 }
 
+/// 入力シート復帰時に記録日時の確認が必要かを判定する
+enum ForegroundRecordDateCheck {
+    static let threshold: TimeInterval = 30 * 60
+
+    static func needsConfirmation(recordDate: Date, now: Date = Date()) -> Bool {
+        threshold <= abs(now.timeIntervalSince(recordDate))
+    }
+}
+
 struct RecordEditView: View {
 
     @Environment(\.modelContext) private var context
@@ -47,8 +56,9 @@ struct RecordEditView: View {
     @State private var memoScrollTask: Task<Void, Never>? = nil
     /// ソフトキーボードが表示中か
     @State private var isKeyboardVisible = false
-    /// バックグラウンドを経由したか（未入力の新規シートの日時取り直し用）
+    /// バックグラウンドを経由したか
     @State private var didEnterBackground = false
+    @State private var showStaleDateAlert = false
     @FocusState private var focusNote1: Bool
     @FocusState private var focusNote2: Bool
     @FocusState private var focusEquipment: Bool
@@ -449,6 +459,12 @@ struct RecordEditView: View {
             } message: {
                 Text("record.sameMinute.message")
             }
+            .alert("record.datetime.stale.title", isPresented: $showStaleDateAlert) {
+                Button("record.datetime.stale.useNow") { useCurrentDateAfterForeground() }
+                Button("record.datetime.stale.keep", role: .cancel) {}
+            } message: {
+                Text("record.datetime.stale.message")
+            }
             .alert(
                 "record.delete.failed.title",
                 isPresented: Binding(
@@ -480,9 +496,7 @@ struct RecordEditView: View {
             .onChange(of: equipmentHistorySignature) { _, _ in
                 equipmentCandidateStore.refresh(with: recordsForEquipmentHistory)
             }
-            // 未入力の新規シートがバックグラウンド→復帰したら、日時を現在時刻へ取り直す。
-            // 入力済み（isModified）のときは触らない。inactive の一過性遷移では動かさないため、
-            // 実際に background を経由したときだけ復帰処理する。
+            // 新規シートがバックグラウンドから戻り、日時が30分以上ずれていれば確認する
             .onChange(of: scenePhase) { _, phase in
                 switch phase {
                 case .background:
@@ -490,8 +504,9 @@ struct RecordEditView: View {
                 case .active:
                     guard didEnterBackground else { return }
                     didEnterBackground = false
-                    if isNewRecord, !vm.isModified {
-                        vm.refreshForForeground(context: context)
+                    if isNewRecord,
+                       ForegroundRecordDateCheck.needsConfirmation(recordDate: vm.dateTime) {
+                        showStaleDateAlert = true
                     }
                 default:
                     break
@@ -690,6 +705,16 @@ struct RecordEditView: View {
                     .foregroundStyle(.secondary)
             }
         }
+    }
+
+    /// 入力内容を保ったまま記録日時だけを現在へ更新する
+    private func useCurrentDateAfterForeground() {
+        if !vm.isModified {
+            vm.refreshForForeground(context: context)
+            return
+        }
+        vm.dateTime = Date()
+        vm.onDateChanged()
     }
 
     private var dateOptRow: some View {
@@ -1316,6 +1341,12 @@ struct DatePickerSheet: View {
             .navigationTitle("record.datetime.select")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    // グラフィカルDatePickerの時刻行は安全に組み替えられないため左上へ置く
+                    Button("action.now") {
+                        date = Date()
+                    }
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("action.done") {
                         onChanged()

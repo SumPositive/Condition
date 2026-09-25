@@ -241,10 +241,10 @@ final class RecordEditViewModel {
         isModified = true
     }
 
-    // MARK: - フォアグラウンド復帰時の日時取り直し
+    // MARK: - 復帰確認後の日時取り直し
 
-    /// 起動時などに開いた新規記録シートが未入力のままバックグラウンド→復帰したとき、
-    /// 日時を現在時刻へ取り直し、区分・前回値も開いた直後と同じ手順で入れ直す。
+    /// 復帰時の確認で「現在にする」を選んだ未入力の新規記録について、
+    /// 日時を現在時刻へ取り直し、区分・前回値も開いた直後と同じ手順で入れ直す
     /// 入力済み（isModified）や新規以外では何もしない（呼び出し側でも弾く）。
     func refreshForForeground(context: ModelContext) {
         guard case .addNew = mode, !isModified else { return }

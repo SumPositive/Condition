@@ -11,6 +11,7 @@ struct SymptomEditView: View {
 
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @State private var vm: SymptomEditViewModel
     @State private var showSymptomPicker = false
     @State private var showMedicinePicker = false
@@ -21,6 +22,8 @@ struct SymptomEditView: View {
     @State private var showEnvironmentSheet = false
     @State private var showStartPicker = false
     @State private var showEndPicker = false
+    @State private var didEnterBackground = false
+    @State private var showStaleDateAlert = false
     /// 保存後に「続けて記録」で2件目を作るかの確認
     @State private var showContinueSheet = false
     @FocusState private var noteFocused: Bool
@@ -130,10 +133,32 @@ struct SymptomEditView: View {
                     if updated != vm.environment { vm.environment = updated }
                 }
             }
+            .alert("record.datetime.stale.title", isPresented: $showStaleDateAlert) {
+                Button("record.datetime.stale.useNow") { useCurrentDateAfterForeground() }
+                Button("record.datetime.stale.keep", role: .cancel) {}
+            } message: {
+                Text("record.datetime.stale.message")
+            }
             // 未保存の変更があるときはスワイプで閉じさせない（測定シートと同じ）。
             // 破棄はキャンセルの二段タップでのみ行う
             .interactiveDismissDisabled(vm.isModified)
             .onChange(of: vm.isModified) { _, newValue in onModifiedChanged?(newValue) }
+            // 新規シートがバックグラウンドから戻り、日時が30分以上ずれていれば確認する
+            .onChange(of: scenePhase) { _, phase in
+                switch phase {
+                case .background:
+                    didEnterBackground = true
+                case .active:
+                    guard didEnterBackground else { return }
+                    didEnterBackground = false
+                    if isNewRecord,
+                       ForegroundRecordDateCheck.needsConfirmation(recordDate: vm.startAt) {
+                        showStaleDateAlert = true
+                    }
+                default:
+                    break
+                }
+            }
             .onDisappear { cancelArmTask?.cancel() }
         }
         // .sheet では App の dynamicTypeSize が届かないことがあるため明示する
@@ -141,6 +166,20 @@ struct SymptomEditView: View {
     }
 
     // MARK: - 日時
+
+    private var isNewRecord: Bool {
+        if case .addNew = mode { return true }
+        return false
+    }
+
+    /// 発症日時を現在へ更新し、必要なら終息日時も合わせる
+    private func useCurrentDateAfterForeground() {
+        let now = Date()
+        vm.startAt = now
+        if vm.hasEnded, vm.endAt < now {
+            vm.endAt = now
+        }
+    }
 
     private var dateSection: some View {
         Section {
@@ -185,16 +224,13 @@ struct SymptomEditView: View {
         }
     }
 
-    /// 測定シートの日時ボタンと同じ見た目・同じ日時書式にする
+    /// アイコンの幅を日時へ譲り、発症・終息日時を読みやすく表示する
     private func dateButton(date: Date, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: 4) {
-                Image(systemName: "calendar")
-                Text(Self.dateTimeFormatter.string(from: date))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-            }
-            .font(.callout)
+            Text(Self.dateTimeFormatter.string(from: date))
+                .font(.body)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
         }
     }
 

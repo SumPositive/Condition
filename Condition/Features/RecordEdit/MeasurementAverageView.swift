@@ -208,6 +208,7 @@ struct MeasurementAverageView: View {
     @State private var isDateOptExpanded = false
     // 編集で日時を同じ「分」の別記録に重ねようとしたときの警告
     @State private var showSameMinuteAlert = false
+    @State private var showStaleDateAlert = false
     // 削除に失敗したとき、リトライ／キャンセルを選ばせるためのアラート表示フラグ
     @State private var showDeleteFailedAlert = false
 
@@ -261,7 +262,7 @@ struct MeasurementAverageView: View {
     /// キャンセル誤タップ防止
     @State private var isCancelArmed = false
     @State private var cancelArmTask: Task<Void, Never>? = nil
-    /// バックグラウンドを経由したか（未入力の新規シートの日時取り直し用）
+    /// バックグラウンドを経由したか
     @State private var didEnterBackground = false
 
     /// 「次へ」ボタンを左右どちらに置くか（trueで左、falseで右、デフォルト右）
@@ -450,6 +451,12 @@ struct MeasurementAverageView: View {
             } message: {
                 Text("record.sameMinute.message")
             }
+            .alert("record.datetime.stale.title", isPresented: $showStaleDateAlert) {
+                Button("record.datetime.stale.useNow") { useCurrentDateAfterForeground() }
+                Button("record.datetime.stale.keep", role: .cancel) {}
+            } message: {
+                Text("record.datetime.stale.message")
+            }
             .alert(
                 "record.delete.failed.title",
                 isPresented: $showDeleteFailedAlert
@@ -490,8 +497,7 @@ struct MeasurementAverageView: View {
             .onChange(of: equipmentHistorySignature) { _, _ in
                 equipmentCandidateStore.refresh(with: recordsForEquipmentHistory)
             }
-            // 未入力の新規シートがバックグラウンド→復帰したら、日時と区分を現在時刻基準へ取り直す。
-            // 入力済み（値・入力途中の文字）や修正時は触らない。inactive の一過性遷移では動かさない。
+            // 新規シートがバックグラウンドから戻り、日時が30分以上ずれていれば確認する
             .onChange(of: scenePhase) { _, phase in
                 switch phase {
                 case .background:
@@ -499,7 +505,10 @@ struct MeasurementAverageView: View {
                 case .active:
                     guard didEnterBackground else { return }
                     didEnterBackground = false
-                    refreshDateForForeground()
+                    if record == nil,
+                       ForegroundRecordDateCheck.needsConfirmation(recordDate: dateTime) {
+                        showStaleDateAlert = true
+                    }
                 default:
                     break
                 }
@@ -523,13 +532,11 @@ struct MeasurementAverageView: View {
             Button {
                 showDatePicker = true
             } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "calendar")
-                    Text(Self.dateTimeFormatter.string(from: dateTime))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.6)
-                }
-                .font(.callout)
+                // アイコンの幅を日時へ譲り、症状入力と同じ大きさで表示する
+                Text(Self.dateTimeFormatter.string(from: dateTime))
+                    .font(.body)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
             }
             Spacer(minLength: 8)
             dateOptPicker
@@ -1553,14 +1560,23 @@ struct MeasurementAverageView: View {
         )
     }
 
-    /// 未入力の新規平均シートがバックグラウンド→復帰したとき、日時と区分を現在時刻基準へ取り直す。
-    /// 値入力・入力途中の文字があるとき、または修正（record != nil）では何もしない。
+    /// 復帰時の確認で「現在にする」を選んだ未入力の新規測定について日時と区分を取り直す
     private func refreshDateForForeground() {
         guard record == nil, !hasAnyValue, !hasAnyMemoInput, inputText.isEmpty else { return }
         dateTime = Date()
         dateOpt  = settings.autoDateOpt(for: dateTime)   // 前回値が無い場合の既定区分
         // 開いた直後と同じ手順で、まとめ時間内の直前区分／推定により区分を取り直し、参考値も更新する。
         loadInitialDateOpt()
+    }
+
+    /// 入力済みの測定値を保ったまま記録日時を現在へ更新する
+    private func useCurrentDateAfterForeground() {
+        if !hasAnyValue, !hasAnyMemoInput, inputText.isEmpty {
+            refreshDateForForeground()
+            return
+        }
+        dateTime = Date()
+        dateOpt = settings.autoDateOpt(for: dateTime)
     }
 
     /// 新規記録と同じロジックで区分の初期値を決める
