@@ -28,10 +28,16 @@ struct EnvironmentEditView: View {
     var body: some View {
         NavigationStack {
             Form {
-                fetchButtonSection
+                // 記録日時が現在から離れている場合は自動取得の操作を出さない
+                if vm.canAutomaticallyFetch {
+                    fetchButtonSection
+                }
                 outdoorSection
                 indoorSection
-                devicePressureSection
+                // 取得済みの値があるか、この端末で新しく取得できる場合だけ表示する
+                if vm.devicePressure_10hpa != 0 || vm.canFetchDevicePressure {
+                    devicePressureSection
+                }
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -72,7 +78,7 @@ struct EnvironmentEditView: View {
         .onAppear {
             // 押してから読み込むと待たせるので、先に用意しておく。
             // 無料で取れる間は広告が要らないため読み込まない
-            if !vm.canFetchWithoutAd { adLoader.preload() }
+            if vm.canAutomaticallyFetch, !vm.canFetchWithoutAd { adLoader.preload() }
 
             // 視聴完了でだけ取得を通す
             adLoader.onRewardEarned = {
@@ -147,7 +153,7 @@ struct EnvironmentEditView: View {
                     .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
-                .disabled(vm.isFetching || !vm.canFetchAny)
+                .disabled(vm.isFetching || vm.isFetchingDevicePressure || !vm.canFetchAny)
 
                 // 広告を挟むときだけ、その条件を押す前に知らせる。
                 // 無料で取れる間は出さない（読む必要が無いため）
@@ -169,8 +175,9 @@ struct EnvironmentEditView: View {
 
     private var outdoorSection: some View {
         Section {
-            if !vm.canFetchJMA {
-                Text("symptom.weather.outOfRangeHint")
+            if !vm.canAutomaticallyFetch {
+                // 記録日時が現在から離れている場合は手入力だけにする
+                Text("environment.help.manualOnly")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -286,26 +293,25 @@ struct EnvironmentEditView: View {
 
     // MARK: - デバイス
 
-    /// 気圧計の無い端末でもセクション自体は出す。
-    /// 隠すと「この機能が無い」のか「見落としたのか」を利用者が判別できないため
+    /// 端末気圧を表示し、未取得なら個別に取得できるようにする
     private var devicePressureSection: some View {
         Section {
-            if DevicePressureService.isAvailable {
-                // 取得は屋外セクションのボタンがまとめて行う。ここは結果を見せるだけ
-                LabeledContent("environment.device.pressure") {
-                    if vm.devicePressure_10hpa != 0 {
-                        Text(String(format: "%.1f hPa", Double(vm.devicePressure_10hpa) / 10))
-                            .monospacedDigit()
-                    } else {
-                        Text("environment.summary.empty")
-                            .foregroundStyle(.secondary)
+            LabeledContent("environment.device.pressure") {
+                if vm.devicePressure_10hpa != 0 {
+                    Text(String(format: "%.1f hPa", Double(vm.devicePressure_10hpa) / 10))
+                        .monospacedDigit()
+                } else {
+                    // 気象データを取得せず、端末気圧だけを取得できる
+                    Button {
+                        Task { await vm.fetchDevicePressure() }
+                    } label: {
+                        if vm.isFetchingDevicePressure {
+                            ProgressView()
+                        } else {
+                            Text("environment.device.fetch")
+                        }
                     }
-                }
-            } else {
-                // 気圧計を積んでいない機種、または OS が対応していない場合
-                LabeledContent("environment.device.pressure") {
-                    Text("environment.device.unavailable")
-                        .foregroundStyle(.secondary)
+                    .disabled(vm.isFetching || vm.isFetchingDevicePressure)
                 }
             }
         } header: {

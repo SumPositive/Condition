@@ -122,12 +122,12 @@ struct AZPickerStyle {
     var popoverShadowRadius: CGFloat = 5
     /// ドロップダウン候補一覧パネルの影の縦方向位置
     var popoverShadowY: CGFloat = 2
-    /// ドロップダウン各候補の枠内配置
-    var dropdownOptionAlignment: Alignment = .leading
-    /// ドロップダウン候補一覧内で候補枠を並べる横方向基準
-    var dropdownOptionStackAlignment: HorizontalAlignment = .leading
-    /// ドロップダウン各候補の複数行テキスト配置
-    var dropdownOptionTextAlignment: TextAlignment = .leading
+    /// 選択結果と揃えるため、ドロップダウン各候補も中央へ配置する
+    var dropdownOptionAlignment: Alignment = .center
+    /// ドロップダウン候補一覧内で候補枠を中央へ揃える
+    var dropdownOptionStackAlignment: HorizontalAlignment = .center
+    /// ドロップダウン各候補の複数行テキストも中央へ揃える
+    var dropdownOptionTextAlignment: TextAlignment = .center
     /// ドロップダウン候補一覧パネル内側の余白
     var dropdownPopoverPadding: CGFloat = 10
     /// ドロップダウン各候補枠内の左右余白

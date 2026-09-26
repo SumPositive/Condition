@@ -363,8 +363,11 @@ struct SettingsView: View {
 
                 // MARK: - 分析
                 Section("settings.analysis") {
-                    NavigationLink("analysis.layout.title") {
+                    NavigationLink {
                         AnalysisLayoutSettingsView()
+                    } label: {
+                        // 分析ページと共通のアイコンで配置設定を示す
+                        Label("analysis.layout.title", systemImage: "text.pad.header")
                     }
                 }
 
@@ -1765,6 +1768,7 @@ struct GraphSettingsView: View {
     var isModal: Bool = false
     var showsLayout: Bool = true
     @State private var settings = AppSettings.shared
+    @State private var showResetConfirmation = false
     @Environment(\.dismiss) private var dismiss
 
     private var hiddenSet: Set<Int> { Set(settings.graphHiddenPanels) }
@@ -1828,11 +1832,45 @@ struct GraphSettingsView: View {
                 }
                 .environment(\.editMode, .constant(.active))
             }
+
+            if !showsLayout {
+                // 分析ページの初期配置へ戻す操作は詳細設定画面の末尾に置く
+                Section {
+                    Button("analysis.layout.reset", role: .destructive) {
+                        showResetConfirmation = true
+                    }
+                    // 確認の吹き出しは操作元のボタンをアンカーにする
+                    .confirmationDialog(
+                        "analysis.layout.resetConfirm",
+                        isPresented: $showResetConfirmation,
+                        titleVisibility: .visible
+                    ) {
+                        Button("analysis.layout.reset", role: .destructive) {
+                            resetAnalysisLayout()
+                        }
+                        Button("action.cancel", role: .cancel) {}
+                    }
+                }
+            }
         }
         .scrollIndicators(.hidden)
-        .navigationTitle(LocalizedStringKey(showsLayout ? "graph.settings" : "analysis.details.title"))
+        .navigationTitle(LocalizedStringKey(
+            showsLayout ? "graph.settings" : "analysis.details.shortTitle"
+        ))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            if !showsLayout {
+                ToolbarItem(placement: .principal) {
+                    // 配置画面の詳細設定ボタンと同じアイコンをタイトルに添える
+                    HStack(spacing: 4) {
+                        Image(systemName: "ellipsis.calendar")
+                        Text("analysis.details.shortTitle")
+                    }
+                    .font(.headline)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(Text("analysis.details.title"))
+                }
+            }
             if isModal {
                 ToolbarItem(placement: .cancellationAction) {
                     Button { dismiss() } label: {
@@ -1842,6 +1880,22 @@ struct GraphSettingsView: View {
                 }
             }
         }
+    }
+
+    private func resetAnalysisLayout() {
+        let current = settings.analysisLayout
+        var reset = AnalysisLayout.migrated(
+            graphOrder: settings.graphDisplayOrder,
+            hiddenGraphs: settings.graphHiddenPanels,
+            statOrder: settings.statSectionOrder,
+            hiddenStats: settings.statHiddenSections,
+            statDays: settings.statDays
+        )
+        // 配置の初期化では各ページで選んだ期間を維持する
+        reset.period1 = current.period1
+        reset.period2 = current.period2
+        reset.period3 = current.period3
+        settings.analysisLayout = reset
     }
 
     @ViewBuilder

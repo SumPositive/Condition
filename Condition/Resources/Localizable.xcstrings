@@ -88,6 +88,35 @@
         }
       }
     },
+    "analysis.details.shortTitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "詳細設定"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Details"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "상세 설정"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "詳細設定"
+          }
+        }
+      }
+    },
     "settings.launchAction.analysis1": {
       "extractionState": "manual",
       "localizations": {
@@ -210,25 +239,25 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ページ %d"
+            "value": "分析%d"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Page %d"
+            "value": "Analysis %d"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "페이지 %d"
+            "value": "분석 %d"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "頁面 %d"
+            "value": "分析%d"
           }
         }
       }
@@ -882,25 +911,83 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "図表の配置"
+            "value": "配置"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Panel layout"
+            "value": "Layout"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "도표 배치"
+            "value": "배치"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "圖表配置"
+            "value": "配置"
+          }
+        }
+      }
+    },
+    "analysis.toolbar.layout": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配置"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Layout"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "배치"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配置"
+          }
+        }
+      }
+    },
+    "analysis.toolbar.pdf": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PDF"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PDF"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PDF"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PDF"
           }
         }
       }
@@ -1017,35 +1104,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "期間"
-          }
-        }
-      }
-    },
-    "analysis.symptom": {
-      "extractionState": "manual",
-      "localizations": {
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "症状を選択"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Select symptom"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "증상 선택"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "選擇症狀"
           }
         }
       }
@@ -1369,6 +1427,122 @@
         }
       }
     },
+    "analysis.calendar.backToMonths": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "月一覧に戻る"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back to months"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "월 목록으로 돌아가기"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "返回月份一覽"
+          }
+        }
+      }
+    },
+    "analysis.calendar.backToYears": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "年一覧に戻る"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back to years"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연도 목록으로 돌아가기"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "返回年份一覽"
+          }
+        }
+      }
+    },
+    "analysis.calendar.maximumSeverity": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "期間内の最大程度"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Highest severity in the period"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기간 내 가장 높은 정도"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "期間內最高程度"
+          }
+        }
+      }
+    },
+    "analysis.calendar.yearFormat": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d年"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d년"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d年"
+          }
+        }
+      }
+    },
     "analysis.previousMonth": {
       "extractionState": "manual",
       "localizations": {
@@ -1433,25 +1607,25 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "月表示は対象期間と独立しています。色はその日の最大程度（緑：軽い、橙：中くらい、赤：強い）、○：なし、？：程度未指定、空欄：未記録。日付を押すと記録を確認できます"
+            "value": "ページの期間にかかわらず、すべての記録を表示します"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The calendar month is independent of the period. Color shows the daily maximum: green mild, orange moderate, red severe. ○ None; ? unspecified; blank unrecorded. Tap a date for records."
+            "value": "Shows all records regardless of the page period"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "월 표시는 대상 기간과 별개입니다. 색은 그날의 최대 정도(초록: 가벼움, 주황: 중간, 빨강: 심함), ○: 없음, ?: 정도 미지정, 공백: 미기록입니다. 날짜를 누르면 기록을 볼 수 있습니다"
+            "value": "페이지 기간과 관계없이 모든 기록을 표시합니다"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "月份顯示獨立於所選期間。顏色表示當日最高程度（綠：輕微、橙：中等、紅：嚴重），○：無，？：未指定程度，空白：未記錄。點日期可查看記錄"
+            "value": "不受頁面期間限制，顯示所有記錄"
           }
         }
       }
@@ -4728,6 +4902,35 @@
         }
       }
     },
+    "environment.device.fetch": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取得する"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Get"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "가져오기"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取得"
+          }
+        }
+      }
+    },
     "environment.device.pressure": {
       "extractionState": "manual",
       "localizations": {
@@ -4811,6 +5014,35 @@
           "stringUnit": {
             "state": "translated",
             "value": "距離上次取得滿 1 小時之前會顯示影片廣告。完整觀看後即可取得。可能會有聲音"
+          }
+        }
+      }
+    },
+    "environment.help.manualOnly": {
+      "extractionState": "manual",
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "記録日時が現在から3時間以上離れているため、自動取得はできません"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic retrieval is unavailable because the record time differs from the current time by 3 hours or more."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기록 일시가 현재 시각과 3시간 이상 차이 나므로 자동으로 가져올 수 없습니다"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "記錄時間與目前時間相差 3 小時以上，因此無法自動取得"
           }
         }
       }

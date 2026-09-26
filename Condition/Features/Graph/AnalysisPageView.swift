@@ -22,6 +22,7 @@ struct AnalysisPageView: View {
   @State private var isSymptomFilterExpanded = false
   @State private var showSettings = false
   @State private var isExporting = false
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
   private var period: GraphPeriod { settings.analysisLayout.period(in: page) }
   private var visiblePanels: [AnalysisPanelID] { settings.analysisLayout.visiblePanels(in: page) }
@@ -128,21 +129,27 @@ struct AnalysisPageView: View {
           Button {
             exportPDF()
           } label: {
-            Image(systemName: "square.and.arrow.up")
+            ToolbarButtonLabel(
+              systemImage: "square.and.arrow.up",
+              captionKey: "analysis.toolbar.pdf"
+            )
           }
           .disabled(visiblePanels.isEmpty || isExporting)
         }
         ToolbarItem(placement: .principal) {
-          // 画面タイトルは下部タブと同じ番号付きカレンダーアイコンで示す
-          Image(systemName: page.tabSymbol)
-            .font(.title2.weight(.semibold))
+          // 画面タイトルはアイコンを使わず分析名を明記する
+          Text(page.displayTitle)
+            .font(.headline)
             .accessibilityLabel(page.accessibilityTitle)
         }
         ToolbarItem(placement: .primaryAction) {
           Button {
             showSettings = true
           } label: {
-            Image(systemName: "slider.horizontal.3")
+            ToolbarButtonLabel(
+              systemImage: "text.pad.header",
+              captionKey: "analysis.toolbar.layout"
+            )
           }
         }
       }
@@ -158,12 +165,11 @@ struct AnalysisPageView: View {
       }
       // 区分のアイコン・名称・色を変えたときはページ全体を作り直す
       .id(settings.dateOptAppearanceRevision)
-      .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     }
   }
 
   private var pageTitle: String {
-    String(format: String(localized: "analysis.page.titleFormat"), page.rawValue)
+    page.displayTitle
   }
 
   private var periodPicker: some View {
@@ -175,12 +181,11 @@ struct AnalysisPageView: View {
       horizontalPadding: 12,
       optionSpacing: 4,
       groupPadding: 2,
-      wrapsOptions: false,
-      fillsWidth: true
+      wrapsOptions: DynamicTypeSize.xxxLarge <= dynamicTypeSize,
+      fillsWidth: dynamicTypeSize < DynamicTypeSize.xxxLarge
     ) { value in
       Text(LocalizedStringKey(value.shortLabel))
     }
-    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     .padding(.bottom, 8)
   }
 
@@ -188,8 +193,6 @@ struct AnalysisPageView: View {
     VStack(alignment: .leading, spacing: 10) {
       Text("analysis.symptomTarget")
         .font(.headline)
-      Text("analysis.symptom")
-        .font(.subheadline)
       AZDropdownPicker(
         options: symptomFilterOptions,
         selection: symptomFilterBinding,
@@ -292,7 +295,7 @@ struct AnalysisPageView: View {
     }
     return Text("analysis.page.help")
       + Text(verbatim: "\n\n")
-      + blue("slider.horizontal.3") + Text(verbatim: " ")
+      + blue("text.pad.header") + Text(verbatim: " ")
       + Text("analysis.page.helpSettings")
       + Text(verbatim: "\n\n")
       + blue("square.and.arrow.up") + Text(verbatim: " ")
@@ -561,61 +564,66 @@ private extension Color {
   }
 }
 
+private enum AnalysisCalendarLevel {
+  case years
+  case months
+  case days
+}
+
+/// 曜日、余白、日付を一意なIDで並べるカレンダーセル
+private enum AnalysisCalendarGridItem: Identifiable {
+  case weekday(index: Int, title: String)
+  case placeholder(index: Int)
+  case day(number: Int, date: Date)
+
+  var id: String {
+    switch self {
+    case .weekday(let index, _): return "weekday-\(index)"
+    case .placeholder(let index): return "placeholder-\(index)"
+    case .day(let number, _): return "day-\(number)"
+    }
+  }
+}
+
 private struct AnalysisSymptomCalendarPanel: View {
   let records: [SymptomRecord]
   let name: (String) -> String
+  @State private var level = AnalysisCalendarLevel.years
+  @State private var selectedYear = Calendar.current.component(.year, from: Date())
   @State private var month = Calendar.current.dateInterval(of: .month, for: Date())!.start
   @State private var selectedDay: Date?
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+  @ScaledMetric(relativeTo: .body) private var periodCellMinimumWidth: CGFloat = 84
+  @ScaledMetric(relativeTo: .body) private var calendarGridMinimumWidth: CGFloat = 300
+  @ScaledMetric(relativeTo: .caption) private var legendPreferredFontSize: CGFloat = 12
   private let calendar = Calendar.current
+
+  private var currentYear: Int { calendar.component(.year, from: Date()) }
+  private var monthStart: Date { calendar.dateInterval(of: .month, for: month)?.start ?? month }
+
+  /// 外部取り込みなどで程度がない記録が含まれる場合だけ未指定を案内する
+  private var hasUnspecifiedSeverity: Bool {
+    records.contains { $0.nSeverity == SymptomSeverity.unspecified.rawValue }
+  }
+
+  /// 記録が途切れた年も表示し、前回発症からの間隔を見えるようにする
+  private var displayedYears: [Int] {
+    let first = records.map { calendar.component(.year, from: $0.startAt) }.min() ?? currentYear
+    return Array((min(first, currentYear)...currentYear).reversed())
+  }
 
   var body: some View {
     VStack(spacing: 12) {
       Text("analysis.calendar").font(.headline)
-      HStack {
-        Button {
-          moveMonth(-1)
-        } label: {
-          Image(systemName: "chevron.left")
-        }
-        .accessibilityLabel(Text("analysis.previousMonth"))
-        Spacer()
-        Text(month.formatted(.dateTime.year().month(.wide)))
-        Spacer()
-        Button {
-          moveMonth(1)
-        } label: {
-          Image(systemName: "chevron.right")
-        }
-        .disabled(calendar.isDate(month, equalTo: Date(), toGranularity: .month))
-        .accessibilityLabel(Text("analysis.nextMonth"))
+      switch level {
+      case .years:
+        yearOverview
+      case .months:
+        monthOverview
+      case .days:
+        dayOverview
       }
-      LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7)) {
-        ForEach(0..<7, id: \.self) { offset in
-          Text(calendar.shortStandaloneWeekdaySymbols[(calendar.firstWeekday - 1 + offset) % 7])
-            .font(.caption)
-            .foregroundStyle(.secondary)
-        }
-        ForEach(0..<leadingDays, id: \.self) { _ in Color.clear.frame(height: 36) }
-        ForEach(Array(calendar.range(of: .day, in: .month, for: month) ?? 1..<1), id: \.self) {
-          number in
-          let day = calendar.date(byAdding: .day, value: number - 1, to: month)!
-          let values = dayRecords(day)
-          let severity = values.map(\.nSeverity).max() ?? 0
-          Button {
-            selectedDay = day
-          } label: {
-            VStack(spacing: 1) {
-              Text("\(number)")
-              Text(mark(hasRecords: !values.isEmpty, severity: severity)).font(.caption2)
-            }
-            .frame(maxWidth: .infinity, minHeight: 36)
-            .background(color(severity).opacity(0.2), in: RoundedRectangle(cornerRadius: 6))
-          }
-          .buttonStyle(.plain)
-          .disabled(Date() < day)
-        }
-      }
-      Text("analysis.legend").font(.caption).foregroundStyle(.secondary)
+      calendarLegend
     }
     .padding()
     .background(Color.analysisSymptomPanelBackground)
@@ -657,8 +665,272 @@ private struct AnalysisSymptomCalendarPanel: View {
     }
   }
 
-  private var leadingDays: Int {
-    (calendar.component(.weekday, from: month) - calendar.firstWeekday + 7) % 7
+  private var yearOverview: some View {
+    VStack(spacing: 10) {
+      LazyVGrid(
+        columns: [GridItem(.adaptive(minimum: periodCellMinimumWidth), spacing: 8)],
+        spacing: 8
+      ) {
+        ForEach(displayedYears, id: \.self) { year in
+          let values = yearRecords(year)
+          periodButton(label: "\(year)", records: values) {
+            selectedYear = year
+            level = .months
+          }
+        }
+      }
+    }
+  }
+
+  private var monthOverview: some View {
+    VStack(spacing: 10) {
+      HStack {
+        Button {
+          level = .years
+        } label: {
+          Image(systemName: "chevron.backward")
+        }
+        .accessibilityLabel(Text("analysis.calendar.backToYears"))
+        Spacer()
+        Text(String(format: String(localized: "analysis.calendar.yearFormat"), selectedYear))
+          .font(.headline)
+        Spacer()
+        Color.clear.frame(width: 20, height: 1)
+      }
+      LazyVGrid(
+        columns: [GridItem(.adaptive(minimum: periodCellMinimumWidth), spacing: 8)],
+        spacing: 8
+      ) {
+        ForEach(1...12, id: \.self) { number in
+          let target = monthDate(year: selectedYear, month: number)
+          let values = monthRecords(target)
+          periodButton(
+            label: target.formatted(.dateTime.month(.abbreviated)),
+            records: values
+          ) {
+            month = target
+            level = .days
+          }
+          .disabled(Date() < target)
+        }
+      }
+    }
+  }
+
+  private var dayOverview: some View {
+    VStack(spacing: 10) {
+      HStack {
+        Button {
+          selectedYear = calendar.component(.year, from: monthStart)
+          level = .months
+        } label: {
+          Image(systemName: "chevron.backward")
+        }
+        .accessibilityLabel(Text("analysis.calendar.backToMonths"))
+        Spacer()
+        Button {
+          moveMonth(-1)
+        } label: {
+          Image(systemName: "chevron.left")
+        }
+        .accessibilityLabel(Text("analysis.previousMonth"))
+        Text(monthStart.formatted(.dateTime.year().month(.wide)))
+          .frame(minWidth: 120)
+        Button {
+          moveMonth(1)
+        } label: {
+          Image(systemName: "chevron.right")
+        }
+        .disabled(calendar.isDate(monthStart, equalTo: Date(), toGranularity: .month))
+        .accessibilityLabel(Text("analysis.nextMonth"))
+        Spacer()
+        Color.clear.frame(width: 20, height: 1)
+      }
+      dayCalendarGrid
+    }
+  }
+
+  /// 通常文字では親幅を使い、大きな文字の時だけ明示幅で横スクロールする
+  @ViewBuilder
+  private var dayCalendarGrid: some View {
+    if DynamicTypeSize.accessibility1 <= dynamicTypeSize {
+      ScrollView(.horizontal) {
+        calendarGrid
+          .frame(width: max(calendarGridMinimumWidth, 300))
+      }
+      .scrollIndicators(.hidden)
+    } else {
+      calendarGrid
+    }
+  }
+
+  private var calendarGrid: some View {
+    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7)) {
+      ForEach(calendarGridItems) { item in
+        switch item {
+        case .weekday(_, let title):
+          Text(title)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        case .placeholder:
+          Color.clear.frame(height: 40)
+        case .day(let number, let day):
+          let values = dayRecords(day)
+          let severity = values.map(\.nSeverity).max() ?? 0
+          Button {
+            selectedDay = day
+          } label: {
+            ZStack {
+              severityCircle(hasRecords: !values.isEmpty, severity: severity, diameter: 42)
+              Text("\(number)")
+                .lineLimit(1)
+                .minimumScaleFactor(0.65)
+            }
+            .frame(maxWidth: .infinity, minHeight: 44)
+          }
+          .buttonStyle(.plain)
+          .disabled(Date() < day)
+        }
+      }
+    }
+  }
+
+  /// 程度アイコンを1行で示し、幅不足時は凡例だけ縮小する
+  private var calendarLegend: some View {
+    let preferredSize = min(legendPreferredFontSize, 17)
+    return VStack(alignment: .leading, spacing: 8) {
+      Text("analysis.calendar.maximumSeverity")
+        .font(.caption.weight(.semibold))
+        .foregroundStyle(.secondary)
+      ViewThatFits(in: .horizontal) {
+        calendarLegendRow(fontSize: preferredSize)
+        calendarLegendRow(fontSize: max(preferredSize - 1, 12))
+        calendarLegendRow(fontSize: max(preferredSize - 2, 11))
+        calendarLegendRow(fontSize: max(preferredSize - 3, 10))
+        calendarLegendRow(fontSize: max(preferredSize - 4, 10))
+        calendarLegendRow(fontSize: max(preferredSize - 5, 9))
+        calendarLegendRow(fontSize: max(preferredSize - 6, 9))
+        calendarLegendRow(fontSize: max(preferredSize - 7, 9))
+        calendarLegendRow(fontSize: 9)
+      }
+      .frame(maxWidth: .infinity, alignment: .center)
+      Text("analysis.legend")
+        .font(.caption)
+        .foregroundStyle(.secondary)
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .padding(.top, 4)
+  }
+
+  /// 凡例全体へ同じ文字サイズを適用する
+  private func calendarLegendRow(fontSize: CGFloat) -> some View {
+    HStack(spacing: 8) {
+      ForEach(SymptomSeverity.selectableCases) { severity in
+        calendarLegendItem(
+          label: LocalizedStringKey(severity.labelKey),
+          severity: severity.rawValue
+        )
+      }
+      if hasUnspecifiedSeverity {
+        calendarLegendItem(
+          label: LocalizedStringKey(SymptomSeverity.unspecified.labelKey),
+          severity: SymptomSeverity.unspecified.rawValue
+        )
+      }
+    }
+    .font(.system(size: fontSize))
+  }
+
+  private func calendarLegendItem(
+    label: LocalizedStringKey,
+    severity: Int
+  ) -> some View {
+    HStack(spacing: 7) {
+      severityCircle(hasRecords: true, severity: severity, diameter: 20)
+        .frame(width: 30, height: 24)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 6))
+        .overlay {
+          RoundedRectangle(cornerRadius: 6)
+            .stroke(Color.secondary.opacity(0.18), lineWidth: 1)
+      }
+      Text(label)
+        .lineLimit(1)
+        .fixedSize(horizontal: true, vertical: false)
+    }
+    .accessibilityElement(children: .combine)
+  }
+
+  private func periodButton(
+    label: String,
+    records values: [SymptomRecord],
+    action: @escaping () -> Void
+  ) -> some View {
+    let severity = values.map(\.nSeverity).max() ?? 0
+    return Button(action: action) {
+      HStack(spacing: 6) {
+        ZStack {
+          severityCircle(hasRecords: !values.isEmpty, severity: severity, diameter: 44)
+          Text(label)
+            .font(.subheadline.weight(.semibold))
+            .lineLimit(1)
+            .minimumScaleFactor(0.55)
+        }
+        .frame(width: 48, height: 48)
+        if !values.isEmpty {
+          Text("\(values.count)")
+            .font(.caption.monospacedDigit())
+            .foregroundStyle(.secondary)
+        }
+      }
+      .frame(maxWidth: .infinity, minHeight: 48)
+      .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 9))
+      .overlay {
+        RoundedRectangle(cornerRadius: 9)
+          .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
+      }
+    }
+    .buttonStyle(.plain)
+  }
+
+  private var calendarGridItems: [AnalysisCalendarGridItem] {
+    var items = (0..<7).map { offset in
+      let index = (calendar.firstWeekday - 1 + offset) % 7
+      return AnalysisCalendarGridItem.weekday(
+        index: offset,
+        title: calendar.shortStandaloneWeekdaySymbols[index]
+      )
+    }
+    let leadingDays =
+      (calendar.component(.weekday, from: monthStart) - calendar.firstWeekday + 7) % 7
+    items += (0..<leadingDays).map { .placeholder(index: $0) }
+    let days = calendar.range(of: .day, in: .month, for: monthStart) ?? 1..<1
+    items += days.compactMap { number in
+      guard let date = calendar.date(byAdding: .day, value: number - 1, to: monthStart) else {
+        return nil
+      }
+      return .day(number: number, date: date)
+    }
+    return items
+  }
+
+  private func monthDate(year: Int, month: Int) -> Date {
+    calendar.date(from: DateComponents(year: year, month: month, day: 1))!
+  }
+
+  private func records(in start: Date, component: Calendar.Component) -> [SymptomRecord] {
+    // 未来の期間には継続中の記録を表示しない
+    guard start < Date() else { return [] }
+    guard let end = calendar.date(byAdding: component, value: 1, to: start) else { return [] }
+    let range = SymptomAnalysisRange(start: start, end: min(end, Date()))
+    return records.filter { range.overlaps($0) }
+  }
+
+  private func yearRecords(_ year: Int) -> [SymptomRecord] {
+    records(in: monthDate(year: year, month: 1), component: .year)
+  }
+
+  private func monthRecords(_ month: Date) -> [SymptomRecord] {
+    records(in: month, component: .month)
   }
 
   private func dayRecords(_ day: Date) -> [SymptomRecord] {
@@ -669,23 +941,41 @@ private struct AnalysisSymptomCalendarPanel: View {
   }
 
   private func moveMonth(_ value: Int) {
-    month = calendar.date(byAdding: .month, value: value, to: month)!
+    guard let target = calendar.date(byAdding: .month, value: value, to: monthStart) else { return }
+    month = calendar.dateInterval(of: .month, for: target)?.start ?? target
   }
 
-  private func mark(hasRecords: Bool, severity: Int) -> String {
-    guard hasRecords else { return " " }
-    if severity == SymptomSeverity.unspecified.rawValue { return "?" }
-    if severity == SymptomSeverity.notPresent.rawValue { return "○" }
-    return "●"
+  /// 程度を色ではなく円の大きさで示す
+  @ViewBuilder
+  private func severityCircle(hasRecords: Bool, severity: Int, diameter: CGFloat) -> some View {
+    if hasRecords {
+      if severity == SymptomSeverity.unspecified.rawValue {
+        Circle()
+          .stroke(Color.primary.opacity(0.55), style: StrokeStyle(lineWidth: 1.5, dash: [3, 2]))
+          .frame(width: diameter * 0.88, height: diameter * 0.88)
+      } else if severity == SymptomSeverity.notPresent.rawValue {
+        Circle()
+          .stroke(Color.primary, lineWidth: 1.8)
+          .frame(width: diameter * 0.88, height: diameter * 0.88)
+      } else {
+        Circle()
+          .fill(Color.primary.opacity(0.16))
+          .frame(
+            width: diameter * severityCircleScale(severity),
+            height: diameter * severityCircleScale(severity)
+          )
+      }
+    } else {
+      Color.clear.frame(width: diameter, height: diameter)
+    }
   }
 
-  private func color(_ severity: Int) -> Color {
+  private func severityCircleScale(_ severity: Int) -> CGFloat {
     switch severity {
-    case 1: return .blue
-    case 2: return .green
-    case 3: return .orange
-    case 4: return .red
-    default: return .clear
+    case SymptomSeverity.mild.rawValue: return 0.68
+    case SymptomSeverity.moderate.rawValue: return 0.84
+    case SymptomSeverity.severe.rawValue: return 1
+    default: return 0.88
     }
   }
 }
@@ -1067,6 +1357,8 @@ private enum AnalysisLayoutDestination: Int, CaseIterable, Identifiable {
     }
   }
 
+  /// 図表ごとの移動先として選べる配置先
+  static let placementCases: [AnalysisLayoutDestination] = [.page1, .page2, .page3, .hidden]
 }
 
 struct AnalysisLayoutSettingsView: View {
@@ -1075,7 +1367,7 @@ struct AnalysisLayoutSettingsView: View {
   @State private var settings = AppSettings.shared
   @State private var selectedDestination: AnalysisLayoutDestination
   @State private var expandedPanel: AnalysisPanelID?
-  @State private var showResetConfirmation = false
+  @State private var showDetails = false
   @Environment(\.dismiss) private var dismiss
 
   init(initialPage: AnalysisPage = .one, isModal: Bool = false) {
@@ -1100,11 +1392,27 @@ struct AnalysisLayoutSettingsView: View {
           fillsWidth: true
         ) { destination in
           if let page = destination.page {
-            // 分析タブと同じアイコンで配置先を示す
-            Image(systemName: page.tabSymbol)
-              .accessibilityLabel(page.accessibilityTitle)
+            // 初心者には番号アイコンの意味を分析名でも示す
+            VStack(spacing: 2) {
+              Image(systemName: page.tabSymbol)
+              if settings.userLevel == .beginner {
+                Text(page.displayTitle)
+                  .font(.caption)
+              }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(page.accessibilityTitle)
           } else {
-            Text("analysis.layout.hidden")
+            // 初心者には非表示アイコンの意味を文字でも明記する
+            VStack(spacing: 2) {
+              Image(systemName: "eye.slash")
+              if settings.userLevel == .beginner {
+                Text("analysis.layout.hidden")
+                  .font(.caption)
+              }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text("analysis.layout.hidden"))
           }
         }
         .dynamicTypeSize(...DynamicTypeSize.accessibility3)
@@ -1131,21 +1439,23 @@ struct AnalysisLayoutSettingsView: View {
       }
       .environment(\.editMode, .constant(.active))
 
-      Section("analysis.layout.details") {
-        NavigationLink("analysis.details.title") {
-          GraphSettingsView(showsLayout: false)
-        }
-      }
-
-      Section {
-        Button("analysis.layout.reset", role: .destructive) {
-          showResetConfirmation = true
-        }
-      }
     }
     .navigationTitle("analysis.layout.title")
     .navigationBarTitleDisplayMode(.inline)
+    .navigationDestination(isPresented: $showDetails) {
+      GraphSettingsView(showsLayout: false)
+    }
     .toolbar {
+      ToolbarItem(placement: .principal) {
+        // Labelの省略を避け、画面タイトルにアイコンと文字を必ず表示する
+        HStack(spacing: 4) {
+          Image(systemName: "text.pad.header")
+          Text("analysis.layout.title")
+        }
+        .font(.headline)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("analysis.layout.title"))
+      }
       if isModal {
         ToolbarItem(placement: .cancellationAction) {
           Button {
@@ -1156,14 +1466,18 @@ struct AnalysisLayoutSettingsView: View {
           .accessibilityLabel(Text("action.close"))
         }
       }
-    }
-    .confirmationDialog(
-      "analysis.layout.resetConfirm",
-      isPresented: $showResetConfirmation,
-      titleVisibility: .visible
-    ) {
-      Button("analysis.layout.reset", role: .destructive) { resetLayout() }
-      Button("action.cancel", role: .cancel) {}
+      ToolbarItem(placement: .primaryAction) {
+        // 配置先セレクタから独立した詳細設定ボタンを右上に置く
+        Button {
+          showDetails = true
+        } label: {
+          ToolbarButtonLabel(
+            systemImage: "ellipsis.calendar",
+            captionKey: "analysis.details.shortTitle"
+          )
+        }
+        .accessibilityLabel(Text("analysis.details.title"))
+      }
     }
   }
 
@@ -1176,7 +1490,7 @@ struct AnalysisLayoutSettingsView: View {
 
   private var selectedDestinationTitle: String {
     if let page = selectedDestination.page {
-      return String(format: String(localized: "analysis.page.titleFormat"), page.rawValue)
+      return page.displayTitle
     }
     return String(localized: "analysis.layout.hidden")
   }
@@ -1186,7 +1500,7 @@ struct AnalysisLayoutSettingsView: View {
       Text(LocalizedStringKey(panel.titleKey))
       Spacer()
       AZDropdownPicker(
-        options: AnalysisLayoutDestination.allCases,
+        options: AnalysisLayoutDestination.placementCases,
         selection: Binding(
           get: { selectedDestination },
           set: { destination in
@@ -1204,7 +1518,9 @@ struct AnalysisLayoutSettingsView: View {
           Image(systemName: page.tabSymbol)
             .accessibilityLabel(page.accessibilityTitle)
         } else {
-          Text("analysis.layout.hidden")
+          // 各行では幅を取らないよう非表示をアイコンだけで示す
+          Image(systemName: "eye.slash")
+            .accessibilityLabel(Text("analysis.layout.hidden"))
         }
       }
     }
@@ -1233,19 +1549,4 @@ struct AnalysisLayoutSettingsView: View {
     settings.analysisLayout = layout
   }
 
-  private func resetLayout() {
-    let current = settings.analysisLayout
-    var reset = AnalysisLayout.migrated(
-      graphOrder: settings.graphDisplayOrder,
-      hiddenGraphs: settings.graphHiddenPanels,
-      statOrder: settings.statSectionOrder,
-      hiddenStats: settings.statHiddenSections,
-      statDays: settings.statDays
-    )
-    // 配置の初期化では、各ページで選んだ期間を維持する
-    reset.period1 = current.period1
-    reset.period2 = current.period2
-    reset.period3 = current.period3
-    settings.analysisLayout = reset
-  }
 }

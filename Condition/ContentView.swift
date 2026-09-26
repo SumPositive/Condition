@@ -19,51 +19,95 @@ struct ContentView: View {
         TabView(selection: tabSelection) {
             RecordListView()
                 .tabItem {
-                    Label(
-                        "tab.records",
-                        systemImage: "list.bullet.clipboard"
-                    )
-                    // UITest（fastlane snapshot）でデバイス非依存にタブを叩くための識別子
-                    // .tabItem の中身（Label）側に付けるとタブボタン自体に反映されやすい
-                    .accessibilityIdentifier("tab.records")
+                    if settings.userLevel == .beginner {
+                        Label(
+                            "tab.records",
+                            systemImage: "list.bullet.clipboard"
+                        )
+                        // UITestでデバイスに依存せずタブを操作するための識別子
+                        .accessibilityIdentifier("tab.records")
+                    } else {
+                        Image(systemName: "list.bullet.clipboard")
+                            .accessibilityIdentifier("tab.records")
+                            .accessibilityLabel(Text("tab.records"))
+                    }
                 }
                 .tag(RootTab.records)
 
             AnalysisPageView(page: .one)
                 .tabItem {
-                    // アイコン内に番号があるためタブ名は表示しない
-                    Image(systemName: AnalysisPage.one.tabSymbol)
+                    if settings.userLevel == .beginner {
+                        // 初心者には番号アイコンの意味を文字でも示す
+                        Label {
+                            Text(AnalysisPage.one.displayTitle)
+                        } icon: {
+                            Image(systemName: AnalysisPage.one.tabSymbol)
+                        }
                         .accessibilityIdentifier("tab.graph")
                         .accessibilityLabel(AnalysisPage.one.accessibilityTitle)
+                    } else {
+                        Image(systemName: AnalysisPage.one.tabSymbol)
+                            .accessibilityIdentifier("tab.graph")
+                            .accessibilityLabel(AnalysisPage.one.accessibilityTitle)
+                    }
                 }
                 .tag(RootTab.analysis1)
 
             AnalysisPageView(page: .two)
                 .tabItem {
-                    Image(systemName: AnalysisPage.two.tabSymbol)
+                    if settings.userLevel == .beginner {
+                        Label {
+                            Text(AnalysisPage.two.displayTitle)
+                        } icon: {
+                            Image(systemName: AnalysisPage.two.tabSymbol)
+                        }
                         .accessibilityIdentifier("tab.statistics")
                         .accessibilityLabel(AnalysisPage.two.accessibilityTitle)
+                    } else {
+                        Image(systemName: AnalysisPage.two.tabSymbol)
+                            .accessibilityIdentifier("tab.statistics")
+                            .accessibilityLabel(AnalysisPage.two.accessibilityTitle)
+                    }
                 }
                 .tag(RootTab.analysis2)
 
             AnalysisPageView(page: .three)
                 .tabItem {
-                    Image(systemName: AnalysisPage.three.tabSymbol)
+                    if settings.userLevel == .beginner {
+                        Label {
+                            Text(AnalysisPage.three.displayTitle)
+                        } icon: {
+                            Image(systemName: AnalysisPage.three.tabSymbol)
+                        }
                         .accessibilityIdentifier("tab.analysis3")
                         .accessibilityLabel(AnalysisPage.three.accessibilityTitle)
+                    } else {
+                        Image(systemName: AnalysisPage.three.tabSymbol)
+                            .accessibilityIdentifier("tab.analysis3")
+                            .accessibilityLabel(AnalysisPage.three.accessibilityTitle)
+                    }
                 }
                 .tag(RootTab.analysis3)
 
             SettingsView()
                 .tabItem {
-                    Label(
-                        "tab.settings",
-                        systemImage: "gear"
-                    )
-                    .accessibilityIdentifier("tab.settings")
+                    if settings.userLevel == .beginner {
+                        Label(
+                            "tab.settings",
+                            systemImage: "gear"
+                        )
+                        .accessibilityIdentifier("tab.settings")
+                    } else {
+                        Image(systemName: "gear")
+                            .accessibilityIdentifier("tab.settings")
+                            .accessibilityLabel(Text("tab.settings"))
+                    }
                 }
                 .tag(RootTab.settings)
         }
+        // タブ名はシステム側に保持されるため、ユーザーレベル変更時だけ再構成する
+        // 選択状態は selectedTab にあるので、再構成後も同じタブを維持する
+        .id(settings.userLevel)
         .onAppear {
             AppAnalytics.shared.logScreen(selectedTab.analyticsName)
             // cold launch：フォアグラウンド表示と同時にブロック層を出したいので、

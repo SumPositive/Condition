@@ -270,8 +270,9 @@ struct RecordListView: View {
             }
             .animation(.easeInOut(duration: 0.3), value: toastMessage)
             .animation(.easeInOut(duration: 0.3), value: hkService.importProgress)
-            // 区分のアイコン・名称・色を変更したら一覧セルを再生成する
-            .id(settings.dateOptAppearanceRevision + settings.symptomTagRevision)
+            // 区分の外観変更時だけ一覧を作り直す
+            // 症状タグの使用順更新では作り直さず、編集前のスクロール位置を維持する
+            .id(settings.dateOptAppearanceRevision)
             .onChange(of: hkService.importTimedOut) { _, timedOut in
                 if timedOut { showHKTimeoutAlert = true }
             }

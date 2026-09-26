@@ -8,8 +8,11 @@ import SwiftUI
 @MainActor
 final class EnvironmentEditViewModel {
 
-    /// 環境を記録する対象の日時。気象庁の取得時刻と、端末気圧を測ってよいかの判定に使う
+    /// 環境を記録する対象の日時。自動取得を許可する時間帯の判定に使う
     let recordDate: Date
+
+    /// 現在との差がこの時間未満なら環境データを自動取得できる
+    private static let automaticFetchRange: TimeInterval = 3 * 60 * 60
 
     // MARK: - 屋外（取得値。手で直すこともできる）
     var tempText: String      { didSet { markEdited(&tempEdited, oldValue, tempText) } }
@@ -43,6 +46,7 @@ final class EnvironmentEditViewModel {
 
     // MARK: - 表示状態
     var isFetching = false
+    private(set) var isFetchingDevicePressure = false
     var errorMessage: String?
 
     /// 取得結果を流し込んでいる間は「手で触った」と見なさない
@@ -85,14 +89,26 @@ final class EnvironmentEditViewModel {
 
     // MARK: - 取得
 
-    var canFetchJMA: Bool {
-        JMAWeatherService.isWithinAvailableRange(recordDate)
+    /// 記録日時と現在の差が3時間未満かを返す
+    static func isWithinAutomaticFetchRange(
+        _ recordDate: Date,
+        now: Date = Date()
+    ) -> Bool {
+        abs(now.timeIntervalSince(recordDate)) < automaticFetchRange
     }
 
-    /// 端末気圧は「今」しか測れないので、過去日時の記録では取らせない
+    /// 気象と端末気圧を自動取得できる時間帯か
+    var canAutomaticallyFetch: Bool {
+        Self.isWithinAutomaticFetchRange(recordDate)
+    }
+
+    var canFetchJMA: Bool {
+        canAutomaticallyFetch && JMAWeatherService.isWithinAvailableRange(recordDate)
+    }
+
+    /// 対応端末かつ自動取得できる時間帯なら端末気圧を測れる
     var canFetchDevicePressure: Bool {
-        guard DevicePressureService.isAvailable else { return false }
-        return abs(recordDate.timeIntervalSinceNow) < 10 * 60
+        canAutomaticallyFetch && DevicePressureService.isAvailable
     }
 
     func fetchFromJMA() async {
@@ -101,7 +117,12 @@ final class EnvironmentEditViewModel {
         errorMessage = nil
         defer { isFetching = false }
 
-        guard canFetchJMA else {
+        // 時間外は気象庁の公開期間エラーと区別して手入力を案内する
+        guard canAutomaticallyFetch else {
+            errorMessage = String(localized: "environment.help.manualOnly")
+            return
+        }
+        guard JMAWeatherService.isWithinAvailableRange(recordDate) else {
             errorMessage = JMAWeatherError.outOfRange.errorDescription
             return
         }
@@ -181,6 +202,11 @@ final class EnvironmentEditViewModel {
     }
 
     func fetchAll() async {
+        // 広告の表示中に時間外へ変わった場合も自動取得しない
+        guard canAutomaticallyFetch else {
+            errorMessage = String(localized: "environment.help.manualOnly")
+            return
+        }
         // 広告を1回見たぶんは1回の取得で使い切る
         defer { hasWatchedAd = false }
         await fetchFromJMA()
@@ -197,7 +223,15 @@ final class EnvironmentEditViewModel {
     var canFetchAny: Bool { canFetchJMA || canFetchDevicePressure }
 
     func fetchDevicePressure() async {
+        guard !isFetchingDevicePressure else { return }
+        isFetchingDevicePressure = true
         errorMessage = nil
+        defer { isFetchingDevicePressure = false }
+        // 時間外は端末の現在値を過去や未来の記録へ入れない
+        guard canAutomaticallyFetch else {
+            errorMessage = String(localized: "environment.help.manualOnly")
+            return
+        }
         do {
             devicePressure_10hpa = try await DevicePressureService.currentPressure_10hpa()
         } catch {

@@ -22,8 +22,9 @@ enum RecordDomain: Int, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .all:         return "list.bullet"
-        case .measurement: return "heart.text.square"
-        case .symptom:     return "bandage"
+        // 追加ボタンと同系統のまま、選択肢では追加記号を外す
+        case .measurement: return "text.page"
+        case .symptom:     return "at"
         }
     }
 

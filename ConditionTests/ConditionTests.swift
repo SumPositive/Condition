@@ -1863,6 +1863,33 @@ struct StaleHealthKitDateTests {
     }
 }
 
+// MARK: - 環境データを自動取得できる時間帯の判定
+
+@Suite("EnvironmentAutomaticFetchRange Tests")
+@MainActor
+struct EnvironmentAutomaticFetchRangeTests {
+
+    private let now = Date(timeIntervalSince1970: 1_000_000)
+
+    @Test("現在との差が3時間未満なら自動取得できる")
+    func withinThreeHoursCanFetch() {
+        let justInside = now.addingTimeInterval(3 * 60 * 60 - 1)
+        #expect(EnvironmentEditViewModel.isWithinAutomaticFetchRange(justInside, now: now))
+    }
+
+    @Test("過去方向へ3時間差なら自動取得できない")
+    func threeHoursPastCannotFetch() {
+        let boundary = now.addingTimeInterval(-3 * 60 * 60)
+        #expect(!EnvironmentEditViewModel.isWithinAutomaticFetchRange(boundary, now: now))
+    }
+
+    @Test("未来方向へ3時間差なら自動取得できない")
+    func threeHoursFutureCannotFetch() {
+        let boundary = now.addingTimeInterval(3 * 60 * 60)
+        #expect(!EnvironmentEditViewModel.isWithinAutomaticFetchRange(boundary, now: now))
+    }
+}
+
 // MARK: - HealthKit 削除対象日時の判定（記録削除・再試行の前提）
 
 // AppSettings.shared（UserDefaults 共有）を退避・復元するため直列化する

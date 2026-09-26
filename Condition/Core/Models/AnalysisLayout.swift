@@ -13,6 +13,10 @@ enum AnalysisPage: Int, CaseIterable, Codable, Identifiable {
   var id: Int { rawValue }
   /// 分析ページ番号をカレンダー型アイコンで示す
   var tabSymbol: String { "\(rawValue).calendar" }
+  /// 画面とタブで共通して使う分析名
+  var displayTitle: String {
+    String(format: String(localized: "analysis.page.titleFormat"), rawValue)
+  }
   var accessibilityTitle: String {
     String(format: String(localized: "analysis.page.accessibilityFormat"), rawValue)
   }
