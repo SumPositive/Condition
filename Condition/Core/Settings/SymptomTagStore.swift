@@ -68,6 +68,13 @@ extension SymptomTag {
         return Self.fallbackName(for: id)
     }
 
+    /// 直前の状況としての表示名
+    var triggerDisplayName: String {
+        if !customName.isEmpty { return customName }
+        if let entry = TriggerCatalog.entry(for: id) { return entry.localizedName }
+        return Self.fallbackName(for: id)
+    }
+
     /// 名前の引き先が無いときの表示。
     /// 辞書から外した項目を使った古い記録が残っていると、
     /// そのままでは "hayFever" のような内部 ID が画面に出てしまう。
@@ -294,6 +301,16 @@ enum SymptomTagStore {
 
     static func saveMedicineTags(_ list: SymptomTagList) {
         save(list, key: SettingsKeys.settMedicineTags)
+    }
+
+    // MARK: 直前の状況
+
+    static func triggerTags() -> SymptomTagList {
+        load(key: SettingsKeys.settTriggerTags, defaultIDs: TriggerCatalog.defaultTagIDs)
+    }
+
+    static func saveTriggerTags(_ list: SymptomTagList) {
+        save(list, key: SettingsKeys.settTriggerTags)
     }
 
     // MARK: 共通

@@ -49,6 +49,7 @@ enum AnalysisPanelID: String, CaseIterable, Codable, Identifiable {
   case symptomCalendar = "symptom.calendar"
   case symptomFrequency = "symptom.frequency"
   case symptomSummary = "symptom.summary"
+  case symptomTriggers = "symptom.triggers"
 
   var id: String { rawValue }
 
@@ -60,6 +61,7 @@ enum AnalysisPanelID: String, CaseIterable, Codable, Identifiable {
     case .symptomFrequency: return "analysis.trend"
     // 保存済み配置IDを維持したまま、文字中心の集計を環境図表へ置き換える
     case .symptomSummary: return "analysis.symptomEnvironment"
+    case .symptomTriggers: return "analysis.trigger"
     default: return "analysis.unknownPanel"
     }
   }
@@ -246,7 +248,7 @@ struct AnalysisLayout: Codable, Equatable {
     var result = AnalysisLayout(
       page1: graphPanels,
       page2: statPanels,
-      page3: [.symptomCalendar, .symptomFrequency, .symptomSummary],
+      page3: [.symptomCalendar, .symptomFrequency, .symptomSummary, .symptomTriggers],
       hidden: hidden,
       period1: GraphPeriod.month.rawValue,
       period2: GraphPeriod(rawValue: statDays)?.rawValue ?? GraphPeriod.threeMonths.rawValue,

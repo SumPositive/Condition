@@ -43,6 +43,8 @@ struct RecordImportEnvelope: Decodable {
     /// 症状・薬のタグリスト（表示名と並び順の復元用）
     let symptomTags: SymptomTagList?
     let medicineTags: SymptomTagList?
+    /// 直前の状況のタグリスト。追加前のバックアップには無いので任意
+    let triggerTags: SymptomTagList?
 }
 
 struct SymptomImportRecord: Decodable {
@@ -55,6 +57,8 @@ struct SymptomImportRecord: Decodable {
     let note: String?
     let medicines: [String]?    // 表示名
     let medicineIds: [String]?
+    let triggers: [String]?     // 表示名
+    let triggerIds: [String]?
     let dataSourceRaw: Int?
     let weather: SymptomWeatherImport?
 
@@ -203,7 +207,8 @@ struct RecordImportRecord: Decodable {
 
 enum RecordsJSONIO {
 
-    /// 2: 症状メモ（symptoms / symptomTags / medicineTags）を追加
+    /// 2: 症状メモ（symptoms / symptomTags / medicineTags）を追加。
+    /// 直前の状況（triggerIds / triggerTags）は任意項目の追加なので版は上げない
     static let currentSchemaVersion = 2
 
     enum IOError: LocalizedError, Equatable {
@@ -229,6 +234,7 @@ enum RecordsJSONIO {
         /// バックアップが含んでいたタグリスト（呼び出し側が AppSettings へ反映する）
         var symptomTags: SymptomTagList? = nil
         var medicineTags: SymptomTagList? = nil
+        var triggerTags: SymptomTagList? = nil
     }
 
     // MARK: エクスポート
@@ -246,6 +252,7 @@ enum RecordsJSONIO {
         categoryAppearances: [DateOptAppearance]? = nil,
         symptomTags: SymptomTagList? = nil,
         medicineTags: SymptomTagList? = nil,
+        triggerTags: SymptomTagList? = nil,
         exportDate: Date = Date()
     ) -> Data {
         let iso = ISO8601DateFormatter()
@@ -296,7 +303,10 @@ enum RecordsJSONIO {
         }
         if !symptoms.isEmpty {
             envelope["symptoms"] = symptoms.map {
-                symptomObject($0, iso: iso, symptomTags: symptomTags, medicineTags: medicineTags)
+                symptomObject(
+                    $0, iso: iso,
+                    symptomTags: symptomTags, medicineTags: medicineTags, triggerTags: triggerTags
+                )
             }
         }
         // 表示名と並び順を復元できるようタグリストも同梱する
@@ -305,6 +315,9 @@ enum RecordsJSONIO {
         }
         if let medicineTags, let object = jsonObject(medicineTags) {
             envelope["medicineTags"] = object
+        }
+        if let triggerTags, let object = jsonObject(triggerTags) {
+            envelope["triggerTags"] = object
         }
 
         return (try? JSONSerialization.data(withJSONObject: envelope, options: style.jsonOptions)) ?? Data()
@@ -316,7 +329,8 @@ enum RecordsJSONIO {
         _ record: SymptomRecord,
         iso: ISO8601DateFormatter,
         symptomTags: SymptomTagList?,
-        medicineTags: SymptomTagList?
+        medicineTags: SymptomTagList?,
+        triggerTags: SymptomTagList?
     ) -> [String: Any] {
         // 表示名はタグリストの上書き名を優先する。渡されなければ辞書のローカライズ名になる
         let displayName = (symptomTags?.tag(for: record.sSymptomID)
@@ -337,6 +351,13 @@ enum RecordsJSONIO {
             object["medicineIds"] = medicineIDs
             object["medicines"] = medicineIDs.map { id in
                 (medicineTags?.tag(for: id) ?? SymptomTag(id: id)).medicineDisplayName
+            }
+        }
+        let triggerIDs = record.triggerIDs
+        if !triggerIDs.isEmpty {
+            object["triggerIds"] = triggerIDs
+            object["triggers"] = triggerIDs.map { id in
+                (triggerTags?.tag(for: id) ?? SymptomTag(id: id)).triggerDisplayName
             }
         }
         if record.hasWeather {
@@ -430,6 +451,7 @@ enum RecordsJSONIO {
         }
         result.symptomTags = envelope.symptomTags
         result.medicineTags = envelope.medicineTags
+        result.triggerTags = envelope.triggerTags
         return result
     }
 
@@ -485,6 +507,8 @@ enum RecordsJSONIO {
                 .prefix(SymptomLimits.noteImportMaxLength))
             record.medicineIDs = Array((imported.medicineIds ?? [])
                 .prefix(SymptomLimits.maxMedicinesPerRecord))
+            record.triggerIDs = Array((imported.triggerIds ?? [])
+                .prefix(SymptomLimits.maxTriggersPerRecord))
             record.dataSource = RecordDataSource(rawValue: imported.dataSourceRaw ?? 0) ?? .appInput
             applyImportedWeather(imported.weather, to: record)
         }

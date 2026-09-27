@@ -97,6 +97,8 @@ final class SymptomRecord {
     var sNote: String = ""
     /// 薬IDの JSON 配列。症状と違い、薬は同時に複数あるのが普通
     var sMedicineIDs: String = ""
+    /// 直前の状況IDの JSON 配列。対処と同じく複数持てる
+    var sTriggerIDs: String = ""
     var nDataSource: Int = RecordDataSource.appInput.rawValue
 
     // MARK: - 環境スナップショット（0 / 空 = 未取得）
@@ -182,6 +184,25 @@ extension SymptomRecord {
         }
     }
 
+    /// 直前の状況IDの配列。壊れた JSON は空配列として扱う
+    @Transient var triggerIDs: [String] {
+        get {
+            guard !sTriggerIDs.isEmpty,
+                  let data = sTriggerIDs.data(using: .utf8),
+                  let decoded = try? JSONDecoder().decode([String].self, from: data) else { return [] }
+            return decoded
+        }
+        set {
+            guard !newValue.isEmpty,
+                  let data = try? JSONEncoder().encode(newValue),
+                  let json = String(data: data, encoding: .utf8) else {
+                sTriggerIDs = ""
+                return
+            }
+            sTriggerIDs = json
+        }
+    }
+
     /// セクション表示用年月（例: 2026年3月 → 202603）。BodyRecord.yearMonth と揃える
     @Transient var yearMonth: Int {
         let cal = Calendar(identifier: .gregorian)
@@ -263,7 +284,9 @@ enum SymptomLimits {
     static let tagNameMaxLength = 20
     /// 1件に付けられる薬の最大数
     static let maxMedicinesPerRecord = 10
-    /// タグリストに持てる最大数（症状・対処それぞれ）。
+    /// 1件に付けられる直前の状況の最大数
+    static let maxTriggersPerRecord = 10
+    /// タグリストに持てる最大数（症状・直前の状況・対処それぞれ）。
     /// 実際に使うのは10〜30個程度だが、整理せず足し続ける使い方でも
     /// 困らない余裕を取る。UserDefaults に JSON で丸ごと入れて
     /// 起動のたびに読むので、青天井にはしない

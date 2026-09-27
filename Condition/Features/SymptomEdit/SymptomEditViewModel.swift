@@ -25,6 +25,8 @@ final class SymptomEditViewModel {
     var severity: SymptomSeverity    { didSet { markModified() } }
     var note: String                 { didSet { markModified() } }
     var medicineIDs: [String]        { didSet { markModified() } }
+    /// 発症する直前の状況。対処と同じく複数選べる
+    var triggerIDs: [String]         { didSet { markModified() } }
 
     // MARK: - 環境（天候・室内・端末気圧）
     /// 中身の編集は測定記録と共用の環境シートが行う。ここは値を持って保存するだけ
@@ -48,6 +50,7 @@ final class SymptomEditViewModel {
             severity = .defaultForNewRecord
             note = ""
             medicineIDs = []
+            triggerIDs = []
             environment = EnvironmentSnapshot()
         case .edit(let record):
             startAt = record.startAt
@@ -57,6 +60,7 @@ final class SymptomEditViewModel {
             severity = record.severity
             note = record.sNote
             medicineIDs = record.medicineIDs
+            triggerIDs = record.triggerIDs
             environment = record.environmentSnapshot
         }
         isLoading = false
@@ -103,6 +107,14 @@ final class SymptomEditViewModel {
         }
     }
 
+    func toggleTrigger(_ id: String) {
+        if let index = triggerIDs.firstIndex(of: id) {
+            triggerIDs.remove(at: index)
+        } else if triggerIDs.count < SymptomLimits.maxTriggersPerRecord {
+            triggerIDs.append(id)
+        }
+    }
+
     // MARK: - 保存
 
     /// 入力値をモデルへ書き戻す。新規なら挿入して返す
@@ -130,6 +142,7 @@ final class SymptomEditViewModel {
         record.severity = severity
         record.sNote = String(note.trimmingCharacters(in: .newlines).prefix(SymptomLimits.noteMaxLength))
         record.medicineIDs = medicineIDs
+        record.triggerIDs = triggerIDs
 
         record.apply(environment)
 
@@ -144,6 +157,7 @@ final class SymptomEditViewModel {
         // 使ったタグを MRU の先頭へ寄せる
         AppSettings.shared.markSymptomUsed(symptomID)
         AppSettings.shared.markMedicinesUsed(medicineIDs)
+        AppSettings.shared.markTriggersUsed(triggerIDs)
         isModified = false
         return record
     }

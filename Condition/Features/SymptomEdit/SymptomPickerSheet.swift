@@ -27,13 +27,23 @@ struct SymptomPickerSheet: View {
     /// 上限に達して追加できなかったときに出す案内
     @State private var showTagLimitAlert = false
 
-    private var settings: AppSettings { AppSettings.shared }
-
     /// シートの背景。記録画面の上に症状/対処シートが重なるので、
     /// 下の画面と同じ灰色だとどれを操作しているのか分からなくなる。
     /// 色相でシートの種類が分かるように、標準の灰色へ淡く色を混ぜる
     private var sheetBackground: Color {
-        .azTintedSheetBackground(kind == .symptom ? .tintColor : .systemOrange)
+        switch kind {
+        case .symptom:  return .azTintedSheetBackground(.tintColor)
+        case .trigger:  return .azTintedSheetBackground(.systemPurple)
+        case .medicine: return .azTintedSheetBackground(.systemOrange)
+        }
+    }
+
+    private var navigationTitleKey: LocalizedStringKey {
+        switch kind {
+        case .symptom:  return "symptom.picker.title"
+        case .trigger:  return "trigger.picker.title"
+        case .medicine: return "remedy.picker.title"
+        }
     }
 
     var body: some View {
@@ -115,7 +125,7 @@ struct SymptomPickerSheet: View {
                 .scrollDismissesKeyboard(.immediately)
             }
             // 選択はこのシートだけで行うので、タイトルも「選ぶ」と言い切る
-            .navigationTitle(kind == .symptom ? "symptom.picker.title" : "remedy.picker.title")
+            .navigationTitle(navigationTitleKey)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 // 入力欄の外をタップして閉じる方式は、List の行内ボタンと
@@ -180,7 +190,8 @@ struct SymptomPickerSheet: View {
             ForEach(items, id: \.id) { item in
                 SymptomTagChip(
                     title: item.title,
-                    color: .accentColor,
+                    // 直前の状況は記録画面と同じ紫にして、対処と見分けられるようにする
+                    color: kind == .trigger ? .purple : .accentColor,
                     isSelected: selectedIDs.contains(item.id),
                     // プリセットもユーザー追加も、長押しで同じ編集欄に載せる。
                     // 削除は用意しない（過去の記録が名前を参照しているため）
@@ -208,32 +219,20 @@ struct SymptomPickerSheet: View {
         var result: [(id: String, title: String)] = []
 
         // 先に自分で追加したタグ（辞書に無い名前を使っている可能性があるため）
-        let list = kind == .symptom ? settings.symptomTags : settings.medicineTags
+        let list = kind.tagList
         for tag in list.orderedIncludingHidden where tag.isUserDefined {
-            let name = kind == .symptom ? tag.symptomDisplayName : tag.medicineDisplayName
+            let name = kind.displayName(of: tag)
             guard SymptomTagMatching.normalized(name)
                 .contains(SymptomTagMatching.normalized(input)) else { continue }
             if seen.insert(tag.id).inserted { result.append((tag.id, name)) }
         }
-        // 次に内蔵辞書
-        switch kind {
-        case .symptom:
-            for entry in SymptomCatalog.suggestions(forInput: input) where seen.insert(entry.id).inserted {
-                result.append((entry.id, symptomName(for: entry)))
-            }
-        case .medicine:
-            for entry in MedicineCatalog.suggestions(forInput: input) where seen.insert(entry.id).inserted {
-                let name = settings.medicineTags.tag(for: entry.id)?.medicineDisplayName
-                    ?? entry.localizedName
-                result.append((entry.id, name))
-            }
+        // 次に内蔵辞書。上書きした名前があればそれを使う（プリセットも名前を直せるため）
+        for id in kind.catalogSuggestionIDs(forInput: input) where seen.insert(id).inserted {
+            let name = list.tag(for: id).map { kind.displayName(of: $0) }
+                ?? kind.catalogName(for: id) ?? id
+            result.append((id, name))
         }
         return Array(result.prefix(6))
-    }
-
-    /// 症状の表示名。上書きがあればそれを使う（プリセットも名前を直せるため）
-    private func symptomName(for entry: SymptomCatalogEntry) -> String {
-        settings.symptomTags.tag(for: entry.id)?.symptomDisplayName ?? entry.localizedName
     }
 
     // MARK: - 一覧
@@ -246,10 +245,8 @@ struct SymptomPickerSheet: View {
     /// 直近に使った順で並べる（未使用は辞書の登録順、ユーザー追加はその後）。
     /// 症状・対処で同じ規則にする
     private var pickerItems: [(id: String, title: String)] {
-        let list = kind == .symptom ? settings.symptomTags : settings.medicineTags
-        let catalogIDs: [String] = kind == .symptom
-            ? SymptomCatalog.visibleIDs
-            : MedicineCatalog.all.map(\.id)
+        let list = kind.tagList
+        let catalogIDs = kind.catalogIDs
 
         // 辞書の登録順を覚えておき、未使用タグの並びに使う
         let catalogOrder = Dictionary(
@@ -266,9 +263,7 @@ struct SymptomPickerSheet: View {
             .filter { tag in
                 guard !known.contains(tag.id) else { return false }
                 if !tag.customName.isEmpty { return true }
-                return kind == .symptom
-                    ? SymptomCatalog.entry(for: tag.id) != nil
-                    : MedicineCatalog.entry(for: tag.id) != nil
+                return kind.isCatalogID(tag.id)
             }
             .map(\.id)
 
@@ -286,12 +281,8 @@ struct SymptomPickerSheet: View {
                 }
             }
             .map { id in
-                let tag = list.tag(for: id)
-                let name = kind == .symptom
-                    ? (tag?.symptomDisplayName
-                        ?? SymptomCatalog.entry(for: id)?.localizedName ?? id)
-                    : (tag?.medicineDisplayName
-                        ?? MedicineCatalog.entry(for: id)?.localizedName ?? id)
+                let name = list.tag(for: id).map { kind.displayName(of: $0) }
+                    ?? kind.catalogName(for: id) ?? id
                 return (id, name)
             }
     }
@@ -327,16 +318,9 @@ struct SymptomPickerSheet: View {
         let name = trimmedNewTagName
         guard !name.isEmpty else { return }
 
-        switch kind {
-        case .symptom:
-            var list = settings.symptomTags
-            list.upsertName(id: id, to: name)
-            settings.symptomTags = list
-        case .medicine:
-            var list = settings.medicineTags
-            list.upsertName(id: id, to: name)
-            settings.medicineTags = list
-        }
+        var list = kind.tagList
+        list.upsertName(id: id, to: name)
+        kind.tagList = list
         endEditing()
     }
 
@@ -352,22 +336,12 @@ struct SymptomPickerSheet: View {
         let customName = matched == nil ? name : ""
 
         // 上限に達していたら足さずに知らせる。黙って消えるのが一番困る
-        switch kind {
-        case .symptom:
-            var list = settings.symptomTags
-            guard list.add(id: id, customName: customName) else {
-                showTagLimitAlert = true
-                return
-            }
-            settings.symptomTags = list
-        case .medicine:
-            var list = settings.medicineTags
-            guard list.add(id: id, customName: customName) else {
-                showTagLimitAlert = true
-                return
-            }
-            settings.medicineTags = list
+        var list = kind.tagList
+        guard list.add(id: id, customName: customName) else {
+            showTagLimitAlert = true
+            return
         }
+        kind.tagList = list
         newTagName = ""
         newTagFocused = false
         onSelect(id)
@@ -376,17 +350,13 @@ struct SymptomPickerSheet: View {
 
     /// 入力された名前に対応する既存の ID。辞書とタグリストの両方を見る
     private func existingID(forName name: String) -> String? {
-        let list = kind == .symptom ? settings.symptomTags : settings.medicineTags
         // 先に自分で追加済みのタグを見る（辞書名を上書きしている場合もあるため）
         let target = SymptomTagMatching.normalized(name)
-        if let tag = list.tags.first(where: {
-            let display = kind == .symptom ? $0.symptomDisplayName : $0.medicineDisplayName
-            return SymptomTagMatching.normalized(display) == target
+        if let tag = kind.tagList.tags.first(where: {
+            SymptomTagMatching.normalized(kind.displayName(of: $0)) == target
         }) {
             return tag.id
         }
-        return kind == .symptom
-            ? SymptomCatalog.matchingID(forName: name)
-            : MedicineCatalog.matchingID(forName: name)
+        return kind.catalogMatchingID(forName: name)
     }
 }

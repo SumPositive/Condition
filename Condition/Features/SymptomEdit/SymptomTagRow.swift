@@ -62,7 +62,86 @@ struct SymptomTagChip: View {
 
 enum SymptomTagKind {
     case symptom
+    case trigger
     case medicine
+}
+
+/// 種類ごとのタグリストと辞書の引き先。
+/// 選択シートや記録画面が種類で分岐せずに済むよう、ここへ集める
+@MainActor
+extension SymptomTagKind {
+
+    /// 種類に対応するタグリスト。書き込むと AppSettings 経由で保存される
+    var tagList: SymptomTagList {
+        get {
+            switch self {
+            case .symptom:  return AppSettings.shared.symptomTags
+            case .trigger:  return AppSettings.shared.triggerTags
+            case .medicine: return AppSettings.shared.medicineTags
+            }
+        }
+        nonmutating set {
+            switch self {
+            case .symptom:  AppSettings.shared.symptomTags = newValue
+            case .trigger:  AppSettings.shared.triggerTags = newValue
+            case .medicine: AppSettings.shared.medicineTags = newValue
+            }
+        }
+    }
+
+    /// 種類に応じた表示名
+    func displayName(of tag: SymptomTag) -> String {
+        switch self {
+        case .symptom:  return tag.symptomDisplayName
+        case .trigger:  return tag.triggerDisplayName
+        case .medicine: return tag.medicineDisplayName
+        }
+    }
+
+    /// 辞書の ID（登録順）
+    var catalogIDs: [String] {
+        switch self {
+        case .symptom:  return SymptomCatalog.visibleIDs
+        case .trigger:  return TriggerCatalog.all.map(\.id)
+        case .medicine: return MedicineCatalog.all.map(\.id)
+        }
+    }
+
+    /// 辞書にある ID か
+    func isCatalogID(_ id: String) -> Bool {
+        switch self {
+        case .symptom:  return SymptomCatalog.entry(for: id) != nil
+        case .trigger:  return TriggerCatalog.entry(for: id) != nil
+        case .medicine: return MedicineCatalog.entry(for: id) != nil
+        }
+    }
+
+    /// 辞書のローカライズ名
+    func catalogName(for id: String) -> String? {
+        switch self {
+        case .symptom:  return SymptomCatalog.entry(for: id)?.localizedName
+        case .trigger:  return TriggerCatalog.entry(for: id)?.localizedName
+        case .medicine: return MedicineCatalog.entry(for: id)?.localizedName
+        }
+    }
+
+    /// 入力された名前に完全一致する辞書の ID
+    func catalogMatchingID(forName name: String) -> String? {
+        switch self {
+        case .symptom:  return SymptomCatalog.matchingID(forName: name)
+        case .trigger:  return TriggerCatalog.matchingID(forName: name)
+        case .medicine: return MedicineCatalog.matchingID(forName: name)
+        }
+    }
+
+    /// 入力中の文字に似た辞書の ID
+    func catalogSuggestionIDs(forInput input: String) -> [String] {
+        switch self {
+        case .symptom:  return SymptomCatalog.suggestions(forInput: input).map(\.id)
+        case .trigger:  return TriggerCatalog.suggestions(forInput: input).map(\.id)
+        case .medicine: return MedicineCatalog.suggestions(forInput: input).map(\.id)
+        }
+    }
 }
 
 // MARK: - 折り返しレイアウト

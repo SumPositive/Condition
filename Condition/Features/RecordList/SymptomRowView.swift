@@ -180,10 +180,15 @@ struct SymptomRowView: View {
             .clipShape(Capsule())
     }
 
-    /// 持続時間・薬・メモを1行にまとめる。空の要素は出さない
+    /// 持続時間・直前の状況・薬・メモを1行にまとめる。空の要素は出さない
     private var detailLine: String? {
         var parts: [String] = []
         if let text = durationText { parts.append(text) }
+        let triggers = record.triggerIDs
+            .map { id in
+                (settings.triggerTags.tag(for: id) ?? SymptomTag(id: id)).triggerDisplayName
+            }
+        if !triggers.isEmpty { parts.append(triggers.joined(separator: "・")) }
         let medicines = record.medicineIDs
             .map { id in
                 (settings.medicineTags.tag(for: id) ?? SymptomTag(id: id)).medicineDisplayName

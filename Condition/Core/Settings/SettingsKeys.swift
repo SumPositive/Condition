@@ -53,6 +53,7 @@ enum SettingsKeys {
     // MARK: - 症状メモ
     static let settSymptomTags   = "KVS_SettSymptomTags"   // 症状タグリスト (JSONデータ)
     static let settMedicineTags  = "KVS_SettMedicineTags"  // 薬タグリスト (JSONデータ)
+    static let settTriggerTags   = "KVS_SettTriggerTags"   // 直前の状況タグリスト (JSONデータ)
     static let settRecordDomain  = "KVS_SettRecordDomain"  // 記録一覧の絞り込み (RecordDomain.rawValue)
 
     // MARK: - 目標値

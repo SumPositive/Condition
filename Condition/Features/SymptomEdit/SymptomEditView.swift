@@ -15,6 +15,7 @@ struct SymptomEditView: View {
     @State private var vm: SymptomEditViewModel
     @State private var showSymptomPicker = false
     @State private var showMedicinePicker = false
+    @State private var showTriggerPicker = false
     /// キャンセルの二段タップ（測定シートと同じ作法）。
     /// 1回目で赤くなり、2秒以内にもう一度押すと破棄する
     @State private var isCancelArmed = false
@@ -104,6 +105,15 @@ struct SymptomEditView: View {
                     addToTagList(id: id, kind: .medicine)
                     // シートが唯一の選択場所になったので、もう一度押したら外せるようにする
                     vm.toggleMedicine(id)
+                }
+            }
+            .sheet(isPresented: $showTriggerPicker) {
+                SymptomPickerSheet(
+                    kind: .trigger,
+                    selectedIDs: Set(vm.triggerIDs)
+                ) { id in
+                    addToTagList(id: id, kind: .trigger)
+                    vm.toggleTrigger(id)
                 }
             }
             .sheet(isPresented: $showStartPicker) {
@@ -243,7 +253,7 @@ struct SymptomEditView: View {
 
     // MARK: - 症状・程度・対処
 
-    /// 症状とその程度、とった対処は一続きの入力なので1つのセクションに収める。
+    /// 症状とその程度、直前の状況、とった対処は一続きの入力なので1つのセクションに収める。
     /// 見出しは行のラベルと同じ語になってしまうため置かない
     private var symptomSection: some View {
         Section {
@@ -276,9 +286,21 @@ struct SymptomEditView: View {
                 Text(LocalizedStringKey(level.labelKey))
             }
 
+            // 発症の手前にあった状況は、対処より時間的に前なので上に置く
+            // 未選択は「思い当たらない」と同じ意味なので、そう読めるように表示する
+            selectionRow(
+                title: "symptom.section.trigger",
+                chips: selectedTriggerChips,
+                emptyKey: "trigger.select.empty",
+                help: ("symptom.help.trigger", "helpDismissed.symptom.trigger")
+            ) {
+                showTriggerPicker = true
+            }
+
             selectionRow(
                 title: "symptom.section.remedy",
-                chips: selectedMedicineChips
+                chips: selectedMedicineChips,
+                help: ("symptom.help.remedy", "helpDismissed.symptom.remedy")
             ) {
                 showMedicinePicker = true
             }
@@ -300,48 +322,68 @@ struct SymptomEditView: View {
         }
     }
 
+    /// 選択中の直前の状況。記録に入っている順（選んだ順）で出す。
+    /// 対処（アクセント色）と見分けられるよう、選択シートのタグと同じ紫にする
+    private var selectedTriggerChips: [(id: String, title: String, color: Color)] {
+        vm.triggerIDs.map { id in
+            let tag = settings.triggerTags.tag(for: id) ?? SymptomTag(id: id)
+            return (id, tag.triggerDisplayName, Color.purple)
+        }
+    }
+
     // MARK: - 選択行
 
-    /// 「見出し ＋ 選択済みのタグ ＋ ＞」の1セル。タップでシートを開く。
-    /// タグは表示専用（解除もシート側で行う）なので、セル全体を1つのボタンにする
+    /// 「見出し ＋ (?) ＋ 選択済みのタグ ＋ ＞」の1セル。タップでシートを開く。
+    /// タグは表示専用（解除もシート側で行う）なので、セル全体で開く。
+    /// Button で包むと中の (?) のタップが親に吸われるため、環境の行と同じく onTapGesture にする
     private func selectionRow(
         title: LocalizedStringKey,
         chips: [(id: String, title: String, color: Color)],
+        emptyKey: LocalizedStringKey = "symptom.select.empty",
+        help: (messageKey: LocalizedStringKey, storageKey: String)? = nil,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
-            HStack(alignment: .center, spacing: 8) {
-                Text(title)
-                    .foregroundStyle(Color.primary)
-                    .fixedSize(horizontal: true, vertical: false)
-                Spacer(minLength: 4)
-                if chips.isEmpty {
-                    Text("symptom.select.empty")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                } else {
-                    // 選択済みは右寄せで折り返す。多いと縦に伸びるが、
-                    // 省略するより「何を選んだか」が分かるほうを優先する
-                    FlowLayout(spacing: 6, alignment: .trailing) {
-                        ForEach(chips, id: \.id) { chip in
-                            Text(chip.title)
-                                .lineLimit(1)
-                                .font(.callout.weight(.semibold))
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(chip.color)
-                                .foregroundStyle(.white)
-                                .clipShape(Capsule())
-                        }
+        HStack(alignment: .center, spacing: 8) {
+            Text(title)
+                .foregroundStyle(Color.primary)
+                .fixedSize(horizontal: true, vertical: false)
+            if let help {
+                BeginnerHelpBanner(
+                    help.messageKey,
+                    storageKey: help.storageKey,
+                    compact: true,
+                    tight: true
+                )
+            }
+            Spacer(minLength: 4)
+            if chips.isEmpty {
+                Text(emptyKey)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            } else {
+                // 選択済みは右寄せで折り返す。多いと縦に伸びるが、
+                // 省略するより「何を選んだか」が分かるほうを優先する
+                FlowLayout(spacing: 6, alignment: .trailing) {
+                    ForEach(chips, id: \.id) { chip in
+                        Text(chip.title)
+                            .lineLimit(1)
+                            .font(.callout.weight(.semibold))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(chip.color)
+                            .foregroundStyle(.white)
+                            .clipShape(Capsule())
                     }
                 }
-                Image(systemName: "chevron.right")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.tertiary)
             }
-            .contentShape(Rectangle())
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.tertiary)
         }
-        .buttonStyle(.plain)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: action)
+        .accessibilityElement(children: .contain)
+        .accessibilityAddTraits(.isButton)
         .padding(.vertical, 2)
         .azFullWidthRow()
     }
@@ -470,15 +512,8 @@ struct SymptomEditView: View {
 
     /// 辞書から選ばれたタグをタグリストへ入れる
     private func addToTagList(id: String, kind: SymptomTagKind) {
-        switch kind {
-        case .symptom:
-            var list = settings.symptomTags
-            list.add(id: id)
-            settings.symptomTags = list
-        case .medicine:
-            var list = settings.medicineTags
-            list.add(id: id)
-            settings.medicineTags = list
-        }
+        var list = kind.tagList
+        list.add(id: id)
+        kind.tagList = list
     }
 }

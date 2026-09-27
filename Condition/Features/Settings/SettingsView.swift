@@ -573,7 +573,8 @@ struct SettingsView: View {
                 style: exportFormat,
                 categoryAppearances: RecordsJSONIO.normalizedDateOptAppearances(settings.dateOptAppearances),
                 symptomTags: settings.symptomTags,
-                medicineTags: settings.medicineTags
+                medicineTags: settings.medicineTags,
+                triggerTags: settings.triggerTags
             )
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyyMMdd_HHmmss"
@@ -625,6 +626,10 @@ struct SettingsView: View {
                 if var medicineTags = result.medicineTags {
                     medicineTags.trimToLimit()
                     settings.medicineTags = medicineTags
+                }
+                if var triggerTags = result.triggerTags {
+                    triggerTags.trimToLimit()
+                    settings.triggerTags = triggerTags
                 }
                 AppAnalytics.shared.logOperation(
                     "records_json_import",

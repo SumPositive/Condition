@@ -218,6 +218,13 @@ struct AnalysisPageView: View {
           symptomOptions: symptomFilterOptions(for: panel),
           selectedSymptom: symptomFilterBinding(for: panel)
         )
+      case .symptomTriggers:
+        AnalysisSymptomTriggerPanel(
+          symptomRecords: filteredSymptomRecords(for: panel),
+          range: symptomRange,
+          symptomOptions: symptomFilterOptions(for: panel),
+          selectedSymptom: symptomFilterBinding(for: panel)
+        )
       default:
         EmptyView()
       }
@@ -1162,24 +1169,18 @@ private struct AnalysisSymptomDayDetailView: View {
       Divider()
       timeDetails(record)
 
+      // 記録画面と同じく、直前の状況を対処より先に並べる
+      let triggers = triggerNames(record)
+      if !triggers.isEmpty {
+        detailSection(title: "symptom.section.trigger", systemImage: "clock.arrow.circlepath") {
+          tagGrid(triggers, color: .purple)
+        }
+      }
+
       let remedies = remedyNames(record)
       if !remedies.isEmpty {
         detailSection(title: "symptom.section.remedy", systemImage: "cross.case") {
-          // 可変グリッドで折り返し後の高さをカードへ確実に伝える
-          LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 120), spacing: 6)],
-            alignment: .leading,
-            spacing: 6
-          ) {
-            ForEach(remedies, id: \.self) { remedy in
-              Text(remedy)
-                .font(.caption.weight(.medium))
-                .padding(.horizontal, 9)
-                .padding(.vertical, 5)
-                .background(Color.accentColor.opacity(0.12), in: Capsule())
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-          }
+          tagGrid(remedies, color: .accentColor)
         }
       }
 
@@ -1296,6 +1297,30 @@ private struct AnalysisSymptomDayDetailView: View {
     let end = min(rawEnd, interval.end)
     guard start < end else { return nil }
     return end.timeIntervalSince(start)
+  }
+
+  /// 可変グリッドで折り返し後の高さをカードへ確実に伝える
+  private func tagGrid(_ names: [String], color: Color) -> some View {
+    LazyVGrid(
+      columns: [GridItem(.adaptive(minimum: 120), spacing: 6)],
+      alignment: .leading,
+      spacing: 6
+    ) {
+      ForEach(names, id: \.self) { name in
+        Text(name)
+          .font(.caption.weight(.medium))
+          .padding(.horizontal, 9)
+          .padding(.vertical, 5)
+          .background(color.opacity(0.12), in: Capsule())
+          .frame(maxWidth: .infinity, alignment: .leading)
+      }
+    }
+  }
+
+  private func triggerNames(_ record: SymptomRecord) -> [String] {
+    record.triggerIDs.map { id in
+      (settings.triggerTags.tag(for: id) ?? SymptomTag(id: id)).triggerDisplayName
+    }
   }
 
   private func remedyNames(_ record: SymptomRecord) -> [String] {
@@ -1877,6 +1902,163 @@ private struct AnalysisEnvironmentMiniChart: View {
 
   private func bucketLower(_ value: Double) -> Double {
     floor(value / metric.binWidth) * metric.binWidth
+  }
+}
+
+private struct AnalysisTriggerRow: Identifiable {
+  /// 状況のタグID。未選択の行は "unselected"
+  let id: String
+  let name: String
+  /// 程度ごとの件数（軽い→強い）。未選択の行は程度で分けず1区分にする
+  let segments: [(color: Color, count: Int)]
+  /// 「未選択（思い当たらない）」の行。白い棒で示す
+  let isUnselected: Bool
+  var total: Int { segments.reduce(0) { $0 + $1.count } }
+}
+
+/// 発症の直前に記録した状況を、状況ごとの件数（程度別の積み上げ）で示す
+private struct AnalysisSymptomTriggerPanel: View {
+  let symptomRecords: [SymptomRecord]
+  let range: SymptomAnalysisRange
+  let symptomOptions: [AnalysisSymptomFilterOption]
+  @Binding var selectedSymptom: AnalysisSymptomFilterOption
+  @State private var settings = AppSettings.shared
+  private let onsetSeverities: [SymptomSeverity] = [.mild, .moderate, .severe]
+
+  /// 期間内に発症した記録（程度「なし」を除く）
+  private var onsetRecords: [SymptomRecord] {
+    symptomRecords.filter { range.containsStart($0) && 1 < $0.nSeverity }
+  }
+
+  /// 状況ごとの件数。名前は ID から引き、多い順に並べる
+  private var rows: [AnalysisTriggerRow] {
+    var counts: [String: [SymptomSeverity: Int]] = [:]
+    for record in onsetRecords {
+      for id in Set(record.triggerIDs) {
+        counts[id, default: [:]][record.severity, default: 0] += 1
+      }
+    }
+    var result: [AnalysisTriggerRow] = counts.map { id, bySeverity in
+      AnalysisTriggerRow(
+        id: id,
+        name: name(id),
+        segments: onsetSeverities.compactMap { severity -> (color: Color, count: Int)? in
+          guard let count = bySeverity[severity], 0 < count else { return nil }
+          return (severity.analysisEnvironmentColor.opacity(0.82), count)
+        },
+        isUnselected: false
+      )
+    }
+    // 未選択は「思い当たらない」と同じ意味なので、状況と同じ列に並べる
+    let unselected = onsetRecords.filter { $0.triggerIDs.isEmpty }.count
+    if 0 < unselected {
+      result.append(AnalysisTriggerRow(
+        id: "unselected",
+        name: String(localized: "trigger.select.empty"),
+        segments: [(.white, unselected)],
+        isUnselected: true
+      ))
+    }
+    // 件数の降順。同数なら状況を先にし、未選択は後ろへ回す
+    return result.sorted { lhs, rhs in
+      if lhs.total != rhs.total { return rhs.total < lhs.total }
+      if lhs.isUnselected != rhs.isUnselected { return rhs.isUnselected }
+      return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+    }
+  }
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      Text("analysis.trigger").font(.headline)
+      AnalysisSymptomTargetPicker(
+        options: symptomOptions,
+        selection: $selectedSymptom
+      )
+
+      let values = rows
+      if values.isEmpty {
+        ContentUnavailableView(
+          "analysis.trigger.noData",
+          systemImage: "clock.arrow.circlepath"
+        )
+        .frame(maxWidth: .infinity, minHeight: 200)
+      } else {
+        triggerBars(values)
+        chartLegend
+      }
+
+      Text("analysis.trigger.note")
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+    }
+    .padding()
+    .background(Color.analysisSymptomPanelBackground)
+    .clipShape(RoundedRectangle(cornerRadius: 16))
+    .padding(.bottom, 16)
+  }
+
+  /// 項目数に関係なく同じ太さで並べるため、Chart の軸に任せず1行ずつ組む。
+  /// 棒の長さは最多の状況を幅いっぱいとした比で、件数は行の右端に数字で出す
+  private func triggerBars(_ values: [AnalysisTriggerRow]) -> some View {
+    let maxTotal = max(values.map(\.total).max() ?? 1, 1)
+    return VStack(alignment: .leading, spacing: 0) {
+      ForEach(values) { row in
+        // 項目の区切りが分かるよう、2項目目から上に区切り線を引く
+        if row.id != values.first?.id {
+          Divider()
+        }
+        VStack(alignment: .leading, spacing: 3) {
+          HStack(alignment: .firstTextBaseline) {
+            Text(row.name)
+              .font(.subheadline)
+              .lineLimit(1)
+            Spacer(minLength: 8)
+            Text(row.total.formatted())
+              .font(.subheadline.monospacedDigit().weight(.semibold))
+              .foregroundStyle(.secondary)
+          }
+          GeometryReader { proxy in
+            let width = proxy.size.width * CGFloat(row.total) / CGFloat(maxTotal)
+            HStack(spacing: 0) {
+              ForEach(Array(row.segments.enumerated()), id: \.offset) { _, segment in
+                Rectangle()
+                  .fill(segment.color)
+                  .frame(width: width * CGFloat(segment.count) / CGFloat(max(row.total, 1)))
+              }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 4))
+            .overlay(alignment: .leading) {
+              // 白い棒は淡い背景に溶けるので、枠線で輪郭を付ける
+              if row.isUnselected {
+                RoundedRectangle(cornerRadius: 4)
+                  .stroke(Color.secondary.opacity(0.35), lineWidth: 1)
+                  .frame(width: width)
+              }
+            }
+          }
+          .frame(height: 16)
+        }
+        .padding(.vertical, 7)
+        .accessibilityElement(children: .combine)
+      }
+    }
+  }
+
+  private var chartLegend: some View {
+    AZFlowLayout(spacing: 10, rowSpacing: 6, alignment: .leading) {
+      ForEach(onsetSeverities) { severity in
+        HStack(spacing: 5) {
+          RoundedRectangle(cornerRadius: 2)
+            .fill(severity.analysisEnvironmentColor.opacity(0.82))
+            .frame(width: 10, height: 10)
+          Text(LocalizedStringKey(severity.labelKey)).font(.caption)
+        }
+      }
+    }
+  }
+
+  private func name(_ id: String) -> String {
+    (settings.triggerTags.tag(for: id) ?? SymptomTag(id: id)).triggerDisplayName
   }
 }
 

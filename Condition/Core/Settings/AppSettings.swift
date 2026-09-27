@@ -536,6 +536,13 @@ final class AppSettings {
         }
     }
 
+    var triggerTags: SymptomTagList = SymptomTagStore.triggerTags() {
+        didSet {
+            SymptomTagStore.saveTriggerTags(triggerTags)
+            symptomTagRevision += 1
+        }
+    }
+
     /// 症状の使用を記録して並び順（MRU）を更新する
     func markSymptomUsed(_ id: String) {
         guard !id.isEmpty else { return }
@@ -550,6 +557,14 @@ final class AppSettings {
         var list = medicineTags
         for id in ids { list.markUsed(id: id) }
         medicineTags = list
+    }
+
+    /// 直前の状況の使用を記録して並び順（MRU）を更新する
+    func markTriggersUsed(_ ids: [String]) {
+        guard !ids.isEmpty else { return }
+        var list = triggerTags
+        for id in ids { list.markUsed(id: id) }
+        triggerTags = list
     }
 
     // MARK: - 新規記録シート（非永続・セッションのみ）
