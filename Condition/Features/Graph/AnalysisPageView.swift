@@ -19,20 +19,11 @@ struct AnalysisPageView: View {
   @Query(sort: \SymptomRecord.startAt) private var symptomRecords: [SymptomRecord]
   @State private var settings = AppSettings.shared
   @State private var chartWidth: CGFloat = 390
-  @State private var isSymptomFilterExpanded = false
   @State private var showSettings = false
   @State private var isExporting = false
-  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
   private var period: GraphPeriod { settings.analysisLayout.period(in: page) }
   private var visiblePanels: [AnalysisPanelID] { settings.analysisLayout.visiblePanels(in: page) }
-  private var hasSymptomPanel: Bool { visiblePanels.contains(where: \.isSymptomPanel) }
-
-  /// 削除済みの症状IDが保存されている場合は「すべて」として扱う
-  private var selectedSymptomID: String {
-    let saved = settings.analysisSymptomFilter(in: page)
-    return symptomIDs.contains(saved) ? saved : ""
-  }
 
   /// AZPickerで表示する「すべて」と症状名の選択肢
   private var symptomFilterOptions: [AnalysisSymptomFilterOption] {
@@ -40,22 +31,11 @@ struct AnalysisPageView: View {
       + symptomIDs.map { AnalysisSymptomFilterOption(id: $0, title: symptomName($0)) }
   }
 
-  private var selectedSymptomFilterOption: AnalysisSymptomFilterOption {
-    symptomFilterOptions.first { $0.id == selectedSymptomID } ?? symptomFilterOptions[0]
-  }
-
-  private var symptomFilterBinding: Binding<AnalysisSymptomFilterOption> {
-    Binding(
-      get: { selectedSymptomFilterOption },
-      set: { settings.setAnalysisSymptomFilter($0.id, in: page) }
-    )
-  }
-
-  private var symptomFilterPickerStyle: AZPickerStyle {
-    var style = AZPickerStyle.form
-    // 選択式であることが閉じた状態でも分かるよう山型を表示する
-    style.dropdownIndicator = .chevron
-    return style
+  /// 周期性は単一症状の発症間隔を分析するため「すべて」を候補から外す
+  private func symptomFilterOptions(for panel: AnalysisPanelID) -> [AnalysisSymptomFilterOption] {
+    guard panel == .symptomFrequency else { return symptomFilterOptions }
+    let options = symptomIDs.map { AnalysisSymptomFilterOption(id: $0, title: symptomName($0)) }
+    return options.isEmpty ? [AnalysisSymptomFilterOption(id: "", title: "—")] : options
   }
 
   private var periodBinding: Binding<GraphPeriod> {
@@ -86,8 +66,20 @@ struct AnalysisPageView: View {
   }
 
   private var symptomIDs: [String] {
-    Set(symptomRecords.map(\.sSymptomID).filter { !$0.isEmpty }).sorted {
-      symptomName($0).localizedStandardCompare(symptomName($1)) == .orderedAscending
+    let now = Date()
+    // 「なし」を除く発症記録を症状ごとに数え、よく記録する症状を上位へ並べる
+    let onsetCounts = symptomRecords.reduce(into: [String: Int]()) { counts, record in
+      guard !record.sSymptomID.isEmpty,
+            record.startAt <= now,
+            1 < record.nSeverity
+      else { return }
+      counts[record.sSymptomID, default: 0] += 1
+    }
+    return Set(symptomRecords.map(\.sSymptomID).filter { !$0.isEmpty }).sorted { lhs, rhs in
+      let lhsCount = onsetCounts[lhs, default: 0]
+      let rhsCount = onsetCounts[rhs, default: 0]
+      if lhsCount != rhsCount { return rhsCount < lhsCount }
+      return symptomName(lhs).localizedStandardCompare(symptomName(rhs)) == .orderedAscending
     }
   }
 
@@ -102,7 +94,6 @@ struct AnalysisPageView: View {
           )
           LazyVStack(spacing: 0) {
             periodPicker
-            if hasSymptomPanel { symptomFilter }
             if visiblePanels.isEmpty {
               ContentUnavailableView(
                 "analysis.page.empty",
@@ -181,46 +172,13 @@ struct AnalysisPageView: View {
       horizontalPadding: 12,
       optionSpacing: 4,
       groupPadding: 2,
-      wrapsOptions: DynamicTypeSize.xxxLarge <= dynamicTypeSize,
-      fillsWidth: dynamicTypeSize < DynamicTypeSize.xxxLarge
+      wrapsOptions: false,
+      // 期間は左右端まで均等な幅で配置する
+      fillsWidth: true
     ) { value in
       Text(LocalizedStringKey(value.shortLabel))
     }
     .padding(.bottom, 8)
-  }
-
-  private var symptomFilter: some View {
-    VStack(alignment: .leading, spacing: 10) {
-      Text("analysis.symptomTarget")
-        .font(.headline)
-      AZDropdownPicker(
-        options: symptomFilterOptions,
-        selection: symptomFilterBinding,
-        isExpanded: $isSymptomFilterExpanded,
-        minWidth: 180,
-        fillsWidth: true,
-        style: symptomFilterPickerStyle
-      ) { option in
-        Text(option.title)
-      }
-      Text("analysis.symptomTargetAppliesToPage")
-        .font(.footnote)
-        .foregroundStyle(.secondary)
-      Divider()
-      if symptomRecords.contains(where: { $0.sWeatherSourceURL == "vitalin-demo://symptoms" }) {
-        Label("analysis.demo", systemImage: "info.circle")
-          .font(.footnote)
-          .foregroundStyle(.secondary)
-      }
-      Text("analysis.recordNote")
-        .font(.footnote)
-        .foregroundStyle(.secondary)
-    }
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .padding()
-    .background(Color.analysisSymptomPanelBackground)
-    .clipShape(RoundedRectangle(cornerRadius: 16))
-    .padding(.bottom, 16)
   }
 
   @ViewBuilder
@@ -241,20 +199,24 @@ struct AnalysisPageView: View {
       switch panel {
       case .symptomCalendar:
         AnalysisSymptomCalendarPanel(
-          records: filteredSymptomRecords,
+          records: filteredSymptomRecords(for: panel),
+          symptomOptions: symptomFilterOptions(for: panel),
+          selectedSymptom: symptomFilterBinding(for: panel),
           name: symptomName
         )
       case .symptomFrequency:
         AnalysisSymptomFrequencyPanel(
-          records: filteredSymptomRecords,
-          range: symptomRange
+          records: filteredSymptomRecords(for: panel),
+          range: symptomRange,
+          symptomOptions: symptomFilterOptions(for: panel),
+          selectedSymptom: symptomFilterBinding(for: panel)
         )
       case .symptomSummary:
         AnalysisSymptomEnvironmentPanel(
-          symptomRecords: filteredSymptomRecords,
-          allSymptomRecords: symptomRecords,
-          bodyRecords: targetBodyRecords,
+          symptomRecords: filteredSymptomRecords(for: panel),
           range: symptomRange,
+          symptomOptions: symptomFilterOptions(for: panel),
+          selectedSymptom: symptomFilterBinding(for: panel)
         )
       default:
         EmptyView()
@@ -262,9 +224,34 @@ struct AnalysisPageView: View {
     }
   }
 
-  private var filteredSymptomRecords: [SymptomRecord] {
-    symptomRecords.filter {
-      (selectedSymptomID.isEmpty || $0.sSymptomID == selectedSymptomID) && $0.startAt <= Date()
+  /// 削除済みIDは各パネルで利用可能な初期選択へ戻す
+  private func selectedSymptomID(for panel: AnalysisPanelID) -> String {
+    let saved = settings.analysisSymptomFilter(for: panel, in: page)
+    if symptomIDs.contains(saved) { return saved }
+    // 周期性では発症件数が最も多い先頭の症状を初期選択する
+    return panel == .symptomFrequency ? symptomIDs.first ?? "" : ""
+  }
+
+  private func selectedSymptomOption(for panel: AnalysisPanelID) -> AnalysisSymptomFilterOption {
+    let selectedID = selectedSymptomID(for: panel)
+    let options = symptomFilterOptions(for: panel)
+    return options.first { $0.id == selectedID } ?? options[0]
+  }
+
+  private func symptomFilterBinding(
+    for panel: AnalysisPanelID
+  ) -> Binding<AnalysisSymptomFilterOption> {
+    Binding(
+      get: { selectedSymptomOption(for: panel) },
+      set: { settings.setAnalysisSymptomFilter($0.id, for: panel) }
+    )
+  }
+
+  private func filteredSymptomRecords(for panel: AnalysisPanelID) -> [SymptomRecord] {
+    let selectedID = selectedSymptomID(for: panel)
+    // パネルで選択した症状と現在時刻以前の記録だけを返す
+    return symptomRecords.filter {
+      (selectedID.isEmpty || $0.sSymptomID == selectedID) && $0.startAt <= Date()
     }
   }
 
@@ -545,22 +532,71 @@ private struct AnalysisResizeHandle: View {
   }
 }
 
-private struct AnalysisSymptomBucket: Identifiable {
-  let date: Date
-  let count: Int
-  var id: Date { date }
-}
-
 /// 症状絞り込み用AZPickerの選択肢
 private struct AnalysisSymptomFilterOption: Identifiable, Hashable {
   let id: String
   let title: String
 }
 
+/// 症状図表ごとに独立して対象を選ぶプルダウン
+private struct AnalysisSymptomTargetPicker: View {
+  let options: [AnalysisSymptomFilterOption]
+  @Binding var selection: AnalysisSymptomFilterOption
+  @State private var isExpanded = false
+
+  var body: some View {
+    HStack(spacing: 12) {
+      Text("analysis.symptoms")
+        .font(.subheadline.weight(.semibold))
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
+      AZDropdownPicker(
+        options: options,
+        selection: $selection,
+        isExpanded: $isExpanded,
+        minWidth: 140,
+        // 標準のアイコンなしスタイルで横幅いっぱいに表示する
+        fillsWidth: true
+      ) { option in
+        Text(option.title)
+      }
+      .frame(maxWidth: .infinity)
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+  }
+}
+
 private extension Color {
-  /// 症状選択シートと同じ青みを使う分析パネル背景
+  /// 白いカード背景へアクセント色を淡く重ねる
   static var analysisSymptomPanelBackground: Color {
-    .azTintedSheetBackground(.tintColor)
+    Color(UIColor { traits in
+      let base = UIColor.secondarySystemGroupedBackground.resolvedColor(with: traits)
+      // Pickerの開閉や対象変更後も色が変わらない固定のシステムブルーを使う
+      let tint = UIColor.systemBlue.resolvedColor(with: traits)
+      var br: CGFloat = 0, bg: CGFloat = 0, bb: CGFloat = 0, ba: CGFloat = 0
+      var tr: CGFloat = 0, tg: CGFloat = 0, tb: CGFloat = 0, ta: CGFloat = 0
+      base.getRed(&br, green: &bg, blue: &bb, alpha: &ba)
+      tint.getRed(&tr, green: &tg, blue: &tb, alpha: &ta)
+      let amount: CGFloat = 0.08
+      return UIColor(
+        red: br + (tr - br) * amount,
+        green: bg + (tg - bg) * amount,
+        blue: bb + (tb - bb) * amount,
+        alpha: ba
+      )
+    })
+  }
+}
+
+private extension SymptomSeverity {
+  /// 分析画面で程度を見分ける固定色
+  var analysisColor: Color {
+    switch self {
+    case .notPresent, .mild: return .blue
+    case .moderate: return .yellow
+    case .severe: return .red
+    case .unspecified: return .secondary
+    }
   }
 }
 
@@ -587,6 +623,8 @@ private enum AnalysisCalendarGridItem: Identifiable {
 
 private struct AnalysisSymptomCalendarPanel: View {
   let records: [SymptomRecord]
+  let symptomOptions: [AnalysisSymptomFilterOption]
+  @Binding var selectedSymptom: AnalysisSymptomFilterOption
   let name: (String) -> String
   @State private var level = AnalysisCalendarLevel.years
   @State private var selectedYear = Calendar.current.component(.year, from: Date())
@@ -613,8 +651,22 @@ private struct AnalysisSymptomCalendarPanel: View {
   }
 
   var body: some View {
-    VStack(spacing: 12) {
-      Text("analysis.calendar").font(.headline)
+    VStack(alignment: .leading, spacing: 12) {
+      // カレンダーは年・月・日で辿るため、上部の期間切り替えが効かないことを示す
+      HStack(alignment: .firstTextBaseline, spacing: 8) {
+        Text("analysis.calendar")
+          .font(.headline)
+        Spacer(minLength: 4)
+        Text("analysis.calendar.periodFilterDisabled")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+          .lineLimit(1)
+          .minimumScaleFactor(0.8)
+      }
+      AnalysisSymptomTargetPicker(
+        options: symptomOptions,
+        selection: $selectedSymptom
+      )
       switch level {
       case .years:
         yearOverview
@@ -636,31 +688,14 @@ private struct AnalysisSymptomCalendarPanel: View {
       )
     ) {
       if let selectedDay {
-        NavigationStack {
-          List {
-            ForEach(dayRecords(selectedDay)) { record in
-              VStack(alignment: .leading, spacing: 6) {
-                Text(name(record.sSymptomID)).font(.headline)
-                Text(LocalizedStringKey(record.severity.labelKey))
-                Text(record.startAt.formatted(date: .abbreviated, time: .shortened))
-                  .font(.footnote)
-                if let end = record.endAt {
-                  Text(end.formatted(date: .abbreviated, time: .shortened)).font(.footnote)
-                } else if record.bOngoing {
-                  Text("analysis.ongoing").font(.footnote)
-                }
-                if !record.sNote.isEmpty { Text(record.sNote).font(.footnote) }
-              }
-            }
-            if dayRecords(selectedDay).isEmpty { Text("analysis.unrecorded") }
-          }
-          .navigationTitle(selectedDay.formatted(date: .abbreviated, time: .omitted))
-          .toolbar {
-            ToolbarItem(placement: .confirmationAction) {
-              Button("action.close") { self.selectedDay = nil }
-            }
-          }
-        }
+        AnalysisSymptomDayDetailView(
+          date: selectedDay,
+          records: dayRecords(selectedDay),
+          symptomName: name,
+          onClose: { self.selectedDay = nil }
+        )
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
       }
     }
   }
@@ -698,7 +733,8 @@ private struct AnalysisSymptomCalendarPanel: View {
         Color.clear.frame(width: 20, height: 1)
       }
       LazyVGrid(
-        columns: [GridItem(.adaptive(minimum: periodCellMinimumWidth), spacing: 8)],
+        // 1月から12月までを4列3行で固定表示する
+        columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4),
         spacing: 8
       ) {
         ForEach(1...12, id: \.self) { number in
@@ -814,9 +850,6 @@ private struct AnalysisSymptomCalendarPanel: View {
         calendarLegendRow(fontSize: 9)
       }
       .frame(maxWidth: .infinity, alignment: .center)
-      Text("analysis.legend")
-        .font(.caption)
-        .foregroundStyle(.secondary)
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .padding(.top, 4)
@@ -867,22 +900,24 @@ private struct AnalysisSymptomCalendarPanel: View {
   ) -> some View {
     let severity = values.map(\.nSeverity).max() ?? 0
     return Button(action: action) {
-      HStack(spacing: 6) {
+      VStack(spacing: 0) {
+        Text(label)
+          .font(.subheadline.weight(.semibold))
+          .lineLimit(1)
+          .minimumScaleFactor(0.55)
+        // 年・月の下へ程度を置き、円の中央で件数を示す
         ZStack {
-          severityCircle(hasRecords: !values.isEmpty, severity: severity, diameter: 44)
-          Text(label)
-            .font(.subheadline.weight(.semibold))
-            .lineLimit(1)
-            .minimumScaleFactor(0.55)
+          severityCircle(hasRecords: !values.isEmpty, severity: severity, diameter: 38)
+          if !values.isEmpty {
+            Text("\(values.count)")
+              .font(.caption2.monospacedDigit().weight(.semibold))
+              .lineLimit(1)
+              .minimumScaleFactor(0.65)
+          }
         }
-        .frame(width: 48, height: 48)
-        if !values.isEmpty {
-          Text("\(values.count)")
-            .font(.caption.monospacedDigit())
-            .foregroundStyle(.secondary)
-        }
+        .frame(width: 38, height: 38)
       }
-      .frame(maxWidth: .infinity, minHeight: 48)
+      .frame(maxWidth: .infinity, minHeight: 64)
       .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 9))
       .overlay {
         RoundedRectangle(cornerRadius: 9)
@@ -918,11 +953,11 @@ private struct AnalysisSymptomCalendarPanel: View {
   }
 
   private func records(in start: Date, component: Calendar.Component) -> [SymptomRecord] {
-    // 未来の期間には継続中の記録を表示しない
+    // 発症日時で数え、日をまたいで終息した記録を翌期間で重複させない
     guard start < Date() else { return [] }
     guard let end = calendar.date(byAdding: component, value: 1, to: start) else { return [] }
     let range = SymptomAnalysisRange(start: start, end: min(end, Date()))
-    return records.filter { range.overlaps($0) }
+    return records.filter { range.containsStart($0) }
   }
 
   private func yearRecords(_ year: Int) -> [SymptomRecord] {
@@ -937,7 +972,7 @@ private struct AnalysisSymptomCalendarPanel: View {
     guard day <= Date() else { return [] }
     let end = min(Date(), calendar.date(byAdding: .day, value: 1, to: day)!)
     let range = SymptomAnalysisRange(start: day, end: end)
-    return records.filter { range.overlaps($0) }
+    return records.filter { range.containsStart($0) }
   }
 
   private func moveMonth(_ value: Int) {
@@ -951,15 +986,22 @@ private struct AnalysisSymptomCalendarPanel: View {
     if hasRecords {
       if severity == SymptomSeverity.unspecified.rawValue {
         Circle()
-          .stroke(Color.primary.opacity(0.55), style: StrokeStyle(lineWidth: 1.5, dash: [3, 2]))
+          .stroke(
+            severityCircleColor(severity).opacity(0.75),
+            style: StrokeStyle(lineWidth: 1.5, dash: [3, 2])
+          )
           .frame(width: diameter * 0.88, height: diameter * 0.88)
       } else if severity == SymptomSeverity.notPresent.rawValue {
         Circle()
-          .stroke(Color.primary, lineWidth: 1.8)
+          .stroke(severityCircleColor(severity), lineWidth: 1.8)
           .frame(width: diameter * 0.88, height: diameter * 0.88)
       } else {
         Circle()
-          .fill(Color.primary.opacity(0.16))
+          .fill(severityCircleColor(severity).opacity(0.26))
+          .overlay {
+            Circle()
+              .stroke(severityCircleColor(severity).opacity(0.8), lineWidth: 1)
+          }
           .frame(
             width: diameter * severityCircleScale(severity),
             height: diameter * severityCircleScale(severity)
@@ -970,64 +1012,599 @@ private struct AnalysisSymptomCalendarPanel: View {
     }
   }
 
+  /// なしと軽いは青、中くらいは黄、強いは赤で示す
+  private func severityCircleColor(_ severity: Int) -> Color {
+    SymptomSeverity(rawValue: severity)?.analysisColor ?? .secondary
+  }
+
   private func severityCircleScale(_ severity: Int) -> CGFloat {
     switch severity {
     case SymptomSeverity.mild.rawValue: return 0.68
     case SymptomSeverity.moderate.rawValue: return 0.84
-    case SymptomSeverity.severe.rawValue: return 1
+    case SymptomSeverity.severe.rawValue: return 0.88
     default: return 0.88
     }
   }
 }
 
+/// 症状カレンダーで選んだ1日の概要と記録内容を表示する
+private struct AnalysisSymptomDayDetailView: View {
+  let date: Date
+  let records: [SymptomRecord]
+  let symptomName: (String) -> String
+  let onClose: () -> Void
+  @State private var settings = AppSettings.shared
+  private let calendar = Calendar.current
+
+  private var sortedRecords: [SymptomRecord] {
+    records.sorted { $0.startAt < $1.startAt }
+  }
+
+  private var highestSeverity: SymptomSeverity? {
+    records.map(\.severity).max { $0.rawValue < $1.rawValue }
+  }
+
+  private var totalDuration: TimeInterval? {
+    let values = records.compactMap(durationInSelectedDay)
+    guard !values.isEmpty else { return nil }
+    return values.reduce(0, +)
+  }
+
+  var body: some View {
+    NavigationStack {
+      ScrollView {
+        LazyVStack(alignment: .leading, spacing: 16) {
+          summaryPanel
+          if sortedRecords.isEmpty {
+            ContentUnavailableView(
+              "analysis.unrecorded",
+              systemImage: "calendar.badge.exclamationmark"
+            )
+            .frame(maxWidth: .infinity, minHeight: 240)
+          } else {
+            Text("analysis.calendar.day.records")
+              .font(.title3.weight(.bold))
+              .padding(.horizontal, 4)
+            ForEach(Array(sortedRecords.enumerated()), id: \.element.id) { index, record in
+              recordCard(record, index: index)
+            }
+          }
+        }
+        .padding()
+      }
+      .background(Color(.systemGroupedBackground))
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        ToolbarItem(placement: .principal) {
+          // 大きな文字でも日付が画面を占有しないようインライン表示に固定する
+          Text(date.formatted(.dateTime.year().month().day().weekday(.abbreviated)))
+            .font(.headline)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+        }
+        ToolbarItem(placement: .cancellationAction) {
+          Button(action: onClose) {
+            // 共通シートと同じ左上の下向きボタンで閉じる
+            Image(systemName: "chevron.down")
+              .fontWeight(.semibold)
+          }
+          .accessibilityLabel(Text("action.close"))
+        }
+      }
+    }
+  }
+
+  private var summaryPanel: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      Label("analysis.calendar.day.summary", systemImage: "chart.bar.doc.horizontal")
+        .font(.headline)
+      LazyVGrid(
+        columns: [GridItem(.adaptive(minimum: 100), spacing: 8)],
+        spacing: 8
+      ) {
+        summaryMetric(
+          title: "analysis.calendar.day.recordCount",
+          value: records.count.formatted(),
+          systemImage: "number"
+        )
+        summaryMetric(
+          title: "analysis.calendar.day.highestSeverity",
+          value: highestSeverity.map { NSLocalizedString($0.labelKey, comment: "") } ?? "—",
+          systemImage: "circle.inset.filled"
+        )
+        summaryMetric(
+          title: "analysis.calendar.day.totalDuration",
+          value: totalDuration.map { SymptomDurationFormatter.string(from: $0) } ?? "—",
+          systemImage: "timer"
+        )
+      }
+    }
+    .padding()
+    .background(Color.analysisSymptomPanelBackground)
+    .clipShape(RoundedRectangle(cornerRadius: 16))
+  }
+
+  private func summaryMetric(
+    title: LocalizedStringKey,
+    value: String,
+    systemImage: String
+  ) -> some View {
+    VStack(alignment: .leading, spacing: 5) {
+      Label(title, systemImage: systemImage)
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .lineLimit(2)
+      Text(value)
+        .font(.headline.monospacedDigit())
+        .lineLimit(1)
+        .minimumScaleFactor(0.65)
+    }
+    .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
+    .padding(10)
+    .background(Color(.secondarySystemGroupedBackground))
+    .clipShape(RoundedRectangle(cornerRadius: 11))
+  }
+
+  private func recordCard(_ record: SymptomRecord, index: Int) -> some View {
+    VStack(alignment: .leading, spacing: 12) {
+      HStack(alignment: .firstTextBaseline, spacing: 10) {
+        VStack(alignment: .leading, spacing: 2) {
+          Text("#\(index + 1)")
+            .font(.caption.monospacedDigit())
+            .foregroundStyle(.secondary)
+          Text(symptomName(record.sSymptomID))
+            .font(.title3.weight(.bold))
+        }
+        Spacer(minLength: 8)
+        severityBadge(record.severity)
+      }
+
+      Divider()
+      timeDetails(record)
+
+      let remedies = remedyNames(record)
+      if !remedies.isEmpty {
+        detailSection(title: "symptom.section.remedy", systemImage: "cross.case") {
+          // 可変グリッドで折り返し後の高さをカードへ確実に伝える
+          LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 120), spacing: 6)],
+            alignment: .leading,
+            spacing: 6
+          ) {
+            ForEach(remedies, id: \.self) { remedy in
+              Text(remedy)
+                .font(.caption.weight(.medium))
+                .padding(.horizontal, 9)
+                .padding(.vertical, 5)
+                .background(Color.accentColor.opacity(0.12), in: Capsule())
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+          }
+        }
+      }
+
+      let environment = environmentLines(record)
+      if !environment.isEmpty {
+        detailSection(title: "environment.title", systemImage: "thermometer.medium") {
+          // 屋外の値を1行目、室内・端末の値を2行目へまとめ、幅不足時は縮小する
+          VStack(alignment: .leading, spacing: 4) {
+            ForEach(environment.indices, id: \.self) { index in
+              environment[index]
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+            }
+          }
+        }
+      }
+
+      if !record.sNote.isEmpty {
+        detailSection(title: "symptom.section.note", systemImage: "note.text") {
+          Text(record.sNote)
+            .font(.subheadline)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+      }
+
+    }
+    .padding()
+    .background(Color(.secondarySystemGroupedBackground))
+    .clipShape(RoundedRectangle(cornerRadius: 16))
+    .overlay {
+      RoundedRectangle(cornerRadius: 16)
+        .stroke(record.severity.analysisColor.opacity(0.22), lineWidth: 1)
+    }
+  }
+
+  private func severityBadge(_ severity: SymptomSeverity) -> some View {
+    Text(LocalizedStringKey(severity.labelKey))
+      .font(.caption.weight(.bold))
+      .padding(.horizontal, 10)
+      .padding(.vertical, 5)
+      .background(severity.analysisColor.opacity(0.2), in: Capsule())
+      .overlay {
+        Capsule().stroke(severity.analysisColor.opacity(0.7), lineWidth: 1)
+      }
+  }
+
+  private func timeDetails(_ record: SymptomRecord) -> some View {
+    VStack(alignment: .leading, spacing: 7) {
+      Label {
+        Text("symptom.startAt") + Text(verbatim: "  ") + Text(timestamp(record.startAt))
+      } icon: {
+        Image(systemName: "play.circle")
+      }
+      // 経過時間は終息（継続中）の右へ並べ、行数を抑える
+      if let end = record.endAt {
+        Label {
+          HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text("symptom.endAt") + Text(verbatim: "  ") + Text(timestamp(end))
+            durationLabel(record)
+          }
+        } icon: {
+          Image(systemName: "stop.circle")
+        }
+      } else if record.bOngoing {
+        Label {
+          HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text("analysis.ongoing")
+              .foregroundStyle(Color.accentColor)
+            durationLabel(record)
+          }
+        } icon: {
+          Image(systemName: "waveform.path")
+            .foregroundStyle(Color.accentColor)
+        }
+      }
+    }
+    .font(.subheadline)
+  }
+
+  private func detailSection<Content: View>(
+    title: LocalizedStringKey,
+    systemImage: String,
+    @ViewBuilder content: () -> Content
+  ) -> some View {
+    VStack(alignment: .leading, spacing: 7) {
+      Label(title, systemImage: systemImage)
+        .font(.caption.weight(.semibold))
+        .foregroundStyle(.secondary)
+      content()
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+  }
+
+  private func timestamp(_ value: Date) -> String {
+    if calendar.isDate(value, inSameDayAs: date) {
+      return value.formatted(date: .omitted, time: .shortened)
+    }
+    return value.formatted(date: .abbreviated, time: .shortened)
+  }
+
+  private func durationText(_ duration: TimeInterval, ongoing: Bool) -> String {
+    let text = SymptomDurationFormatter.string(from: duration)
+    guard ongoing else { return text }
+    return String(format: NSLocalizedString("symptom.duration.ongoing", comment: ""), text)
+  }
+
+  private func durationInSelectedDay(_ record: SymptomRecord) -> TimeInterval? {
+    guard let interval = calendar.dateInterval(of: .day, for: date) else { return nil }
+    let start = max(record.startAt, interval.start)
+    let rawEnd = record.endAt ?? (record.bOngoing ? Date() : nil)
+    guard let rawEnd else { return nil }
+    let end = min(rawEnd, interval.end)
+    guard start < end else { return nil }
+    return end.timeIntervalSince(start)
+  }
+
+  private func remedyNames(_ record: SymptomRecord) -> [String] {
+    record.medicineIDs.map { id in
+      (settings.medicineTags.tag(for: id) ?? SymptomTag(id: id)).medicineDisplayName
+    }
+  }
+
+  private func durationLabel(_ record: SymptomRecord) -> some View {
+    Group {
+      if let duration = record.duration {
+        Text(verbatim: "(\(durationText(duration, ongoing: record.needsEnding)))")
+          .foregroundStyle(.secondary)
+      }
+    }
+  }
+
+  /// 屋外の値はアイコンなし、室内・端末の値だけ由来が分かるアイコンを添える
+  private func environmentLines(_ record: SymptomRecord) -> [Text] {
+    var lines: [Text] = []
+    var parts: [Text] = []
+    var outdoor: [String] = []
+    if record.bTempSet { outdoor.append(measurement(record.nTemp_10c, divisor: 10, unit: "℃")) }
+    if record.bHumiditySet { outdoor.append("\(record.nHumidity_p)%") }
+    if record.nPressure_10hpa != 0 {
+      outdoor.append(measurement(record.nPressure_10hpa, divisor: 10, unit: "hPa"))
+    }
+    if !record.sWeatherPlace.isEmpty { outdoor.insert(record.sWeatherPlace, at: 0) }
+    if !outdoor.isEmpty { lines.append(Text(verbatim: outdoor.joined(separator: "  "))) }
+
+    var indoor: [String] = []
+    if record.bIndoorTempSet {
+      indoor.append(measurement(record.nIndoorTemp_10c, divisor: 10, unit: "℃"))
+    }
+    if record.bIndoorHumiditySet { indoor.append("\(record.nIndoorHumidity_p)%") }
+    if !indoor.isEmpty {
+      parts.append(Text(Image(systemName: "house")) + Text(verbatim: " " + indoor.joined(separator: "  ")))
+    }
+
+    if record.nDevicePressure_10hpa != 0 {
+      let pressure = measurement(record.nDevicePressure_10hpa, divisor: 10, unit: "hPa")
+      parts.append(Text(Image(systemName: "iphone")) + Text(verbatim: " " + pressure))
+    }
+    if let first = parts.first {
+      lines.append(parts.dropFirst().reduce(first) { $0 + Text(verbatim: "   ") + $1 })
+    }
+    return lines
+  }
+
+  private func measurement(_ value: Int, divisor: Double, unit: String) -> String {
+    let number = (Double(value) / divisor).formatted(
+      .number.precision(.fractionLength(1))
+    )
+    return "\(number) \(unit)"
+  }
+}
+
+private enum AnalysisPeriodicityStrength: Equatable {
+  case regular
+  case approximate
+  case irregular
+}
+
+private struct AnalysisPeriodicityInsight {
+  let typicalInterval: TimeInterval
+  let lowerInterval: TimeInterval
+  let upperInterval: TimeInterval
+  let recordCount: Int
+  let strength: AnalysisPeriodicityStrength
+}
+
+private struct AnalysisOnsetIntervalPoint: Identifiable {
+  let id: Int
+  let date: Date
+  let interval: TimeInterval
+}
+
 private struct AnalysisSymptomFrequencyPanel: View {
   let records: [SymptomRecord]
   let range: SymptomAnalysisRange
-  @State private var monthly = false
-  private let calendar = Calendar.current
+  let symptomOptions: [AnalysisSymptomFilterOption]
+  @Binding var selectedSymptom: AnalysisSymptomFilterOption
+
+  private var selectedSymptomName: String? {
+    selectedSymptom.id.isEmpty ? nil : selectedSymptom.title
+  }
+  private var canEstimatePeriodicity: Bool { selectedSymptomName != nil }
 
   private var affected: [SymptomRecord] {
     records.filter { range.containsStart($0) && 1 < $0.nSeverity }
   }
 
-  private var buckets: [AnalysisSymptomBucket] {
-    let component: Calendar.Component = monthly ? .month : .weekOfYear
-    var date = calendar.dateInterval(of: component, for: range.start)!.start
-    var result: [AnalysisSymptomBucket] = []
-    while date < range.end {
-      let next = calendar.date(byAdding: component, value: 1, to: date)!
-      result.append(
-        AnalysisSymptomBucket(
-          date: date,
-          count: affected.filter { date <= $0.startAt && $0.startAt < next }.count
-        ))
-      date = next
+  private var intervalPoints: [AnalysisOnsetIntervalPoint] {
+    let starts = affected.map(\.startAt).sorted()
+    return starts.indices.dropFirst().compactMap { index in
+      let interval = starts[index].timeIntervalSince(starts[index - 1])
+      guard 0 < interval else { return nil }
+      return AnalysisOnsetIntervalPoint(id: index, date: starts[index], interval: interval)
     }
-    return result
+  }
+
+  /// 発症開始間隔の中央値とばらつきから、おおよその周期性を求める
+  private var periodicity: AnalysisPeriodicityInsight? {
+    guard 4 <= affected.count else { return nil }
+    let intervals = intervalPoints.map(\.interval).sorted()
+    guard 3 <= intervals.count else { return nil }
+
+    let typical = percentile(intervals, fraction: 0.5)
+    guard 0 < typical else { return nil }
+    let deviations = intervals.map { abs($0 - typical) }.sorted()
+    let relativeDeviation = percentile(deviations, fraction: 0.5) / typical
+    let strength: AnalysisPeriodicityStrength
+    if relativeDeviation <= 0.25 {
+      strength = .regular
+    } else if relativeDeviation <= 0.5 {
+      strength = .approximate
+    } else {
+      strength = .irregular
+    }
+    return AnalysisPeriodicityInsight(
+      typicalInterval: typical,
+      lowerInterval: percentile(intervals, fraction: 0.25),
+      upperInterval: percentile(intervals, fraction: 0.75),
+      recordCount: affected.count,
+      strength: strength
+    )
+  }
+
+  private var chartUnit: TimeInterval {
+    let typical = periodicity?.typicalInterval
+      ?? percentile(intervalPoints.map(\.interval).sorted(), fraction: 0.5)
+    return typical < 48 * 60 * 60 ? 60 * 60 : 24 * 60 * 60
+  }
+
+  private var chartUnitTitle: LocalizedStringKey {
+    chartUnit == 60 * 60
+      ? "analysis.periodicity.axisHours"
+      : "analysis.periodicity.axisDays"
+  }
+
+  /// 横軸は最大4件へ間引き、日付ラベルが省略されるのを防ぐ
+  private var periodicityXAxisDates: [Date] {
+    let dates = intervalPoints.map(\.date)
+    guard 4 < dates.count else { return dates }
+    let lastIndex = dates.count - 1
+    return (0..<4).map { position in
+      let index = Int((Double(lastIndex) * Double(position) / 3).rounded())
+      return dates[index]
+    }
   }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
       Text("analysis.trend").font(.headline)
-      Picker("analysis.interval", selection: $monthly) {
-        Text("analysis.weekly").tag(false)
-        Text("analysis.monthly").tag(true)
+      AnalysisSymptomTargetPicker(
+        options: symptomOptions,
+        selection: $selectedSymptom
+      )
+      Text("analysis.trend.help")
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+      periodicityPanel
+      if canEstimatePeriodicity, !intervalPoints.isEmpty {
+        periodicityChart
       }
-      .pickerStyle(.segmented)
-      Chart(buckets) { bucket in
-        BarMark(
-          x: .value("Date", bucket.date, unit: monthly ? .month : .weekOfYear),
-          y: .value("Count", bucket.count)
-        )
-      }
-      .chartYAxis { AxisMarks(values: .automatic(desiredCount: 4)) }
-      .frame(height: 220)
       if affected.isEmpty { Text("analysis.noEpisodes").foregroundStyle(.secondary) }
     }
     .padding()
     .background(Color.analysisSymptomPanelBackground)
     .clipShape(RoundedRectangle(cornerRadius: 16))
     .padding(.bottom, 16)
+  }
+
+  private var periodicityChart: some View {
+    Chart {
+      if let periodicity,
+         let first = intervalPoints.first,
+         let last = intervalPoints.last {
+        // 中央50%の範囲を帯で示し、点の集まり具合を読みやすくする
+        RectangleMark(
+          xStart: .value("Start", first.date),
+          xEnd: .value("End", last.date),
+          yStart: .value("Lower", periodicity.lowerInterval / chartUnit),
+          yEnd: .value("Upper", periodicity.upperInterval / chartUnit)
+        )
+        .foregroundStyle(Color.accentColor.opacity(0.1))
+        RuleMark(y: .value("Median", periodicity.typicalInterval / chartUnit))
+          .foregroundStyle(Color.accentColor)
+          .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+          .annotation(position: .top, alignment: .leading) {
+            Text(intervalText(periodicity.typicalInterval))
+              .font(.caption2.weight(.semibold))
+              .foregroundStyle(Color.accentColor)
+          }
+      }
+      ForEach(intervalPoints) { point in
+        LineMark(
+          x: .value("Date", point.date),
+          y: .value("Interval", point.interval / chartUnit)
+        )
+        .foregroundStyle(Color.accentColor.opacity(0.75))
+        PointMark(
+          x: .value("Date", point.date),
+          y: .value("Interval", point.interval / chartUnit)
+        )
+        .foregroundStyle(Color.accentColor)
+        .symbolSize(40)
+      }
+    }
+    .chartXScale(range: .plotDimension(startPadding: 24, endPadding: 24))
+    .chartXAxis {
+      AxisMarks(values: periodicityXAxisDates) { value in
+        AxisGridLine().foregroundStyle(.secondary.opacity(0.18))
+        AxisTick()
+        AxisValueLabel {
+          if let date = value.as(Date.self) {
+            // 年を省いた短い月日で全体を表示する
+            Text(date, format: .dateTime.month(.defaultDigits).day(.defaultDigits))
+              .font(.caption2)
+          }
+        }
+      }
+    }
+    .chartYAxisLabel(chartUnitTitle)
+    .chartYAxis { AxisMarks(values: .automatic(desiredCount: 5)) }
+    .frame(height: 240)
+    .accessibilityLabel(Text("analysis.trend"))
+  }
+
+  private var periodicityPanel: some View {
+    VStack(alignment: .leading, spacing: 9) {
+      Label("analysis.periodicity.title", systemImage: "repeat")
+        .font(.subheadline.weight(.semibold))
+      Text(periodicityMessage)
+        .font(.headline)
+        .foregroundStyle(.primary)
+        .fixedSize(horizontal: false, vertical: true)
+      if canEstimatePeriodicity, let periodicity {
+        Label(
+          String(
+            format: NSLocalizedString("analysis.periodicity.basisFormat", comment: ""),
+            periodicity.recordCount
+          ),
+          systemImage: "number"
+        )
+        if periodicity.strength != .irregular {
+          Label(
+            String(
+              format: NSLocalizedString("analysis.periodicity.rangeFormat", comment: ""),
+              intervalText(periodicity.lowerInterval),
+              intervalText(periodicity.upperInterval)
+            ),
+            systemImage: "arrow.left.and.right"
+          )
+        }
+      }
+    }
+    .font(.caption)
+    .foregroundStyle(.secondary)
+    .padding(12)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .background(Color(.secondarySystemGroupedBackground))
+    .clipShape(RoundedRectangle(cornerRadius: 12))
+  }
+
+  private var periodicityMessage: String {
+    guard canEstimatePeriodicity else {
+      return NSLocalizedString("analysis.periodicity.selectSymptom", comment: "")
+    }
+    guard let periodicity else {
+      return NSLocalizedString("analysis.periodicity.insufficient", comment: "")
+    }
+    switch periodicity.strength {
+    case .regular:
+      guard let selectedSymptomName else { return "" }
+      return String(
+        format: NSLocalizedString("analysis.periodicity.regularFormat", comment: ""),
+        selectedSymptomName,
+        intervalText(periodicity.typicalInterval)
+      )
+    case .approximate:
+      guard let selectedSymptomName else { return "" }
+      return String(
+        format: NSLocalizedString("analysis.periodicity.approximateFormat", comment: ""),
+        selectedSymptomName,
+        intervalText(periodicity.typicalInterval)
+      )
+    case .irregular:
+      guard let selectedSymptomName else { return "" }
+      return String(
+        format: NSLocalizedString("analysis.periodicity.irregular", comment: ""),
+        selectedSymptomName
+      )
+    }
+  }
+
+  private func intervalText(_ interval: TimeInterval) -> String {
+    SymptomDurationFormatter.string(from: interval)
+  }
+
+  private func percentile(_ sortedValues: [TimeInterval], fraction: Double) -> TimeInterval {
+    guard 0 < sortedValues.count else { return 0 }
+    let position = fraction * Double(sortedValues.count - 1)
+    let lowerIndex = Int(position.rounded(.down))
+    let upperIndex = Int(position.rounded(.up))
+    guard lowerIndex != upperIndex else { return sortedValues[lowerIndex] }
+    let progress = position - Double(lowerIndex)
+    return sortedValues[lowerIndex]
+      + (sortedValues[upperIndex] - sortedValues[lowerIndex]) * progress
   }
 }
 
@@ -1096,15 +1673,6 @@ private enum AnalysisEnvironmentMetric: String, CaseIterable, Identifiable {
         ? Double(environment.devicePressure_10hpa) / 10 : nil
     }
   }
-
-  func axisText(_ value: Double) -> String {
-    switch self {
-    case .outdoorHumidity, .indoorHumidity:
-      return String(format: "%.0f", value)
-    default:
-      return String(format: "%.1f", value)
-    }
-  }
 }
 
 private struct AnalysisEnvironmentSample {
@@ -1114,128 +1682,78 @@ private struct AnalysisEnvironmentSample {
 
 private struct AnalysisEnvironmentSeverityBucket: Identifiable {
   let lower: Double
-  let center: Double
-  let proportion: Double
+  let count: Int
   let severity: SymptomSeverity
+  /// 同じ範囲で下に積まれた程度の件数合計
+  let stackedBelow: Int
   var id: String { "\(lower)-\(severity.rawValue)" }
 }
 
-private struct AnalysisEnvironmentReferenceBucket: Identifiable {
-  let lower: Double
-  let center: Double
-  let proportion: Double
-  var id: Double { lower }
+private struct AnalysisEnvironmentMetricSamples {
+  let metric: AnalysisEnvironmentMetric
+  let samples: [AnalysisEnvironmentSample]
 }
 
 private struct AnalysisSymptomEnvironmentPanel: View {
   let symptomRecords: [SymptomRecord]
-  let allSymptomRecords: [SymptomRecord]
-  let bodyRecords: [BodyRecord]
   let range: SymptomAnalysisRange
-  @State private var metric = AnalysisEnvironmentMetric.pressure
-  @State private var isMetricExpanded = false
+  let symptomOptions: [AnalysisSymptomFilterOption]
+  @Binding var selectedSymptom: AnalysisSymptomFilterOption
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+  private let onsetSeverities: [SymptomSeverity] = [.mild, .moderate, .severe]
 
-  private var metricPickerStyle: AZPickerStyle {
-    var style = AZPickerStyle.form
-    // 環境項目を変更できることが閉じた状態でも分かるよう山型を表示する
-    style.dropdownIndicator = .chevron
-    return style
+  /// 期間内に発症した記録（程度「なし」を除く）
+  private var onsetRecords: [SymptomRecord] {
+    symptomRecords.filter { range.containsStart($0) && 1 < $0.nSeverity }
   }
 
-  private var symptomSamples: [AnalysisEnvironmentSample] {
-    symptomRecords.compactMap { record in
-      guard range.containsStart(record), record.severity.isCountable,
-            let value = metric.value(in: record.environmentSnapshot)
-      else { return nil }
-      return AnalysisEnvironmentSample(value: value, severity: record.severity)
-    }
-  }
-
-  private var referenceValues: [Double] {
-    let measurementValues = bodyRecords.compactMap {
-      metric.value(in: $0.environmentSnapshot)
-    }
-    let symptomValues = allSymptomRecords.compactMap { record -> Double? in
-      guard range.containsStart(record) else { return nil }
-      return metric.value(in: record.environmentSnapshot)
-    }
-    return measurementValues + symptomValues
-  }
-
-  private var symptomBuckets: [AnalysisEnvironmentSeverityBucket] {
-    guard !symptomSamples.isEmpty else { return [] }
-    let lowers = Set(symptomSamples.map { bucketLower($0.value) }).sorted()
-    let total = Double(symptomSamples.count)
-    return lowers.flatMap { lower in
-      SymptomSeverity.selectableCases.compactMap { severity in
-        let count = symptomSamples.filter {
-          bucketLower($0.value) == lower && $0.severity == severity
-        }.count
-        guard 0 < count else { return nil }
-        return AnalysisEnvironmentSeverityBucket(
-          lower: lower,
-          center: lower + metric.binWidth / 2,
-          proportion: Double(count) / total,
-          severity: severity
-        )
+  /// 項目を選ぶ手間を省き、記録がある環境項目をすべて並べる
+  private var metricSamples: [AnalysisEnvironmentMetricSamples] {
+    let records = onsetRecords
+    return AnalysisEnvironmentMetric.allCases.compactMap { metric -> AnalysisEnvironmentMetricSamples? in
+      let samples = records.compactMap { record -> AnalysisEnvironmentSample? in
+        guard let value = metric.value(in: record.environmentSnapshot) else { return nil }
+        return AnalysisEnvironmentSample(value: value, severity: record.severity)
       }
+      return samples.isEmpty ? nil : AnalysisEnvironmentMetricSamples(metric: metric, samples: samples)
     }
   }
 
-  private var referenceBuckets: [AnalysisEnvironmentReferenceBucket] {
-    guard !referenceValues.isEmpty else { return [] }
-    let lowers = Set(referenceValues.map(bucketLower)).sorted()
-    let total = Double(referenceValues.count)
-    return lowers.map { lower in
-      AnalysisEnvironmentReferenceBucket(
-        lower: lower,
-        center: lower + metric.binWidth / 2,
-        proportion: Double(referenceValues.filter { bucketLower($0) == lower }.count) / total
-      )
-    }
+  /// 大きな文字では1列にして軸の数値を読みやすくする
+  private var columnCount: Int {
+    DynamicTypeSize.accessibility1 <= dynamicTypeSize ? 1 : 2
   }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
       Text("analysis.symptomEnvironment").font(.headline)
-      HStack {
-        Text("analysis.environment.metric")
-          .font(.subheadline)
-        Spacer()
-        // 横軸の単位をプルダウンの近くへ固定して読み違いを防ぐ
-        Text(metric.unit)
-          .font(.subheadline.weight(.semibold))
-          .foregroundStyle(.secondary)
-      }
-      AZDropdownPicker(
-        options: AnalysisEnvironmentMetric.allCases,
-        selection: $metric,
-        isExpanded: $isMetricExpanded,
-        minWidth: 180,
-        fillsWidth: true,
-        style: metricPickerStyle
-      ) { item in
-        Text(LocalizedStringKey(item.titleKey))
-      }
+      AnalysisSymptomTargetPicker(
+        options: symptomOptions,
+        selection: $selectedSymptom
+      )
 
-      if symptomSamples.isEmpty {
+      let items = metricSamples
+      if items.isEmpty {
         ContentUnavailableView(
           "analysis.environment.noData",
           systemImage: "chart.bar.xaxis"
         )
         .frame(maxWidth: .infinity, minHeight: 220)
       } else {
-        environmentChart
+        LazyVGrid(
+          columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: columnCount),
+          alignment: .leading,
+          spacing: 16
+        ) {
+          ForEach(items, id: \.metric) { item in
+            AnalysisEnvironmentMiniChart(
+              metric: item.metric,
+              samples: item.samples,
+              severities: onsetSeverities
+            )
+          }
+        }
         chartLegend
-        Text(
-          String(
-            format: String(localized: "analysis.environment.coverageFormat"),
-            symptomSamples.count,
-            referenceValues.count
-          )
-        )
-        .font(.caption)
-        .foregroundStyle(.secondary)
       }
 
       Text("analysis.environment.note")
@@ -1248,85 +1766,124 @@ private struct AnalysisSymptomEnvironmentPanel: View {
     .padding(.bottom, 16)
   }
 
-  private var environmentChart: some View {
-    Chart {
-      ForEach(symptomBuckets) { bucket in
-        BarMark(
-          x: .value(metric.titleKey, bucket.center),
-          y: .value("analysis.environment.share", bucket.proportion),
-          stacking: .standard
-        )
-        .foregroundStyle(severityColor(bucket.severity).opacity(0.82))
-      }
-      ForEach(referenceBuckets) { bucket in
-        LineMark(
-          x: .value(metric.titleKey, bucket.center),
-          y: .value("analysis.environment.share", bucket.proportion)
-        )
-        .foregroundStyle(.secondary)
-        .lineStyle(StrokeStyle(lineWidth: 2, dash: [5, 3]))
-        .symbol(Circle())
-        .symbolSize(22)
-      }
-    }
-    .chartXAxis {
-      AxisMarks(values: .automatic(desiredCount: 5)) { value in
-        AxisGridLine().foregroundStyle(.secondary.opacity(0.18))
-        AxisValueLabel {
-          if let number = value.as(Double.self) {
-            Text(metric.axisText(number))
-          }
-        }
-      }
-    }
-    .chartYAxis {
-      AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { value in
-        AxisGridLine().foregroundStyle(.secondary.opacity(0.18))
-        AxisValueLabel {
-          if let number = value.as(Double.self) {
-            Text(number, format: .percent.precision(.fractionLength(0)))
-          }
-        }
-      }
-    }
-    .frame(height: 240)
-    .accessibilityLabel(Text("analysis.symptomEnvironment"))
-  }
-
   private var chartLegend: some View {
     AZFlowLayout(spacing: 10, rowSpacing: 6, alignment: .leading) {
-      ForEach(SymptomSeverity.selectableCases) { severity in
-        legendItem(
-          title: NSLocalizedString(severity.labelKey, comment: ""),
-          color: severityColor(severity)
-        )
-      }
-      HStack(spacing: 5) {
-        Rectangle()
-          .fill(Color.secondary)
-          .frame(width: 20, height: 2)
-        Text("analysis.environment.allRecords")
-          .font(.caption)
-          .foregroundStyle(.secondary)
+      ForEach(onsetSeverities) { severity in
+        HStack(spacing: 5) {
+          RoundedRectangle(cornerRadius: 2)
+            .fill(severity.analysisEnvironmentColor.opacity(0.82))
+            .frame(width: 10, height: 10)
+          Text(LocalizedStringKey(severity.labelKey)).font(.caption)
+        }
       }
     }
   }
+}
 
-  private func legendItem(title: String, color: Color) -> some View {
-    HStack(spacing: 5) {
-      RoundedRectangle(cornerRadius: 2)
-        .fill(color.opacity(0.82))
-        .frame(width: 10, height: 10)
-      Text(title).font(.caption)
+/// 1つの環境項目について、範囲ごとの発症件数を程度別に積み上げた縦棒で示す
+private struct AnalysisEnvironmentMiniChart: View {
+  let metric: AnalysisEnvironmentMetric
+  let samples: [AnalysisEnvironmentSample]
+  let severities: [SymptomSeverity]
+
+  private var buckets: [AnalysisEnvironmentSeverityBucket] {
+    let lowers = Set(samples.map { bucketLower($0.value) }).sorted()
+    var buckets: [AnalysisEnvironmentSeverityBucket] = []
+    for lower in lowers {
+      // 軽い→強いの順に下から積み上げる
+      var stacked = 0
+      for severity in severities {
+        let count = samples.filter {
+          bucketLower($0.value) == lower && $0.severity == severity
+        }.count
+        guard 0 < count else { continue }
+        buckets.append(AnalysisEnvironmentSeverityBucket(
+          lower: lower,
+          count: count,
+          severity: severity,
+          stackedBelow: stacked
+        ))
+        stacked += count
+      }
     }
+    return buckets
+  }
+
+  private var firstLower: Double { buckets.map(\.lower).min() ?? 0 }
+  private var xDomainUpper: Double { (buckets.map(\.lower).max() ?? 0) + metric.binWidth }
+
+  /// 空の範囲も含めた境界値を、狭い幅でも重ならない本数に間引いて目盛りにする
+  private var axisValues: [Double] {
+    let count = Int(((xDomainUpper - firstLower) / metric.binWidth).rounded())
+    let values = (0...max(count, 1)).map { firstLower + Double($0) * metric.binWidth }
+    let step = max(1, Int((Double(values.count) / 4).rounded(.up)))
+    return values.enumerated().filter { $0.offset.isMultiple(of: step) }.map(\.element)
+  }
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 6) {
+      HStack(alignment: .firstTextBaseline, spacing: 4) {
+        Text(LocalizedStringKey(metric.titleKey))
+          .font(.caption.weight(.semibold))
+          .lineLimit(1)
+          .minimumScaleFactor(0.7)
+        Spacer(minLength: 2)
+        Text(verbatim: metric.unit)
+          .font(.caption2)
+          .foregroundStyle(.secondary)
+          .fixedSize()
+      }
+      Chart {
+        ForEach(buckets) { bucket in
+          // 横軸を環境値の数値軸にし、範囲の幅どおりの縦棒で件数を示す
+          RectangleMark(
+            xStart: .value(metric.titleKey, bucket.lower + metric.binWidth * 0.06),
+            xEnd: .value(metric.titleKey, bucket.lower + metric.binWidth * 0.94),
+            yStart: .value("analysis.environment.onsetCount", bucket.stackedBelow),
+            yEnd: .value("analysis.environment.onsetCount", bucket.stackedBelow + bucket.count)
+          )
+          .foregroundStyle(bucket.severity.analysisEnvironmentColor.opacity(0.82))
+        }
+      }
+      .chartXScale(domain: firstLower...xDomainUpper)
+      .chartXAxis {
+        AxisMarks(values: axisValues) { value in
+          AxisGridLine().foregroundStyle(.secondary.opacity(0.18))
+          AxisTick()
+          AxisValueLabel {
+            if let number = value.as(Double.self) {
+              Text(number.formatted(.number.precision(.fractionLength(0...1))))
+                .font(.caption2)
+            }
+          }
+        }
+      }
+      .chartYAxis {
+        AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { value in
+          AxisGridLine().foregroundStyle(.secondary.opacity(0.18))
+          AxisValueLabel {
+            if let count = value.as(Int.self) {
+              Text(count.formatted())
+                .font(.caption2)
+            }
+          }
+        }
+      }
+      .frame(height: 130)
+    }
+    .accessibilityElement(children: .contain)
+    .accessibilityLabel(Text(LocalizedStringKey(metric.titleKey)))
   }
 
   private func bucketLower(_ value: Double) -> Double {
     floor(value / metric.binWidth) * metric.binWidth
   }
+}
 
-  private func severityColor(_ severity: SymptomSeverity) -> Color {
-    switch severity {
+private extension SymptomSeverity {
+  /// 発症と環境の積み上げ棒で使う程度の色
+  var analysisEnvironmentColor: Color {
+    switch self {
     case .notPresent: return .gray
     case .mild: return .green
     case .moderate: return .orange

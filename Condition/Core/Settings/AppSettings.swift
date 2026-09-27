@@ -168,24 +168,21 @@ final class AppSettings {
     ) {
         didSet { saveAnalysisLayout() }
     }
-    /// 各分析ページで最後に選んだ症状ID
+    /// 各症状パネルで最後に選んだ症状ID
     var analysisSymptomFilters: [String: String] = [:] {
         didSet { ud.set(analysisSymptomFilters, forKey: SettingsKeys.settAnalysisSymptomFilters) }
     }
 
-    /// ページごとの症状絞り込みを返す
-    func analysisSymptomFilter(in page: AnalysisPage) -> String {
-        analysisSymptomFilters[String(page.rawValue)] ?? ""
+    /// パネルごとの症状絞り込みを返し、旧ページ設定があれば初期値として引き継ぐ
+    func analysisSymptomFilter(for panel: AnalysisPanelID, in page: AnalysisPage) -> String {
+        analysisSymptomFilters[panel.rawValue]
+            ?? analysisSymptomFilters[String(page.rawValue)]
+            ?? ""
     }
 
-    /// 空文字は「すべて」としてページ別に保存する
-    func setAnalysisSymptomFilter(_ symptomID: String, in page: AnalysisPage) {
-        let key = String(page.rawValue)
-        if symptomID.isEmpty {
-            analysisSymptomFilters.removeValue(forKey: key)
-        } else {
-            analysisSymptomFilters[key] = symptomID
-        }
+    /// 空文字も「すべて」の明示選択として保存し、旧ページ設定より優先する
+    func setAnalysisSymptomFilter(_ symptomID: String, for panel: AnalysisPanelID) {
+        analysisSymptomFilters[panel.rawValue] = symptomID
     }
 
     private func saveGraphHeightOverrides() {
@@ -730,7 +727,7 @@ final class AppSettings {
         if let filters = ud.dictionary(forKey: SettingsKeys.settAnalysisSymptomFilters)
             as? [String: String]
         {
-            // ページごとの選択を次回起動時にも引き継ぐ
+            // パネルごとの選択と旧ページ設定を次回起動時にも引き継ぐ
             analysisSymptomFilters = filters
         }
 
