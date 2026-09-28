@@ -682,21 +682,24 @@ struct SettingsView: View {
             let descriptor = FetchDescriptor<BodyRecord>(
                 predicate: #Predicate { $0.dateTime < cutoff && $0.dateTime < bodyRecordGoalDate }
             )
-            let targets = (try? context.fetch(descriptor)) ?? []
             // 「3年より古い記録」には症状も含める。発症日時で判定する
             let symptomDescriptor = FetchDescriptor<SymptomRecord>(
                 predicate: #Predicate { $0.startAt < cutoff }
             )
-            let symptomTargets = (try? context.fetch(symptomDescriptor)) ?? []
-
-            for record in targets {
-                context.delete(record)
-            }
-            for record in symptomTargets {
-                context.delete(record)
-            }
 
             do {
+                // 削除は取り消せないので、両方の取得が済んでから始める。
+                // 片方でも取れなければ何も消さずにエラーを知らせる
+                let targets = try context.fetch(descriptor)
+                let symptomTargets = try context.fetch(symptomDescriptor)
+
+                for record in targets {
+                    context.delete(record)
+                }
+                for record in symptomTargets {
+                    context.delete(record)
+                }
+
                 try context.save()
                 AppAnalytics.shared.logOperation(
                     "old_records_prune",
@@ -710,6 +713,7 @@ struct SettingsView: View {
                     )
                 )
             } catch {
+                // 取得に失敗した場合は何も消していない。
                 // 保存に失敗したら削除状態を巻き戻し、後続の autosave で一部だけ消える不整合を防ぐ
                 context.rollback()
                 AppAnalytics.shared.record(error: error, name: "old_records_prune_failed")

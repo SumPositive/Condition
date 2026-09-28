@@ -129,7 +129,7 @@ Condition/
 
 **分析**
 - 図表 ID は `AnalysisPanelID`（名前空間付き文字列で永続化）。追加した図表は `AnalysisLayout.normalize()` が既定ページの末尾へ補う
-- 発症件数は発症日時で数える（`SymptomAnalysisRange.containsStart`）。日をまたいで終息しても 2 件にしない。程度「なし」は数えない
+- 発症件数は発症日時で数える（`SymptomAnalysisRange.containsStart`）。日をまたいで終息しても 2 件にしない。数えるのは軽い以上（`1 < nSeverity`）で、程度「なし」と外部取り込みの「未指定」は数えない（発症カレンダーの円には最大程度として残す）
 - 発症カレンダーは上部の期間に関係なく年・月・日でたどる
 - 周期性は単一症状の発症間隔の中央値とばらつきから推定（4 件以上）
 

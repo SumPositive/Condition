@@ -906,9 +906,9 @@ private struct AnalysisSymptomCalendarPanel: View {
     action: @escaping () -> Void
   ) -> some View {
     let severity = values.map(\.nSeverity).max() ?? 0
-    // 程度「なし」は症状が出なかった記録なので発症件数に数えない。
-    // 円（最大程度）には残し、「なし」だけの期間は枠線の円で記録があったことを示す
-    let onsetCount = values.filter { $0.severity != .notPresent }.count
+    // 発症件数は他の症状分析と同じく軽い以上（1 < nSeverity）だけを数える。
+    // 「なし」と外部取り込みの「未指定」は件数に入れず、円（最大程度）にだけ残す
+    let onsetCount = values.filter { 1 < $0.nSeverity }.count
     return Button(action: action) {
       VStack(spacing: 0) {
         Text(label)

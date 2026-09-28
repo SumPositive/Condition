@@ -2342,7 +2342,9 @@ struct SymptomTriggerTests {
         try sourceContext.save()
 
         var triggerTags = SymptomTagList(tags: TriggerCatalog.defaultTagIDs.map { SymptomTag(id: $0) })
-        #expect(triggerTags.add(id: userTagID, customName: "長電話"))
+        // #expect の中では mutating メソッドを呼べないので、結果を受けてから確かめる
+        let added = triggerTags.add(id: userTagID, customName: "長電話")
+        #expect(added)
 
         let data = RecordsJSONIO.export(records: [], symptoms: [record], triggerTags: triggerTags)
         // 人が読めるよう表示名も出ている
