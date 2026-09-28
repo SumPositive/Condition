@@ -1143,6 +1143,35 @@
         }
       }
     },
+    "action.unknown" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unknown"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不明"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "알 수 없음"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不明"
+          }
+        }
+      }
+    },
     "action.ok" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1903,25 +1932,25 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Duration uses only records with a confirmed end time (n = count). Ongoing records count through today; point-in-time records count only their start day. Intervals do not imply symptom-free periods."
+            "value" : "Duration uses only records with a known end time (n = count). Ongoing records count through today; records with an unknown end time count only their start day. Intervals do not imply symptom-free periods."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "持続時間は終息時刻が確定した記録だけで計算します（n＝件数）。継続中は今日まで、点の記録は開始日だけを日数に含めます。記録間隔は無症状の期間を意味しません"
+            "value" : "持続時間は終息日時が分かる記録だけで計算します（n＝件数）。継続中は今日まで、終息日時不明は開始日だけを日数に含めます。記録間隔は無症状の期間を意味しません"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "지속 시간은 종료 시각이 확정된 기록만으로 계산합니다(n=건수). 지속 중인 기록은 오늘까지, 시점 기록은 시작일만 일수에 포함합니다. 기록 간격은 무증상 기간을 의미하지 않습니다"
+            "value" : "지속 시간은 종식 일시를 아는 기록만으로 계산합니다(n=건수). 지속 중인 기록은 오늘까지, 종식 일시를 모르는 기록은 시작일만 일수에 포함합니다. 기록 간격은 무증상 기간을 의미하지 않습니다"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "持續時間僅以已確定結束時間的記錄計算（n＝筆數）。持續中計至今天，時間點記錄僅計開始日。記錄間隔不代表無症狀期間"
+            "value" : "持續時間僅以結束日期時間已知的記錄計算（n＝筆數）。持續中計至今天，結束日期時間不明的記錄只計開始日。記錄間隔不代表無症狀期間"
           }
         }
       }
@@ -17284,35 +17313,6 @@
         }
       }
     },
-    "symptom.badge.notEnded" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ongoing"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "継続"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "진행"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "持續"
-          }
-        }
-      }
-    },
     "symptom.continue.addAnother" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -17667,25 +17667,25 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Turn this on when you feel the symptom has ended, and record the time. This lets the duration be used in analysis.\n\nYou can save with it off at onset. Once it stops, tap the hourglass in the list to fill in the time."
+            "value" : "Turn this on when the symptom has ended. Open the end date and choose Unknown if you do not know when it ended. Duration is calculated only when the end date is known."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "症状が終息したと感じればONにして日時を記録してください。これにより持続時間が分析に利用できます。\n\n発症した時点ではOFFのまま保存できます。治まったあとで、一覧にある「砂時計」を押せばその時刻が入ります。"
+            "value" : "症状が治まったら「終息」をONにします。いつ治まったか分からない場合は終息日時を開いて「不明」を選びます。持続時間は終息日時が分かる記録だけで計算します。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "증상이 가라앉았다고 느끼면 켜고 일시를 기록해 주세요. 지속 시간을 분석에 활용할 수 있습니다.\n\n발병 시점에는 끈 채로 저장할 수 있습니다. 가라앉은 뒤 목록에 있는 '모래시계'를 누르면 그 시각이 입력됩니다."
+            "value" : "증상이 가라앉으면 '종식'을 켭니다. 언제 가라앉았는지 모르면 종식 일시를 열고 '알 수 없음'을 선택합니다. 지속 시간은 종식 일시를 아는 기록만으로 계산합니다."
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "當您覺得症狀已結束時請開啟並記錄時間，這樣持續時長便可用於分析。\n\n發作當下可維持關閉直接儲存。結束後點一下列表中的「沙漏」即可填入該時間。"
+            "value" : "症狀緩解後請開啟「結束」。若不知道何時緩解，請開啟結束日期時間並選擇「不明」。持續時間只以結束日期時間已知的記錄計算。"
           }
         }
       }
@@ -18328,64 +18328,6 @@
         }
       }
     },
-    "symptom.progress.backToOngoing" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Back to ongoing"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "継続中に戻す"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "진행 중으로 되돌리기"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "改回持續中"
-          }
-        }
-      }
-    },
-    "symptom.progress.didFinish" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "It has ended"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "終息しました"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "종식되었습니다"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "已經結束"
-          }
-        }
-      }
-    },
     "symptom.progress.finished" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -18415,31 +18357,60 @@
         }
       }
     },
-    "symptom.progress.stillOngoing" : {
+    "symptom.progress.finishedKnown" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Still ongoing"
+            "value" : "Ended (date known)"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "現在も継続中です"
+            "value" : "終息（日時あり）"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "현재도 진행 중입니다"
+            "value" : "종식(일시 있음)"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "目前仍持續中"
+            "value" : "結束（有日期時間）"
+          }
+        }
+      }
+    },
+    "symptom.progress.finishedUnknown" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ended (date unknown)"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "終息（日時不明）"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "종식(일시 불명)"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "結束（日期時間不明）"
           }
         }
       }

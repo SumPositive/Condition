@@ -1262,6 +1262,8 @@ private struct AnalysisSymptomDayDetailView: View {
           Image(systemName: "waveform.path")
             .foregroundStyle(Color.accentColor)
         }
+      } else {
+        Label("symptom.progress.finishedUnknown", systemImage: "questionmark.circle")
       }
     }
     .font(.subheadline)

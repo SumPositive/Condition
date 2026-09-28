@@ -570,27 +570,23 @@ struct RecordListView: View {
                 .contentShape(Rectangle())
                 .onTapGesture { editTarget = record }
         case .symptom(let record):
-            SymptomRowView(record: record) { finished in
-                setSymptomOngoing(record, finished: finished)
+            SymptomRowView(record: record) { state in
+                setSymptomProgress(record, state: state)
             }
                 .contentShape(Rectangle())
                 .onTapGesture { symptomEditTarget = record }
         }
     }
 
-    /// 一覧から継続／終息を切り替える。
-    /// finished が true なら「いま」で終息、false なら継続中へ戻す
-    private func setSymptomOngoing(_ record: SymptomRecord, finished: Bool) {
-        record.bOngoing = !finished
-        // 継続へ戻すときは終了時刻を消す。残したままだと needsEnding が false のままで
-        // 見た目が終息のままになり、持続時間も止まった値で出てしまう
-        record.endAt = finished ? Date() : nil
+    /// 一覧から3種類の症状状態を切り替える
+    private func setSymptomProgress(_ record: SymptomRecord, state: SymptomProgressState) {
+        record.progressState = state
         if record.dataSource == .appInput { record.dataSource = .appModified }
         do {
             try context.save()
         } catch {
             context.rollback()
-            AppAnalytics.shared.record(error: error, name: "symptom_finish_save_failed")
+            AppAnalytics.shared.record(error: error, name: "symptom_progress_save_failed")
         }
     }
 
@@ -1722,7 +1718,9 @@ private struct ExportSheetView: View {
         if let endAt = r.endAt {
             end = df.string(from: endAt)
         } else {
-            end = r.bOngoing ? String(localized: "analysis.ongoing") : ""
+            end = r.bOngoing
+                ? String(localized: "analysis.ongoing")
+                : String(localized: "symptom.progress.finishedUnknown")
         }
         return [
             df.string(from: r.startAt),

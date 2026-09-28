@@ -1316,9 +1316,21 @@ private extension MeasurementAverageField {
 
 struct DatePickerSheet: View {
     @Binding var date: Date
+    /// 日時を持たない状態を選べる画面だけが指定する
+    let onUnknown: (() -> Void)?
     let onChanged: () -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var contentHeight: CGFloat = 500
+
+    init(
+        date: Binding<Date>,
+        onUnknown: (() -> Void)? = nil,
+        onChanged: @escaping () -> Void
+    ) {
+        _date = date
+        self.onUnknown = onUnknown
+        self.onChanged = onChanged
+    }
 
     var body: some View {
         NavigationStack {
@@ -1341,10 +1353,16 @@ struct DatePickerSheet: View {
             .navigationTitle("record.datetime.select")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItemGroup(placement: .topBarLeading) {
                     // グラフィカルDatePickerの時刻行は安全に組み替えられないため左上へ置く
                     Button("action.now") {
                         date = Date()
+                    }
+                    if let onUnknown {
+                        Button("action.unknown") {
+                            onUnknown()
+                            dismiss()
+                        }
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {

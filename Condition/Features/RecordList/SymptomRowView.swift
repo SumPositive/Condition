@@ -5,8 +5,8 @@ import SwiftUI
 
 struct SymptomRowView: View {
     let record: SymptomRecord
-    /// 継続／終息を切り替える。true で終息（終了時刻はいま）、false で継続中へ戻す
-    var onSetOngoing: ((Bool) -> Void)? = nil
+    /// 一覧から症状の状態を変更する
+    var onSetProgressState: ((SymptomProgressState) -> Void)? = nil
 
     @ScaledMetric(relativeTo: .title3) private var dateColW: CGFloat = 76
     @ScaledMetric(relativeTo: .caption2) private var scaledMarkSz: CGFloat = 10
@@ -98,45 +98,46 @@ struct SymptomRowView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            ongoingMark
+            progressMark
                 .frame(width: catW, alignment: .center)
         }
         .frame(width: dateColW - 8, alignment: .leading)
         .padding(.trailing, 8)
     }
 
-    /// 継続／終息の目印。タップで状態を選び直せる。
-    /// 終息済みにも出すのは、間違えて閉じたものを継続へ戻す導線がほかに無いため
+    /// 症状の状態を示す目印。タップで3状態から選び直せる
     @ViewBuilder
-    private var ongoingMark: some View {
+    private var progressMark: some View {
         Button {
             showProgressDialog = true
         } label: {
-            // 文字だと日付列の幅(24pt)に収まらないのでアイコンで表す。
-            // 継続は砂時計、終息はチェックで、色も分けて一目で区別できるようにする
-            Image(systemName: record.needsEnding ? "hourglass" : "checkmark.circle")
+            Image(systemName: progressIconName)
                 .font(.system(size: min(scaledMarkSz + 4, 18)))
-                .foregroundStyle(record.needsEnding ? Color.accentColor : .secondary)
+                .foregroundStyle(record.progressState == .ongoing ? Color.accentColor : .secondary)
                 .padding(4)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(Text(record.needsEnding
-            ? "symptom.badge.notEnded" : "symptom.progress.finished"))
+        .accessibilityLabel(Text(LocalizedStringKey(record.progressState.labelKey)))
         .confirmationDialog(
-            // タイトルでいまの状態を伝え、選択肢は切り替えだけにする。
-            // 現状のままにしたいときはキャンセルで閉じる
-            Text(record.needsEnding
-                ? "symptom.progress.stillOngoing" : "symptom.progress.didFinish"),
+            Text(LocalizedStringKey(record.progressState.labelKey)),
             isPresented: $showProgressDialog,
             titleVisibility: .visible
         ) {
-            if record.needsEnding {
-                Button("symptom.progress.didFinish") { onSetOngoing?(true) }
-            } else {
-                Button("symptom.progress.backToOngoing") { onSetOngoing?(false) }
+            ForEach(SymptomProgressState.allCases.filter { $0 != record.progressState }) { state in
+                Button(LocalizedStringKey(state.labelKey)) {
+                    onSetProgressState?(state)
+                }
             }
             Button("action.cancel", role: .cancel) {}
+        }
+    }
+
+    private var progressIconName: String {
+        switch record.progressState {
+        case .ongoing:          return "hourglass"
+        case .completedKnown:   return "checkmark.circle"
+        case .completedUnknown: return "questionmark.circle"
         }
     }
 

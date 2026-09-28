@@ -281,7 +281,7 @@ struct SymptomAnalysisRange {
     for record in records where 1 < record.nSeverity && overlaps(record) {
       var day = calendar.startOfDay(for: max(start, record.startAt))
       let finish = record.bOngoing ? end : min(end, record.endAt ?? record.startAt)
-      // 終息時刻ちょうどの翌日は数えず、点の記録は開始日だけ数える
+      // 終息時刻ちょうどの翌日は数えず、終息日時不明は開始日だけ数える
       repeat {
         days.insert(day)
         guard let next = calendar.date(byAdding: .day, value: 1, to: day) else { break }

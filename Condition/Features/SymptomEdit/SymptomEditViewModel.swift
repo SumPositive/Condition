@@ -19,8 +19,8 @@ final class SymptomEditViewModel {
     // MARK: - 入力値
     var startAt: Date                { didSet { markModified() } }
     var endAt: Date                  { didSet { markModified() } }
-    /// 終息したか。OFF の間は終息日時を持たず、一覧の「終息」で後から閉じられる
-    var hasEnded: Bool               { didSet { markModified() } }
+    /// 継続中・終息日時あり・終息日時不明の3状態
+    var progressState: SymptomProgressState { didSet { markModified() } }
     var symptomID: String            { didSet { markModified() } }
     var severity: SymptomSeverity    { didSet { markModified() } }
     var note: String                 { didSet { markModified() } }
@@ -45,7 +45,7 @@ final class SymptomEditViewModel {
             let now = Date()
             startAt = now
             endAt = now
-            hasEnded = false
+            progressState = .ongoing
             symptomID = ""
             severity = .defaultForNewRecord
             note = ""
@@ -55,7 +55,7 @@ final class SymptomEditViewModel {
         case .edit(let record):
             startAt = record.startAt
             endAt = record.endAt ?? record.startAt
-            hasEnded = record.endAt != nil
+            progressState = record.progressState
             symptomID = record.sSymptomID
             severity = record.severity
             note = record.sNote
@@ -78,17 +78,37 @@ final class SymptomEditViewModel {
         !symptomID.isEmpty && !hasInvalidRange
     }
 
-    /// 終了が開始より前になっていないか
-    var hasInvalidRange: Bool {
-        hasEnded && endAt < startAt
+    /// 終息スイッチの表示状態
+    var hasEnded: Bool {
+        progressState != .ongoing
     }
 
-    /// 終息の有無を変える。終息にしたとき、終息が発症より前なら発症に合わせる
+    /// 終了が開始より前になっていないか
+    var hasInvalidRange: Bool {
+        progressState == .completedKnown && endAt < startAt
+    }
+
+    /// 終息をONにしたときは日時あり、OFFにしたときは継続中へ切り替える
     func setHasEnded(_ value: Bool) {
-        hasEnded = value
+        if value, progressState == .ongoing {
+            // 継続中から終息へ変えた時点を初期の終息日時にする
+            endAt = max(startAt, Date())
+        }
+        progressState = value ? .completedKnown : .ongoing
         if value, endAt < startAt {
             endAt = startAt
         }
+    }
+
+    /// カレンダーで選んだ日時を終息日時として確定する
+    func setEndDateKnown() {
+        progressState = .completedKnown
+        if endAt < startAt { endAt = startAt }
+    }
+
+    /// 終息済みだが日時は分からない状態へ切り替える
+    func setEndDateUnknown() {
+        progressState = .completedUnknown
     }
 
     /// 辞書シートから選ばれた薬を足す。
@@ -130,7 +150,7 @@ final class SymptomEditViewModel {
         next.isLoading = true
         next.startAt = startAt
         next.endAt = startAt
-        next.hasEnded = false
+        next.progressState = .ongoing
         next.symptomID = ""
         next.severity = .defaultForNewRecord
         next.note = ""
@@ -162,9 +182,17 @@ final class SymptomEditViewModel {
         }
 
         record.startAt = startAt
-        // 終息していない記録は「まだ続いている」扱いにし、一覧から後で閉じられるようにする
-        record.bOngoing = !hasEnded
-        record.endAt = hasEnded ? endAt : nil
+        switch progressState {
+        case .ongoing:
+            record.bOngoing = true
+            record.endAt = nil
+        case .completedKnown:
+            record.bOngoing = false
+            record.endAt = endAt
+        case .completedUnknown:
+            record.bOngoing = false
+            record.endAt = nil
+        }
         record.sSymptomID = symptomID
         record.severity = severity
         record.sNote = String(note.trimmingCharacters(in: .newlines).prefix(SymptomLimits.noteMaxLength))

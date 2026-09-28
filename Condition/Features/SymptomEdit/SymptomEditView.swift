@@ -122,7 +122,7 @@ struct SymptomEditView: View {
                     get: { vm.startAt }, set: { vm.startAt = $0 }
                 )) {
                     // 開始を遅らせて終了より後になったら終了も合わせる
-                    if vm.hasEnded, vm.endAt < vm.startAt {
+                    if vm.progressState == .completedKnown, vm.endAt < vm.startAt {
                         vm.endAt = vm.startAt
                     }
                 }
@@ -130,7 +130,11 @@ struct SymptomEditView: View {
             .sheet(isPresented: $showEndPicker) {
                 DatePickerSheet(date: Binding(
                     get: { vm.endAt }, set: { vm.endAt = $0 }
-                )) {}
+                ), onUnknown: {
+                    vm.setEndDateUnknown()
+                }) {
+                    vm.setEndDateKnown()
+                }
             }
             .sheet(isPresented: $showEnvironmentSheet) {
                 EnvironmentEditView(
@@ -198,7 +202,7 @@ struct SymptomEditView: View {
     private func useCurrentDateAfterForeground() {
         let now = Date()
         vm.startAt = now
-        if vm.hasEnded, vm.endAt < now {
+        if vm.progressState == .completedKnown, vm.endAt < now {
             vm.endAt = now
         }
     }
@@ -209,8 +213,7 @@ struct SymptomEditView: View {
                 dateButton(date: vm.startAt) { showStartPicker = true }
             }
 
-            // 「終息 / スイッチ / 日時」を1行に収める。
-            // OFF のうちは日時を出さない（入力できない値を見せない）
+            // 終息の有無を従来どおりスイッチで選び、日時不明はカレンダーから指定する
             HStack(spacing: 8) {
                 Text("symptom.progress.finished")
                 Toggle("", isOn: Binding(
@@ -218,10 +221,6 @@ struct SymptomEditView: View {
                     set: { vm.setHasEnded($0) }
                 ))
                 .labelsHidden()
-                // ヘルプはスイッチの真横に置く（1行を専有させない）。
-                // ONにしたあとは説明が要らないのでOFFの間だけ出す。
-                // tight 指定で 19pt まで小さくしてあり、Toggle（31pt）より低いので
-                // 出し分けても行の高さは変わらない
                 if !vm.hasEnded {
                     BeginnerHelpBanner(
                         "symptom.help.ended",
@@ -232,7 +231,11 @@ struct SymptomEditView: View {
                 }
                 Spacer(minLength: 4)
                 if vm.hasEnded {
-                    dateButton(date: vm.endAt) { showEndPicker = true }
+                    if vm.progressState == .completedUnknown {
+                        Button("action.unknown") { showEndPicker = true }
+                    } else {
+                        dateButton(date: vm.endAt) { showEndPicker = true }
+                    }
                 }
             }
 

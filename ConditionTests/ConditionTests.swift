@@ -96,15 +96,15 @@ struct SymptomAnalysisTests {
         #expect(range.symptomDays([record]) == 3)
     }
 
-    @Test("点の記録は開始日のみ数え、なしは症状日へ含めない")
-    func pointAndAbsentRecordsStayDistinct() {
-        let point = SymptomRecord(startAt: date(3, hour: 10), symptomID: "headache")
-        point.severity = .mild
+    @Test("終息日時不明は開始日のみ数え、なしは症状日へ含めない")
+    func unknownEndAndAbsentRecordsStayDistinct() {
+        let unknownEnd = SymptomRecord(startAt: date(3, hour: 10), symptomID: "headache")
+        unknownEnd.severity = .mild
         let absent = SymptomRecord(startAt: date(4, hour: 10), symptomID: "headache")
         absent.severity = .notPresent
         let range = SymptomAnalysisRange(start: date(3), end: date(6), calendar: calendar)
 
-        #expect(range.symptomDays([point, absent]) == 1)
+        #expect(range.symptomDays([unknownEnd, absent]) == 1)
     }
 }
 
@@ -2324,7 +2324,7 @@ struct SymptomTriggerTests {
         let vm = SymptomEditViewModel(mode: .addNew)
         vm.startAt = start
         vm.endAt = start.addingTimeInterval(3600)
-        vm.hasEnded = true
+        vm.progressState = .completedKnown
         vm.symptomID = "headache"
         vm.severity = .severe
         vm.note = "強い痛み"
@@ -2341,10 +2341,59 @@ struct SymptomTriggerTests {
         #expect(next.severity == .defaultForNewRecord)
         #expect(next.medicineIDs.isEmpty)
         #expect(next.note.isEmpty)
-        #expect(!next.hasEnded)
+        #expect(next.progressState == .ongoing)
         #expect(next.endAt == start)
         #expect(!next.isModified)
         #expect(!next.canSave)
+    }
+
+    @Test("症状の3状態は終了情報へ正しく対応する")
+    func progressStateMapping() {
+        let start = Date(timeIntervalSince1970: 1_780_000_000)
+        let record = SymptomRecord(startAt: start, symptomID: "headache")
+
+        #expect(record.progressState == .completedUnknown)
+        #expect(!record.needsEnding)
+        #expect(record.isCompleted)
+        #expect(record.endAt == nil)
+
+        record.progressState = .ongoing
+        #expect(record.progressState == .ongoing)
+        #expect(record.needsEnding)
+        #expect(record.endAt == nil)
+
+        record.progressState = .completedKnown
+        #expect(record.progressState == .completedKnown)
+        #expect(!record.needsEnding)
+        #expect(record.isCompleted)
+        #expect(record.endAt != nil)
+
+        record.progressState = .completedUnknown
+        #expect(record.progressState == .completedUnknown)
+        #expect(!record.bOngoing)
+        #expect(record.isCompleted)
+        #expect(record.endAt == nil)
+    }
+
+    @Test("終息スイッチと不明操作で3状態を切り替える")
+    @MainActor
+    func endSwitchStateChanges() {
+        let vm = SymptomEditViewModel(mode: .addNew)
+
+        #expect(!vm.hasEnded)
+        #expect(vm.progressState == .ongoing)
+
+        vm.setHasEnded(true)
+        #expect(vm.hasEnded)
+        #expect(vm.progressState == .completedKnown)
+
+        vm.setEndDateUnknown()
+        #expect(vm.hasEnded)
+        #expect(vm.progressState == .completedUnknown)
+
+        vm.setHasEnded(false)
+        #expect(!vm.hasEnded)
+        #expect(vm.progressState == .ongoing)
     }
 
     @Test("直前の状況IDは JSON で往復し、空や壊れた値は空配列になる")
@@ -2396,6 +2445,7 @@ struct SymptomTriggerTests {
         let restored = try #require(try destinationContext.fetch(FetchDescriptor<SymptomRecord>()).first)
         #expect(restored.triggerIDs == ["lackOfSleep", userTagID])
         #expect(restored.medicineIDs == ["analgesic"])
+        #expect(restored.progressState == .completedUnknown)
     }
 
     @Test("思い当たらないタグはバックアップで復元される")

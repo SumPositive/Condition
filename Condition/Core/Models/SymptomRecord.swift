@@ -50,6 +50,25 @@ enum SymptomSeverity: Int, CaseIterable, Codable, Identifiable {
     var isCountable: Bool { self != .unspecified }
 }
 
+// MARK: - 症状の状態
+
+/// 終息時刻の持ち方から決まる3種類の状態
+enum SymptomProgressState: Int, CaseIterable, Identifiable {
+    case ongoing = 0
+    case completedKnown = 1
+    case completedUnknown = 2
+
+    var id: Int { rawValue }
+
+    var labelKey: String {
+        switch self {
+        case .ongoing:          return "analysis.ongoing"
+        case .completedKnown:   return "symptom.progress.finishedKnown"
+        case .completedUnknown: return "symptom.progress.finishedUnknown"
+        }
+    }
+}
+
 // MARK: - 気象データの取得元
 
 enum SymptomWeatherSource: Int, Codable {
@@ -82,9 +101,9 @@ final class SymptomRecord {
     // .spotlight は付けない。Spotlight 検索から記録を開く導線も CoreSpotlight の設定も
     // アプリに無いため、インデックス登録が毎回失敗して CoreData のエラーログが出続ける
     var startAt: Date = Date()
-    /// 終息した時刻。終息していなければ nil
+    /// 終息した時刻。継続中・終息日時不明なら nil
     var endAt: Date? = nil
-    /// まだ終息していない（終息時刻の入力待ち）。一覧の「終息」で後から閉じられる
+    /// 現在も継続しているか。終息日時不明と区別する
     var bOngoing: Bool = false
 
     // MARK: - 症状
@@ -160,6 +179,27 @@ extension SymptomRecord {
         set { nDataSource = newValue.rawValue }
     }
 
+    /// 継続中・終息日時あり・終息日時不明を既存の日時項目から読み書きする
+    @Transient var progressState: SymptomProgressState {
+        get {
+            if bOngoing { return .ongoing }
+            return endAt == nil ? .completedUnknown : .completedKnown
+        }
+        set {
+            switch newValue {
+            case .ongoing:
+                bOngoing = true
+                endAt = nil
+            case .completedKnown:
+                bOngoing = false
+                if endAt == nil { endAt = max(startAt, Date()) }
+            case .completedUnknown:
+                bOngoing = false
+                endAt = nil
+            }
+        }
+    }
+
     @Transient var weatherSource: SymptomWeatherSource {
         get { SymptomWeatherSource(rawValue: nWeatherSource) ?? .none }
         set { nWeatherSource = newValue.rawValue }
@@ -212,22 +252,22 @@ extension SymptomRecord {
 
     /// 終息済みのエピソードか
     @Transient var isCompleted: Bool {
-        !bOngoing && endAt != nil
+        progressState != .ongoing
     }
 
-    /// まだ終息していない（一覧に「終息」ボタンを出す対象）
+    /// 現在も継続しているか
     @Transient var needsEnding: Bool {
-        endAt == nil
+        progressState == .ongoing
     }
 
-    /// 持続時間。終了済みなら実測、継続中は現在までの暫定値、点の記録は nil
+    /// 持続時間。終息日時ありなら実測、継続中は現在までの暫定値、日時不明は nil
     @Transient var duration: TimeInterval? {
         if let endAt { return max(0, endAt.timeIntervalSince(startAt)) }
         if bOngoing { return max(0, Date().timeIntervalSince(startAt)) }
         return nil
     }
 
-    /// 統計で使える確定した持続時間（継続中と点の記録は除外）
+    /// 統計で使える確定した持続時間（継続中と終息日時不明は除外）
     @Transient var completedDuration: TimeInterval? {
         guard isCompleted, let endAt else { return nil }
         return max(0, endAt.timeIntervalSince(startAt))

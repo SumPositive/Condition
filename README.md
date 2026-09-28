@@ -117,7 +117,7 @@ Condition/
 **データ**
 - `SymptomRecord`（SwiftData）は 1 レコード 1 症状。症状・直前の状況・対処は表示名ではなく ID で保存する（4 言語で集計キーが割れないように）
 - 直前の状況・対処は複数持てるので、ID 配列を JSON 文字列（`sTriggerIDs` / `sMedicineIDs`）で持ち、`triggerIDs` / `medicineIDs` でアクセスする。1 件あたり各 10 個まで
-- 終息していない記録は `bOngoing = true`・`endAt = nil`。一覧の砂時計で後から閉じる
+- 症状の状態は3種類。継続中は `bOngoing = true`・`endAt = nil`、終息日時ありは `bOngoing = false`・`endAt` あり、終息日時不明は `bOngoing = false`・`endAt = nil` で表す
 - 環境は `EnvironmentSnapshot` で測定記録と共通。0℃・0%・変化量 0 は有効値なので、値ではなく入力有無フラグ（`bTempSet` など）で判定する
 
 **タグ（症状・直前の状況・対処）**
