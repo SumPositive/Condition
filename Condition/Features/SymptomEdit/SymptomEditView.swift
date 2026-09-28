@@ -299,11 +299,11 @@ struct SymptomEditView: View {
             }
 
             // 発症の手前にあった状況は、対処より時間的に前なので上に置く
-            // 未選択は「思い当たらない」と同じ意味なので、そう読めるように表示する
+            // 空欄は未選択とし、思い当たらない場合も通常のタグとして選ぶ
             selectionRow(
                 title: "symptom.section.trigger",
                 chips: selectedTriggerChips,
-                emptyKey: "trigger.select.empty",
+                emptyKey: "trigger.select.unselected",
                 help: ("symptom.help.trigger", "helpDismissed.symptom.trigger")
             ) {
                 showTriggerPicker = true
@@ -335,11 +335,12 @@ struct SymptomEditView: View {
     }
 
     /// 選択中の直前の状況。記録に入っている順（選んだ順）で出す。
-    /// 対処（アクセント色）と見分けられるよう、選択シートのタグと同じ紫にする
+    /// 対処（アクセント色）と見分けられるよう、選択シートのタグと同じ色にする
     private var selectedTriggerChips: [(id: String, title: String, color: Color)] {
         vm.triggerIDs.map { id in
             let tag = settings.triggerTags.tag(for: id) ?? SymptomTag(id: id)
-            return (id, tag.triggerDisplayName, Color.purple)
+            let color: Color = id == TriggerCatalog.nothingComesToMindID ? .blue : .purple
+            return (id, tag.triggerDisplayName, color)
         }
     }
 

@@ -2051,7 +2051,10 @@ private enum SymptomExportText {
     }
 
     static func triggerNames(_ r: SymptomRecord) -> [String] {
-        r.triggerIDs.map { (settings.triggerTags.tag(for: $0) ?? SymptomTag(id: $0)).triggerDisplayName }
+        let names = r.triggerIDs.map {
+            (settings.triggerTags.tag(for: $0) ?? SymptomTag(id: $0)).triggerDisplayName
+        }
+        return names.isEmpty ? [String(localized: "trigger.select.unselected")] : names
     }
 
     static func remedyNames(_ r: SymptomRecord) -> [String] {

@@ -70,6 +70,10 @@ extension SymptomTag {
 
     /// 直前の状況としての表示名
     var triggerDisplayName: String {
+        // 排他的な意味を保つ固定タグは、取り込み値に名前があっても既定名を使う
+        if id == TriggerCatalog.nothingComesToMindID {
+            return TriggerCatalog.entry(for: id)?.localizedName ?? Self.fallbackName(for: id)
+        }
         if !customName.isEmpty { return customName }
         if let entry = TriggerCatalog.entry(for: id) { return entry.localizedName }
         return Self.fallbackName(for: id)

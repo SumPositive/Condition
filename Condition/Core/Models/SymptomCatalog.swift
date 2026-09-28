@@ -175,14 +175,16 @@ struct TriggerCatalogEntry: Identifiable, Equatable {
 /// 発症する直前の状況。対処と同じく複数選べるタグとして持つ。
 ///
 /// 症状プリセット（頭痛・肩こり・めまい・腹痛など）の誘因としてよく挙がる
-/// 生活上のきっかけを10件に絞る。寒気・首こりのような体の状態は
+/// 生活上のきっかけ10件と「思い当たらない」を持つ。寒気・首こりのような体の状態は
 /// 症状そのものと重なるので持たず、原因側の言い方（冷え・同じ姿勢）にする。
 /// 気温・気圧は環境として別に記録するので天気は入れない。
-///
-/// 「思い当たらない」は未選択と意味が重なるので持たない（未選択の表示で兼ねる）
 enum TriggerCatalog {
 
+    /// 他の状況とは同時に選ばない固定タグ
+    static let nothingComesToMindID = "nothingComesToMind"
+
     static let all: [TriggerCatalogEntry] = [
+        .init(id: nothingComesToMindID), // 思い当たらない
         .init(id: "lackOfSleep"),      // 寝不足
         .init(id: "overwork"),         // 疲れ・過労
         .init(id: "stress"),           // ストレス
@@ -201,12 +203,17 @@ enum TriggerCatalog {
 
     static func entry(for id: String) -> TriggerCatalogEntry? { byID[id] }
 
+    /// 「思い当たらない」は単独で保存する
+    static func normalizedSelection(_ ids: [String]) -> [String] {
+        ids.contains(nothingComesToMindID) ? [nothingComesToMindID] : ids
+    }
+
     /// 入力された名前が辞書のどれかと一致すれば、その id を返す
     static func matchingID(forName name: String) -> String? {
         SymptomTagMatching.matchingID(forName: name, in: all.map { ($0.id, $0.labelKey) })
     }
 
-    /// 初回起動時にタグリストへ入れる状況。一覧に出す10件と同じにする
+    /// 初回起動時にタグリストへ入れる状況。一覧に出す11件と同じにする
     static let defaultTagIDs: [String] = all.map(\.id)
 
     /// 入力中の文字に似た状況の候補
@@ -279,5 +286,3 @@ enum SymptomTagMatching {
         return names
     }
 }
-
-

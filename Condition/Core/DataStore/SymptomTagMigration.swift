@@ -18,8 +18,8 @@ enum SymptomTagMigration {
     /// 「一度だけ」にすると、あとから辞書へ語を足したときに生まれる重複を拾えない。
     /// 版を上げれば再度走る
     private static let doneVersionKey = "UDEF_SymptomTagDedupeVersion"
-    /// 辞書の内容を変えたら上げる（5: 直前の状況の辞書を追加）
-    private static let catalogVersion = 5
+    /// 辞書の内容を変えたら上げる（6: 「思い当たらない」を追加）
+    private static let catalogVersion = 6
 
     static func runIfNeeded(context: ModelContext, settings: AppSettings = .shared) {
         let done = UserDefaults.standard.integer(forKey: doneVersionKey)
@@ -65,9 +65,12 @@ enum SymptomTagMigration {
                         record.medicineIDs = mapped
                         changed = true
                     }
-                    if !triggerReplacements.isEmpty,
-                       let mapped = remapped(record.triggerIDs, with: triggerReplacements) {
-                        record.triggerIDs = mapped
+                    let currentTriggerIDs = record.triggerIDs
+                    let mappedTriggerIDs = remapped(currentTriggerIDs, with: triggerReplacements)
+                        ?? currentTriggerIDs
+                    let normalizedTriggerIDs = TriggerCatalog.normalizedSelection(mappedTriggerIDs)
+                    if normalizedTriggerIDs != currentTriggerIDs {
+                        record.triggerIDs = normalizedTriggerIDs
                         changed = true
                     }
                 }

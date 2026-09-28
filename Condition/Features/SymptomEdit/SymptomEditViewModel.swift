@@ -108,6 +108,14 @@ final class SymptomEditViewModel {
     }
 
     func toggleTrigger(_ id: String) {
+        if id == TriggerCatalog.nothingComesToMindID {
+            // 「思い当たらない」は他の状況と同時に選ばない
+            triggerIDs = triggerIDs == [id] ? [] : [id]
+            return
+        }
+
+        // 通常の状況を選んだら「思い当たらない」を外す
+        triggerIDs.removeAll { $0 == TriggerCatalog.nothingComesToMindID }
         if let index = triggerIDs.firstIndex(of: id) {
             triggerIDs.remove(at: index)
         } else if triggerIDs.count < SymptomLimits.maxTriggersPerRecord {
@@ -161,7 +169,7 @@ final class SymptomEditViewModel {
         record.severity = severity
         record.sNote = String(note.trimmingCharacters(in: .newlines).prefix(SymptomLimits.noteMaxLength))
         record.medicineIDs = medicineIDs
-        record.triggerIDs = triggerIDs
+        record.triggerIDs = TriggerCatalog.normalizedSelection(triggerIDs)
 
         record.apply(environment)
 

@@ -510,8 +510,8 @@ enum RecordsJSONIO {
                 .prefix(SymptomLimits.noteImportMaxLength))
             record.medicineIDs = Array((imported.medicineIds ?? [])
                 .prefix(SymptomLimits.maxMedicinesPerRecord))
-            record.triggerIDs = Array((imported.triggerIds ?? [])
-                .prefix(SymptomLimits.maxTriggersPerRecord))
+            record.triggerIDs = TriggerCatalog.normalizedSelection(Array((imported.triggerIds ?? [])
+                .prefix(SymptomLimits.maxTriggersPerRecord)))
             record.dataSource = RecordDataSource(rawValue: imported.dataSourceRaw ?? 0) ?? .appInput
             applyImportedWeather(imported.weather, to: record)
         }

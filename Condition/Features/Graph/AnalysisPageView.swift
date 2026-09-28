@@ -1176,7 +1176,9 @@ private struct AnalysisSymptomDayDetailView: View {
       let triggers = triggerNames(record)
       if !triggers.isEmpty {
         detailSection(title: "symptom.section.trigger", systemImage: "clock.arrow.circlepath") {
-          tagGrid(triggers, color: .purple)
+          let color: Color = record.triggerIDs == [TriggerCatalog.nothingComesToMindID]
+            ? .blue : .purple
+          tagGrid(triggers, color: color)
         }
       }
 
@@ -1321,9 +1323,10 @@ private struct AnalysisSymptomDayDetailView: View {
   }
 
   private func triggerNames(_ record: SymptomRecord) -> [String] {
-    record.triggerIDs.map { id in
+    let names = record.triggerIDs.map { id in
       (settings.triggerTags.tag(for: id) ?? SymptomTag(id: id)).triggerDisplayName
     }
+    return names.isEmpty ? [String(localized: "trigger.select.unselected")] : names
   }
 
   private func remedyNames(_ record: SymptomRecord) -> [String] {
@@ -1909,12 +1912,12 @@ private struct AnalysisEnvironmentMiniChart: View {
 }
 
 private struct AnalysisTriggerRow: Identifiable {
-  /// 状況のタグID。未選択の行は "unselected"
+  /// 状況のタグID。未選択の行は固定IDを使う
   let id: String
   let name: String
   /// 程度ごとの件数（軽い→強い）。未選択の行は程度で分けず1区分にする
   let segments: [(color: Color, count: Int)]
-  /// 「未選択（思い当たらない）」の行。白い棒で示す
+  /// 未選択の行は同数時に最後へ並べる
   let isUnselected: Bool
   var total: Int { segments.reduce(0) { $0 + $1.count } }
 }
@@ -1952,17 +1955,17 @@ private struct AnalysisSymptomTriggerPanel: View {
         isUnselected: false
       )
     }
-    // 未選択は「思い当たらない」と同じ意味なので、状況と同じ列に並べる
-    let unselected = onsetRecords.filter { $0.triggerIDs.isEmpty }.count
-    if 0 < unselected {
+    // タグが無い記録だけを未選択として別の行にする
+    let unselectedCount = onsetRecords.filter { $0.triggerIDs.isEmpty }.count
+    if 0 < unselectedCount {
       result.append(AnalysisTriggerRow(
         id: "unselected",
-        name: String(localized: "trigger.select.empty"),
-        segments: [(.white, unselected)],
+        name: String(localized: "trigger.select.unselected"),
+        segments: [(.secondary.opacity(0.22), unselectedCount)],
         isUnselected: true
       ))
     }
-    // 件数の降順。同数なら状況を先にし、未選択は後ろへ回す
+    // 件数の降順。同数ならタグを先にし、未選択は最後へ回す
     return result.sorted { lhs, rhs in
       if lhs.total != rhs.total { return rhs.total < lhs.total }
       if lhs.isUnselected != rhs.isUnselected { return rhs.isUnselected }
@@ -2030,14 +2033,6 @@ private struct AnalysisSymptomTriggerPanel: View {
               }
             }
             .clipShape(RoundedRectangle(cornerRadius: 4))
-            .overlay(alignment: .leading) {
-              // 白い棒は淡い背景に溶けるので、枠線で輪郭を付ける
-              if row.isUnselected {
-                RoundedRectangle(cornerRadius: 4)
-                  .stroke(Color.secondary.opacity(0.35), lineWidth: 1)
-                  .frame(width: width)
-              }
-            }
           }
           .frame(height: 16)
         }

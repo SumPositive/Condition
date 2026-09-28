@@ -2398,6 +2398,28 @@ struct SymptomTriggerTests {
         #expect(restored.medicineIDs == ["analgesic"])
     }
 
+    @Test("思い当たらないタグはバックアップで復元される")
+    @MainActor
+    func nothingComesToMindRoundTrip() throws {
+        let sourceContainer = try makeSymptomInMemoryContainer()
+        let sourceContext = ModelContext(sourceContainer)
+        let record = SymptomRecord(
+            startAt: Date(timeIntervalSince1970: 1_780_000_000),
+            symptomID: "headache"
+        )
+        record.triggerIDs = [TriggerCatalog.nothingComesToMindID]
+        sourceContext.insert(record)
+        try sourceContext.save()
+
+        let data = RecordsJSONIO.export(records: [], symptoms: [record])
+        let destinationContainer = try makeSymptomInMemoryContainer()
+        let destinationContext = ModelContext(destinationContainer)
+        try RecordsJSONIO.importJSON(data, into: destinationContext)
+
+        let restored = try #require(try destinationContext.fetch(FetchDescriptor<SymptomRecord>()).first)
+        #expect(restored.triggerIDs == [TriggerCatalog.nothingComesToMindID])
+    }
+
     @Test("室内値と端末気圧だけの環境もバックアップで往復する")
     @MainActor
     func indoorOnlyEnvironmentRoundTrip() throws {
@@ -2510,6 +2532,27 @@ struct SymptomTriggerTests {
         #expect(restored.triggerIDs.count == SymptomLimits.maxTriggersPerRecord)
     }
 
+    @Test("思い当たらないを含む取り込みは単独選択へ整える")
+    @MainActor
+    func importNormalizesExclusiveTrigger() throws {
+        let json = """
+        {
+          "schemaVersion": 2,
+          "records": [],
+          "symptoms": [
+            { "startAt": "2026-05-01T09:00:00+09:00", "symptomId": "headache",
+              "triggerIds": ["stress", "nothingComesToMind"] }
+          ]
+        }
+        """
+        let container = try makeSymptomInMemoryContainer()
+        let context = ModelContext(container)
+        try RecordsJSONIO.importJSON(Data(json.utf8), into: context)
+
+        let restored = try #require(try context.fetch(FetchDescriptor<SymptomRecord>()).first)
+        #expect(restored.triggerIDs == [TriggerCatalog.nothingComesToMindID])
+    }
+
     @Test("記録画面の直前の状況はトグルで付け外しでき、上限を超えて増えない")
     @MainActor
     func toggleTrigger() {
@@ -2522,10 +2565,21 @@ struct SymptomTriggerTests {
         #expect(vm.triggerIDs == ["cold"])
         #expect(vm.isModified)
 
+        vm.toggleTrigger(TriggerCatalog.nothingComesToMindID)
+        #expect(vm.triggerIDs == [TriggerCatalog.nothingComesToMindID])
+
+        vm.toggleTrigger("stress")
+        #expect(vm.triggerIDs == ["stress"])
+
+        vm.toggleTrigger(TriggerCatalog.nothingComesToMindID)
+        vm.toggleTrigger(TriggerCatalog.nothingComesToMindID)
+        #expect(vm.triggerIDs.isEmpty)
+
+        let cappedVM = SymptomEditViewModel(mode: .addNew)
         for index in 0..<(SymptomLimits.maxTriggersPerRecord + 3) {
-            vm.toggleTrigger("u:\(index)")
+            cappedVM.toggleTrigger("u:\(index)")
         }
-        #expect(vm.triggerIDs.count == SymptomLimits.maxTriggersPerRecord)
+        #expect(cappedVM.triggerIDs.count == SymptomLimits.maxTriggersPerRecord)
     }
 
     @Test("直前の状況の辞書はID重複が無く、既定タグは辞書と一致する")
@@ -2533,8 +2587,16 @@ struct SymptomTriggerTests {
         let ids = TriggerCatalog.all.map(\.id)
         #expect(Set(ids).count == ids.count)
         #expect(TriggerCatalog.defaultTagIDs == ids)
+        #expect(ids.first == TriggerCatalog.nothingComesToMindID)
         #expect(TriggerCatalog.entry(for: "lackOfSleep") != nil)
+        #expect(TriggerCatalog.entry(for: TriggerCatalog.nothingComesToMindID) != nil)
         #expect(TriggerCatalog.entry(for: "unknown-id") == nil)
+
+        let fixedTag = SymptomTag(
+            id: TriggerCatalog.nothingComesToMindID,
+            customName: "変更後の名前"
+        )
+        #expect(fixedTag.triggerDisplayName != "変更後の名前")
     }
 
     @Test("辞書と同じ名前で作った自作タグは辞書の状況へ寄せられる")

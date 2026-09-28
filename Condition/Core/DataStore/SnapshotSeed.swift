@@ -100,7 +100,8 @@ enum SnapshotSeed {
         let symptomDays = [0, 2, 4, 6, 9, 11, 13, 16, 18, 21, 24, 27, 29, 32, 35, 38, 41, 44, 47, 50, 53, 57]
         let severities: [SymptomSeverity] = [.moderate, .mild, .severe, .moderate, .mild]
         let triggerSets: [[String]] = [
-            ["lackOfSleep"], ["screenTime", "posture"], ["stress"], [],
+            ["lackOfSleep"], ["screenTime", "posture"], ["stress"],
+            [TriggerCatalog.nothingComesToMindID],
             ["cold"], ["alcohol"], ["lackOfSleep", "stress"], ["screenTime"],
         ]
 

@@ -72,25 +72,25 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Shows how often each situation was recorded before onset. This alone cannot show causes or correlations."
+            "value" : "Shows how often each situation was recorded before onset. “Nothing comes to mind” and unselected entries are shown separately. This alone cannot show causes or correlations."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "発症の直前に記録した状況の件数です。これだけで原因や相関を示すことはできません"
+            "value" : "発症の直前に記録した状況の件数です。「思い当たらない」と未選択は分けて表示します。これだけで原因や相関を示すことはできません"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "발생 직전에 기록한 상황의 건수입니다. 이것만으로 원인이나 상관관계를 나타낼 수는 없습니다"
+            "value" : "발생 직전에 기록한 상황의 건수입니다. '짚이는 것 없음'과 미선택은 구분해서 표시합니다. 이것만으로 원인이나 상관관계를 나타낼 수는 없습니다"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "發作前記錄的狀況次數。僅憑此無法顯示原因或相關性"
+            "value" : "發作前記錄的狀況次數。「想不到相關狀況」和未選擇會分開顯示。僅憑此無法顯示原因或相關性"
           }
         }
       }
@@ -304,25 +304,25 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "If something may have led up to the symptom, choose it (you can choose more than one). Recording this lets you look back in the \"Before onset\" chart in Analysis at which situations tend to come before an onset.\n\nIf nothing comes to mind, leave it unselected. You can add situations that are not in the list by typing a name."
+            "value" : "If something may have led up to the symptom, choose it (you can choose more than one). Recording this lets you look back in the \"Before onset\" chart in Analysis at which situations tend to come before an onset.\n\n\"Nothing comes to mind\" is selected by itself and cannot be renamed. If you close the sheet without choosing, it remains unselected. You can add situations that are not in the list by typing a name."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "発症する直前に思い当たる状況があれば選んでください（複数可）。記録しておくと、分析の「直前の状況」で、どんな状況のあとに発症しやすいかを振り返れます。\n\n思い当たらなければ未選択のままで構いません。一覧にない状況は、名称を入力して追加できます。"
+            "value" : "発症する直前に思い当たる状況があれば選んでください（複数可）。記録しておくと、分析の「直前の状況」で、どんな状況のあとに発症しやすいかを振り返れます。\n\n「思い当たらない」は単独で選択され、名前は変更できません。何も選ばず閉じると未選択のままです。一覧にない状況は、名称を入力して追加できます。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "증상 발생 직전에 짚이는 상황이 있으면 선택해 주세요(복수 선택 가능). 기록해 두면 분석의 '발생 직전 상황'에서 어떤 상황 뒤에 증상이 나타나기 쉬운지 돌아볼 수 있습니다.\n\n짚이는 것이 없으면 선택하지 않아도 됩니다. 목록에 없는 상황은 명칭을 입력해 추가할 수 있습니다."
+            "value" : "증상 발생 직전에 짚이는 상황이 있으면 선택해 주세요(복수 선택 가능). 기록해 두면 분석의 '발생 직전 상황'에서 어떤 상황 뒤에 증상이 나타나기 쉬운지 돌아볼 수 있습니다.\n\n'짚이는 것 없음'은 단독으로 선택되며 이름을 변경할 수 없습니다. 아무것도 선택하지 않고 닫으면 미선택으로 남습니다. 목록에 없는 상황은 명칭을 입력해 추가할 수 있습니다."
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "若發作前有想到的狀況，請選擇（可複選）。記錄後，可在分析的「發作前的狀況」中回顧在哪些狀況之後容易發作。\n\n若想不到原因，保持未選擇即可。清單中沒有的狀況，可輸入名稱新增。"
+            "value" : "若發作前有想到的狀況，請選擇（可複選）。記錄後，可在分析的「發作前的狀況」中回顧在哪些狀況之後容易發作。\n\n「想不到相關狀況」只能單獨選擇，且無法重新命名。未選擇任何項目就關閉時，會保持未選擇。清單中沒有的狀況，可輸入名稱新增。"
           }
         }
       }
@@ -468,6 +468,35 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "生理期"
+          }
+        }
+      }
+    },
+    "trigger.name.nothingComesToMind" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing comes to mind"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "思い当たらない"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "짚이는 것 없음"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "想不到相關狀況"
           }
         }
       }
@@ -675,31 +704,31 @@
         }
       }
     },
-    "trigger.select.empty" : {
+    "trigger.select.unselected" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Not selected (nothing in particular)"
+            "value" : "Unselected"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "未選択（思い当たらない）"
+            "value" : "未選択"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "미선택 (짚이는 것 없음)"
+            "value" : "미선택"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "未選擇（想不到原因）"
+            "value" : "未選擇"
           }
         }
       }

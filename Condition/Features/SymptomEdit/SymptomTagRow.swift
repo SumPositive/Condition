@@ -12,6 +12,8 @@ struct SymptomTagChip: View {
     let title: String
     let color: Color
     let isSelected: Bool
+    /// 未選択時にも薄く色を残す特別タグ向けの色
+    var unselectedTint: Color? = nil
     /// 長押しの処理。Button の外側に onLongPressGesture を付けても
     /// Button がジェスチャを先に取るため届かないので、ここで受け取る
     var onLongPress: (() -> Void)? = nil
@@ -52,11 +54,13 @@ struct SymptomTagChip: View {
 
     // 選択は塗りつぶし＋白文字で示す。明度が大きく変わるので一目で分かる
     private var background: Color {
-        isSelected ? color : Color(.secondarySystemBackground)
+        if isSelected { return color }
+        return unselectedTint?.opacity(0.14) ?? Color(.secondarySystemBackground)
     }
 
     private var foreground: Color {
-        isSelected ? .white : .primary
+        if isSelected { return .white }
+        return unselectedTint ?? .primary
     }
 }
 

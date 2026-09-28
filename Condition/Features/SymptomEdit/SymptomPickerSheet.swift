@@ -1,18 +1,18 @@
 // SymptomPickerSheet.swift
-// 内蔵辞書から症状・薬を選ぶシート。選んだ時点でタグリストへ追加される
+// 内蔵辞書から症状・直前の状況・対処を選ぶシート。選んだ時点でタグリストへ追加される
 
 import SwiftUI
 
 struct SymptomPickerSheet: View {
     let kind: SymptomTagKind
-    /// 選択済みの ID。タグの見た目に反映する（症状は1件、薬は記録側で複数持てる）
+    /// 選択済みの ID。タグの見た目に反映する（症状は1件、状況と対処は複数持てる）
     let selectedIDs: Set<String>
     /// タップされた ID を返す。タグリストへの追加は呼び出し側で行う。
-    /// 対処は選択/解除のトグルとして呼ばれる
+    /// 直前の状況と対処は選択/解除のトグルとして呼ばれる
     let onSelect: (String) -> Void
 
     /// 症状は1件だけなので選んだ時点で閉じる。
-    /// 対処は複数選べるので、続けて選べるよう開いたままにする
+    /// 直前の状況と対処は複数選べるので、続けて選べるよう開いたままにする
     private var closesOnSelect: Bool { kind == .symptom }
 
     @Environment(\.dismiss) private var dismiss
@@ -188,14 +188,19 @@ struct SymptomPickerSheet: View {
     private func tagCloud(_ items: [(id: String, title: String)]) -> some View {
         FlowLayout(spacing: 8) {
             ForEach(items, id: \.id) { item in
+                let isFixedTrigger = kind == .trigger
+                    && item.id == TriggerCatalog.nothingComesToMindID
                 SymptomTagChip(
                     title: item.title,
-                    // 直前の状況は記録画面と同じ紫にして、対処と見分けられるようにする
-                    color: kind == .trigger ? .purple : .accentColor,
+                    // 固定タグだけ青へ寄せ、通常の状況とは性質が違うことを示す
+                    color: isFixedTrigger ? .blue : (kind == .trigger ? .purple : .accentColor),
                     isSelected: selectedIDs.contains(item.id),
-                    // プリセットもユーザー追加も、長押しで同じ編集欄に載せる。
+                    unselectedTint: isFixedTrigger ? .blue : nil,
+                    // 固定タグを除き、プリセットもユーザー追加も長押しで同じ編集欄に載せる
                     // 削除は用意しない（過去の記録が名前を参照しているため）
-                    onLongPress: { beginEditing(id: item.id, title: item.title) }
+                    onLongPress: isFixedTrigger ? nil : {
+                        beginEditing(id: item.id, title: item.title)
+                    }
                 ) {
                     onSelect(item.id)
                     // 症状は1件だけなので選んだら閉じる。
@@ -269,6 +274,11 @@ struct SymptomPickerSheet: View {
 
         return ids
             .sorted { lhs, rhs in
+                // 「思い当たらない」は利用履歴に関係なく先頭へ固定する
+                if kind == .trigger, lhs != rhs {
+                    if lhs == TriggerCatalog.nothingComesToMindID { return true }
+                    if rhs == TriggerCatalog.nothingComesToMindID { return false }
+                }
                 let l = list.tag(for: lhs)?.lastUsedAt
                 let r = list.tag(for: rhs)?.lastUsedAt
                 switch (l, r) {
@@ -317,6 +327,11 @@ struct SymptomPickerSheet: View {
     private func updateTag(id: String) {
         let name = trimmedNewTagName
         guard !name.isEmpty else { return }
+        // 排他的な意味を保つため固定タグは名前を変更しない
+        guard id != TriggerCatalog.nothingComesToMindID else {
+            endEditing()
+            return
+        }
 
         var list = kind.tagList
         list.upsertName(id: id, to: name)

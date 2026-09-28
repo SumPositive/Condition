@@ -121,11 +121,11 @@ Condition/
 - 環境は `EnvironmentSnapshot` で測定記録と共通。0℃・0%・変化量 0 は有効値なので、値ではなく入力有無フラグ（`bTempSet` など）で判定する
 
 **タグ（症状・直前の状況・対処）**
-- 内蔵辞書 `SymptomCatalog` / `TriggerCatalog` / `MedicineCatalog`（各 10 件）は読み取り専用。利用者が選んだものだけがタグリスト（UserDefaults に JSON、`KVS_SettSymptomTags` / `KVS_SettTriggerTags` / `KVS_SettMedicineTags`）に入る
+- 内蔵辞書 `SymptomCatalog` / `TriggerCatalog` / `MedicineCatalog`（症状・対処は10件、直前の状況は11件）は読み取り専用。利用者が選んだものだけがタグリスト（UserDefaults に JSON、`KVS_SettSymptomTags` / `KVS_SettTriggerTags` / `KVS_SettMedicineTags`）に入る
 - ユーザー追加タグの ID は `u:<UUID>`。削除は非表示のみ（過去の記録が名前を参照するため）。並びは最終使用日時の降順（MRU）
 - 種類ごとの分岐は `SymptomTagKind` の拡張（`tagList` / `displayName(of:)` / 辞書の引き先）に集約
 - 辞書を変えたら `SymptomTagMigration.catalogVersion` を上げる。起動時に一度だけ、名前の引き先が無いタグの片付けと、辞書と同名の自作タグの統合を行う
-- 直前の状況の未選択は「思い当たらない」として扱う（専用タグは持たない）
+- 直前の状況の「思い当たらない」は先頭の固定プリセットタグ。単独選択・名前変更不可・青色表示とし、空欄は未選択として扱う
 
 **分析**
 - 図表 ID は `AnalysisPanelID`（名前空間付き文字列で永続化）。追加した図表は `AnalysisLayout.normalize()` が既定ページの末尾へ補う
