@@ -24,78 +24,68 @@ enum SymptomTagMigration {
     static func runIfNeeded(context: ModelContext, settings: AppSettings = .shared) {
         let done = UserDefaults.standard.integer(forKey: doneVersionKey)
         guard done < catalogVersion else { return }
-        defer { UserDefaults.standard.set(catalogVersion, forKey: doneVersionKey) }
+
+        // タグ一覧はまず手元で組み立て、記録の付け替えが保存できてから反映する。
+        // 先に一覧だけ統合すると、記録の保存に失敗したとき旧IDの記録が名前を引けなくなり、
+        // 次回起動でも一覧側に旧IDが無いため修復できない
 
         // 辞書から外した項目のタグを片付ける。
         // 名前の引き先が無くなっており、残すと一覧に生の ID が出てしまう。
         // 自分で名前を付けたタグ（customName あり）は引き先が要らないので残す
         var symptomTags = settings.symptomTags
-        if symptomTags.dropOrphans(isKnown: { SymptomCatalog.entry(for: $0) != nil }) {
-            settings.symptomTags = symptomTags
-        }
-        var cleanedMedicine = settings.medicineTags
-        if cleanedMedicine.dropOrphans(isKnown: { MedicineCatalog.entry(for: $0) != nil }) {
-            settings.medicineTags = cleanedMedicine
-        }
-        var cleanedTrigger = settings.triggerTags
-        if cleanedTrigger.dropOrphans(isKnown: { TriggerCatalog.entry(for: $0) != nil }) {
-            settings.triggerTags = cleanedTrigger
-        }
+        var medicineTags = settings.medicineTags
+        var triggerTags = settings.triggerTags
+        symptomTags.dropOrphans(isKnown: { SymptomCatalog.entry(for: $0) != nil })
+        medicineTags.dropOrphans(isKnown: { MedicineCatalog.entry(for: $0) != nil })
+        triggerTags.dropOrphans(isKnown: { TriggerCatalog.entry(for: $0) != nil })
 
-        symptomTags = settings.symptomTags
         let symptomReplacements = symptomTags.mergeDuplicatesIntoCatalog {
             SymptomCatalog.matchingID(forName: $0)
         }
-        if !symptomReplacements.isEmpty {
-            settings.symptomTags = symptomTags
-        }
-
-        var medicineTags = settings.medicineTags
         let medicineReplacements = medicineTags.mergeDuplicatesIntoCatalog {
             MedicineCatalog.matchingID(forName: $0)
         }
-        if !medicineReplacements.isEmpty {
-            settings.medicineTags = medicineTags
-        }
-
-        var triggerTags = settings.triggerTags
         let triggerReplacements = triggerTags.mergeDuplicatesIntoCatalog {
             TriggerCatalog.matchingID(forName: $0)
         }
-        if !triggerReplacements.isEmpty {
-            settings.triggerTags = triggerTags
+
+        if !symptomReplacements.isEmpty || !medicineReplacements.isEmpty
+            || !triggerReplacements.isEmpty {
+            // 保存済みレコードが旧IDを指したままだと、タグを寄せても集計は割れたままになる
+            do {
+                let records = try context.fetch(FetchDescriptor<SymptomRecord>())
+                var changed = false
+                for record in records {
+                    if let newID = symptomReplacements[record.sSymptomID] {
+                        record.sSymptomID = newID
+                        changed = true
+                    }
+                    if !medicineReplacements.isEmpty,
+                       let mapped = remapped(record.medicineIDs, with: medicineReplacements) {
+                        record.medicineIDs = mapped
+                        changed = true
+                    }
+                    if !triggerReplacements.isEmpty,
+                       let mapped = remapped(record.triggerIDs, with: triggerReplacements) {
+                        record.triggerIDs = mapped
+                        changed = true
+                    }
+                }
+                if changed { try context.save() }
+                logger.info("症状タグの重複を統合: 症状\(symptomReplacements.count)件 薬\(medicineReplacements.count)件 直前の状況\(triggerReplacements.count)件")
+            } catch {
+                // タグ一覧も完了版も書かずに抜け、次回起動で最初からやり直す
+                context.rollback()
+                AppAnalytics.shared.record(error: error, name: "symptom_tag_dedupe_failed")
+                return
+            }
         }
 
-        guard !symptomReplacements.isEmpty || !medicineReplacements.isEmpty
-                || !triggerReplacements.isEmpty else { return }
-
-        // 保存済みレコードが旧IDを指したままだと、タグを寄せても集計は割れたままになる
-        let records = (try? context.fetch(FetchDescriptor<SymptomRecord>())) ?? []
-        var changed = false
-        for record in records {
-            if let newID = symptomReplacements[record.sSymptomID] {
-                record.sSymptomID = newID
-                changed = true
-            }
-            if !medicineReplacements.isEmpty,
-               let mapped = remapped(record.medicineIDs, with: medicineReplacements) {
-                record.medicineIDs = mapped
-                changed = true
-            }
-            if !triggerReplacements.isEmpty,
-               let mapped = remapped(record.triggerIDs, with: triggerReplacements) {
-                record.triggerIDs = mapped
-                changed = true
-            }
-        }
-        guard changed else { return }
-        do {
-            try context.save()
-            logger.info("症状タグの重複を統合: 症状\(symptomReplacements.count)件 薬\(medicineReplacements.count)件 直前の状況\(triggerReplacements.count)件")
-        } catch {
-            context.rollback()
-            AppAnalytics.shared.record(error: error, name: "symptom_tag_dedupe_failed")
-        }
+        // 記録側が片付いてから一覧を反映し、完了版を記録する
+        if symptomTags != settings.symptomTags { settings.symptomTags = symptomTags }
+        if medicineTags != settings.medicineTags { settings.medicineTags = medicineTags }
+        if triggerTags != settings.triggerTags { settings.triggerTags = triggerTags }
+        UserDefaults.standard.set(catalogVersion, forKey: doneVersionKey)
     }
 
     /// 複数選択のタグIDを新IDへ付け替える。変化が無ければ nil。

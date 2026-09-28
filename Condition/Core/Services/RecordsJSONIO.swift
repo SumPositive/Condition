@@ -361,7 +361,9 @@ enum RecordsJSONIO {
                 (triggerTags?.tag(for: id) ?? SymptomTag(id: id)).triggerDisplayName
             }
         }
-        if record.hasWeather {
+        // 屋外の取得元が無くても、室温・室内湿度・端末気圧だけの記録はある。
+        // 取得元ではなく、環境のどれかに値があるかで出力を決める
+        if record.environmentSnapshot.hasAnyValue || record.bPressureDelta24hSet {
             var weather: [String: Any] = [
                 "source": Self.weatherSourceName(record.weatherSource),
             ]
@@ -524,7 +526,9 @@ enum RecordsJSONIO {
     }
 
     private static func applyImportedWeather(_ weather: SymptomWeatherImport?, to record: SymptomRecord) {
-        guard let weather, weather.parsedSource.isPresent else {
+        // weather が無い記録だけ環境を空にする。取得元が "none" でも、
+        // 室内値・端末気圧だけを持つ記録があるので値は取り込む
+        guard let weather else {
             record.nTemp_10c = 0
             record.nHumidity_p = 0
             record.nPressure_10hpa = 0

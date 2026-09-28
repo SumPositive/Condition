@@ -233,11 +233,6 @@ extension SymptomRecord {
         return max(0, endAt.timeIntervalSince(startAt))
     }
 
-    /// 気象データが入っているか
-    @Transient var hasWeather: Bool {
-        weatherSource.isPresent
-    }
-
     /// 室内の気温・湿度が入っているか。
     /// 0℃・0%も有効値なので、値ではなく入力有無フラグで判定する
     @Transient var hasIndoorValues: Bool {

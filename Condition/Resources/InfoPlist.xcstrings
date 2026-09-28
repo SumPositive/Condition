@@ -123,10 +123,28 @@
       "comment" : "Privacy - Location When In Use Usage Description",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Used to choose the Japan Meteorological Agency station nearest to where you record, and fetch temperature, humidity, and pressure. Only the city or town is saved."
+          }
+        },
         "ja" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "記録した場所に近い気象庁の観測所を選び、気温・湿度・気圧を取得するために使用します。位置情報は市区町村までしか保存しません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "기록한 장소와 가까운 일본 기상청 관측소를 골라 기온·습도·기압을 가져오기 위해 사용합니다. 위치 정보는 시·구·정·촌 단위까지만 저장합니다."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用於選擇離記錄地點最近的日本氣象廳觀測站，以取得氣溫、濕度與氣壓。位置資訊僅保存到市區町村層級。"
           }
         }
       }
@@ -135,10 +153,28 @@
       "comment" : "Privacy - Motion Usage Description",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Used to measure the local air pressure with your device's barometer."
+          }
+        },
         "ja" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "端末の気圧計で、その場の気圧を測るために使用します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "기기의 기압계로 현재 위치의 기압을 측정하기 위해 사용합니다."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用於以裝置的氣壓計測量所在地的氣壓。"
           }
         }
       }

@@ -111,8 +111,10 @@ final class EnvironmentEditViewModel {
         canAutomaticallyFetch && DevicePressureService.isAvailable
     }
 
-    func fetchFromJMA() async {
-        guard !isFetching else { return }
+    /// - Returns: 気象データを取得できたか。広告視聴ぶんを使い切るかの判定に使う
+    @discardableResult
+    func fetchFromJMA() async -> Bool {
+        guard !isFetching else { return false }
         isFetching = true
         errorMessage = nil
         defer { isFetching = false }
@@ -120,11 +122,11 @@ final class EnvironmentEditViewModel {
         // 時間外は気象庁の公開期間エラーと区別して手入力を案内する
         guard canAutomaticallyFetch else {
             errorMessage = String(localized: "environment.help.manualOnly")
-            return
+            return false
         }
         guard JMAWeatherService.isWithinAvailableRange(recordDate) else {
             errorMessage = JMAWeatherError.outOfRange.errorDescription
-            return
+            return false
         }
         do {
             let location = try await WeatherLocationService.shared.currentLocation()
@@ -136,8 +138,10 @@ final class EnvironmentEditViewModel {
             // 成功したときだけ記録する。失敗を数えると、通信が悪いだけで
             // 次の取得に広告が要る状態になってしまう
             lastFetchAt = Date()
+            return true
         } catch {
             errorMessage = error.localizedDescription
+            return false
         }
     }
 
@@ -187,14 +191,17 @@ final class EnvironmentEditViewModel {
         set { UserDefaults.standard.set(newValue, forKey: Self.lastFetchKey) }
     }
 
-    /// 広告を見ずに取得できるか。初回と、前回から1時間が過ぎていれば無料
+    /// 広告を見ずに取得できるか。初回と、前回から1時間が過ぎていれば無料。
+    /// 広告を見たあと取得に失敗した場合も、成功するまでは見直しを求めない
     var canFetchWithoutAd: Bool {
+        if hasWatchedAd { return true }
         guard let lastFetchAt else { return true }
         return Date().timeIntervalSince(lastFetchAt) >= Self.fetchFreeInterval
     }
 
     /// 広告の視聴が済んだ扱いにする。シートを閉じるまで有効。
-    /// 視聴のたびに1回ぶん取得できるようにし、クレジットとして持ち越さない
+    /// 視聴1回で取得の成功1回ぶん。通信失敗などで取れなかったときは使い切らず、
+    /// 再試行で広告をもう一度見せない（クレジットとしてシートの外へは持ち越さない）
     private var hasWatchedAd = false
 
     func grantAdReward() {
@@ -207,9 +214,10 @@ final class EnvironmentEditViewModel {
             errorMessage = String(localized: "environment.help.manualOnly")
             return
         }
-        // 広告を1回見たぶんは1回の取得で使い切る
-        defer { hasWatchedAd = false }
-        await fetchFromJMA()
+        // 広告を1回見たぶんは、気象データの取得に成功した時点で使い切る
+        if await fetchFromJMA() {
+            hasWatchedAd = false
+        }
         // 気象データ側でエラーが出ていても端末気圧は独立して測れるので続ける
         if canFetchDevicePressure {
             let weatherError = errorMessage
@@ -302,8 +310,10 @@ final class EnvironmentEditViewModel {
 
     // MARK: - 数値の入出力
 
+    /// 空欄にするかは isSet だけで決める。0℃ は有効値なので、値が0でも "0.0" と表示する
+    /// （値で判定すると、開き直して閉じただけで0℃が未入力に上書きされる）
     private static func decimalText(_ value: Int, scale: Int, isSet: Bool) -> String {
-        guard isSet, value != 0 else { return "" }
+        guard isSet else { return "" }
         return String(format: "%.\(scale)f", Double(value) / pow(10, Double(scale)))
     }
 

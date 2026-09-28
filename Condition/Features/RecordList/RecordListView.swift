@@ -92,6 +92,11 @@ struct RecordListView: View {
         }
     }
 
+    /// 測定・症状のどちらも記録が無いか。書き出しボタンの無効判定に使う
+    private var hasNoRecords: Bool {
+        records.isEmpty && symptomRecords.isEmpty
+    }
+
     // MARK: - 症状記録
 
     /// 絞り込み後の症状記録。区分フィルターは測定側の概念なので症状には掛けない
@@ -187,9 +192,10 @@ struct RecordListView: View {
                         )
                         // 他のツールバーボタンと同じアクセント色にそろえる。
                         // 記録が無いときは disabled の灰色を活かしたいので、そのときだけ既定に戻す
-                        .foregroundStyle(records.isEmpty ? AnyShapeStyle(.tertiary) : AnyShapeStyle(Color.blue))
+                        .foregroundStyle(hasNoRecords ? AnyShapeStyle(.tertiary) : AnyShapeStyle(Color.blue))
                     }
-                    .disabled(records.isEmpty)
+                    // 症状だけを記録している場合も書き出せるよう、両方が空のときだけ無効にする
+                    .disabled(hasNoRecords)
                     categoryFilterMenu
                 }
                 ToolbarItemGroup(placement: .topBarTrailing) {

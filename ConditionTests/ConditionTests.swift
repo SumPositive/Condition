@@ -2361,6 +2361,74 @@ struct SymptomTriggerTests {
         #expect(restored.medicineIDs == ["analgesic"])
     }
 
+    @Test("室内値と端末気圧だけの環境もバックアップで往復する")
+    @MainActor
+    func indoorOnlyEnvironmentRoundTrip() throws {
+        let sourceContainer = try makeSymptomInMemoryContainer()
+        let sourceContext = ModelContext(sourceContainer)
+        let record = SymptomRecord(startAt: Date(timeIntervalSince1970: 1_780_000_000), symptomID: "headache")
+        // 屋外の取得元は無し（.none）のまま、室内と端末の値だけを持つ
+        record.nIndoorTemp_10c = 0          // 0℃ も有効値
+        record.bIndoorTempSet = true
+        record.nIndoorHumidity_p = 45
+        record.bIndoorHumiditySet = true
+        record.nDevicePressure_10hpa = 10085
+        sourceContext.insert(record)
+        try sourceContext.save()
+
+        let data = RecordsJSONIO.export(records: [], symptoms: [record])
+        let destinationContainer = try makeSymptomInMemoryContainer()
+        let destinationContext = ModelContext(destinationContainer)
+        try RecordsJSONIO.importJSON(data, into: destinationContext)
+
+        let restored = try #require(try destinationContext.fetch(FetchDescriptor<SymptomRecord>()).first)
+        #expect(restored.weatherSource == .none)
+        #expect(restored.bIndoorTempSet)
+        #expect(restored.nIndoorTemp_10c == 0)
+        #expect(restored.bIndoorHumiditySet)
+        #expect(restored.nIndoorHumidity_p == 45)
+        #expect(restored.nDevicePressure_10hpa == 10085)
+        #expect(!restored.bTempSet)
+    }
+
+    @Test("0℃の環境は環境シートで開き直して閉じても入力済みのまま残る")
+    @MainActor
+    func zeroTemperatureSurvivesEnvironmentSheet() {
+        var snapshot = EnvironmentSnapshot()
+        snapshot.source = .manual
+        snapshot.temp_10c = 0
+        snapshot.isTempSet = true
+        snapshot.indoorTemp_10c = 0
+        snapshot.isIndoorTempSet = true
+
+        let vm = EnvironmentEditViewModel(snapshot: snapshot, recordDate: Date())
+        #expect(vm.tempText == "0.0")
+        #expect(vm.indoorTempText == "0.0")
+
+        let reopened = vm.snapshot()
+        #expect(reopened.isTempSet)
+        #expect(reopened.temp_10c == 0)
+        #expect(reopened.isIndoorTempSet)
+        #expect(reopened.indoorTemp_10c == 0)
+    }
+
+    @Test("広告を見たあとは、取得に成功するまで再試行に広告を求めない")
+    @MainActor
+    func adRewardKeepsUntilFetchSucceeds() {
+        let key = "UDEF_LastWeatherFetchAt"
+        let original = UserDefaults.standard.object(forKey: key)
+        defer { UserDefaults.standard.set(original, forKey: key) }
+        // 1時間以内に取得済み＝本来は広告が必要な状態にする
+        UserDefaults.standard.set(Date(), forKey: key)
+
+        let vm = EnvironmentEditViewModel(snapshot: EnvironmentSnapshot(), recordDate: Date())
+        #expect(!vm.canFetchWithoutAd)
+
+        vm.grantAdReward()
+        // 視聴済みなら、通信失敗後の再試行でも広告経路に入らない
+        #expect(vm.canFetchWithoutAd)
+    }
+
     @Test("直前の状況が無い旧バックアップも取り込め、状況は空になる")
     @MainActor
     func importLegacyBackupWithoutTriggers() throws {

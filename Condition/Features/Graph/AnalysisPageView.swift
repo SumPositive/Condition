@@ -906,6 +906,9 @@ private struct AnalysisSymptomCalendarPanel: View {
     action: @escaping () -> Void
   ) -> some View {
     let severity = values.map(\.nSeverity).max() ?? 0
+    // 程度「なし」は症状が出なかった記録なので発症件数に数えない。
+    // 円（最大程度）には残し、「なし」だけの期間は枠線の円で記録があったことを示す
+    let onsetCount = values.filter { $0.severity != .notPresent }.count
     return Button(action: action) {
       VStack(spacing: 0) {
         Text(label)
@@ -915,8 +918,8 @@ private struct AnalysisSymptomCalendarPanel: View {
         // 年・月の下へ程度を置き、円の中央で件数を示す
         ZStack {
           severityCircle(hasRecords: !values.isEmpty, severity: severity, diameter: 38)
-          if !values.isEmpty {
-            Text("\(values.count)")
+          if 0 < onsetCount {
+            Text("\(onsetCount)")
               .font(.caption2.monospacedDigit().weight(.semibold))
               .lineLimit(1)
               .minimumScaleFactor(0.65)

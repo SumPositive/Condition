@@ -683,17 +683,31 @@ struct SettingsView: View {
                 predicate: #Predicate { $0.dateTime < cutoff && $0.dateTime < bodyRecordGoalDate }
             )
             let targets = (try? context.fetch(descriptor)) ?? []
+            // 「3年より古い記録」には症状も含める。発症日時で判定する
+            let symptomDescriptor = FetchDescriptor<SymptomRecord>(
+                predicate: #Predicate { $0.startAt < cutoff }
+            )
+            let symptomTargets = (try? context.fetch(symptomDescriptor)) ?? []
 
             for record in targets {
+                context.delete(record)
+            }
+            for record in symptomTargets {
                 context.delete(record)
             }
 
             do {
                 try context.save()
-                AppAnalytics.shared.logOperation("old_records_prune", parameters: ["record_count": targets.count])
+                AppAnalytics.shared.logOperation(
+                    "old_records_prune",
+                    parameters: ["record_count": targets.count, "symptom_count": symptomTargets.count]
+                )
                 alertItem = .raw(
                     title: String(localized: "settings.share.pruneDoneTitle"),
-                    message: String(format: String(localized: "settings.share.pruneDoneMessage"), targets.count)
+                    message: String(
+                        format: String(localized: "settings.share.pruneDoneMessageBoth"),
+                        targets.count, symptomTargets.count
+                    )
                 )
             } catch {
                 // 保存に失敗したら削除状態を巻き戻し、後続の autosave で一部だけ消える不整合を防ぐ

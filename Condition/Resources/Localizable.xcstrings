@@ -240,6 +240,35 @@
         }
       }
     },
+    "settings.share.pruneDoneMessageBoth" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deleted old records: %1$d measurements and %2$d symptoms."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "測定 %1$d 件・症状 %2$d 件の古い記録を削除しました。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "오래된 기록을 삭제했습니다: 측정 %1$d건 · 증상 %2$d건"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已刪除舊記錄：測量 %1$d 筆・症狀 %2$d 筆。"
+          }
+        }
+      }
+    },
     "symptom.help.remedy" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -16001,35 +16030,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "要清理舊記錄嗎？"
-          }
-        }
-      }
-    },
-    "settings.share.pruneDoneMessage" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Deleted %d old records."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%d 件の古い記録を削除しました。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "오래된 기록 %d건을 삭제했습니다."
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "已刪除 %d 筆舊記錄。"
           }
         }
       }
