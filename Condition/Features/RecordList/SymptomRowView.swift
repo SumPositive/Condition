@@ -137,7 +137,7 @@ struct SymptomRowView: View {
         switch record.progressState {
         case .ongoing:          return "hourglass"
         case .completedKnown:   return "checkmark.circle"
-        case .completedUnknown: return "questionmark.circle"
+        case .completedUnknown: return "smallcircle.filled.circle"
         }
     }
 

@@ -232,7 +232,12 @@ struct SymptomEditView: View {
                 Spacer(minLength: 4)
                 if vm.hasEnded {
                     if vm.progressState == .completedUnknown {
-                        Button("action.unknown") { showEndPicker = true }
+                        Button { showEndPicker = true } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "smallcircle.filled.circle")
+                                Text("action.unknown")
+                            }
+                        }
                     } else {
                         dateButton(date: vm.endAt) { showEndPicker = true }
                     }

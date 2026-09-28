@@ -1359,9 +1359,14 @@ struct DatePickerSheet: View {
                         date = Date()
                     }
                     if let onUnknown {
-                        Button("action.unknown") {
+                        Button {
                             onUnknown()
                             dismiss()
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "smallcircle.filled.circle")
+                                Text("action.unknown")
+                            }
                         }
                     }
                 }

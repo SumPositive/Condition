@@ -1263,7 +1263,7 @@ private struct AnalysisSymptomDayDetailView: View {
             .foregroundStyle(Color.accentColor)
         }
       } else {
-        Label("symptom.progress.finishedUnknown", systemImage: "questionmark.circle")
+        Label("symptom.progress.finishedUnknown", systemImage: "smallcircle.filled.circle")
       }
     }
     .font(.subheadline)
