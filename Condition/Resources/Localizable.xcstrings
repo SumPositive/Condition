@@ -13258,7 +13258,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Graphs & Stats"
+            "value" : "Analysis"
           }
         },
         "ja" : {
@@ -13276,7 +13276,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "圖表與統計"
+            "value" : "分析"
           }
         }
       }
@@ -14418,25 +14418,25 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Aiming to be presbyopia-friendly\n\nUpcoming change\nStandard, Large, and Extra Large will soon be consolidated into Auto.\n\nAuto supports Settings > Accessibility > Display & Text Size > Larger Text, including Larger Accessibility Sizes.\n\nEquivalent system settings for the current options\n\nStandard: Keep Larger Accessibility Sizes off and set the size to 50% (center)\n\nLarge: Keep Larger Accessibility Sizes off and set the size to 100% (far right)\n\nExtra Large: Turn Larger Accessibility Sizes on and set the size to 70% (three notches left from the far right)"
+            "value" : "Choose Auto to use the text size from the system settings.\n\nUpcoming change\nStandard, Large, and Extra Large will soon be consolidated into Auto.\n\nAuto supports Settings > Accessibility > Display & Text Size > Larger Text, including Larger Accessibility Sizes.\n\nEquivalent system settings for the current options\n\nStandard: Keep Larger Accessibility Sizes off and set the size to 50% (center)\n\nLarge: Keep Larger Accessibility Sizes off and set the size to 100% (far right)\n\nExtra Large: Turn Larger Accessibility Sizes on and set the size to 70% (three notches left from the far right)"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ローガンフリーを目指します\n\n【今後の変更】\n近日中に「標準／大／特大」を「自動」に統合します\n\n「自動」は、システム設定の「アクセシビリティ」→「画面表示とテキストサイズ」→「さらに大きな文字」に対応します\n\n現在の各設定は、次のシステム設定と同等です\n\n標準：「さらに大きな文字」をオフのまま、サイズ50％（中央）\n\n大：「さらに大きな文字」をオフのまま、サイズ100％（右端）\n\n特大：「さらに大きな文字」をオンにして、サイズ70％（右端から3ノッチ左）"
+            "value" : "「自動」を選択して、システム設定の文字サイズを利用してください\n\n【今後の変更】\n近日中に「標準／大／特大」を「自動」に統合します\n\n「自動」は、システム設定の「アクセシビリティ」→「画面表示とテキストサイズ」→「さらに大きな文字」に対応します\n\n現在の各設定は、次のシステム設定と同等です\n\n標準：「さらに大きな文字」をオフのまま、サイズ50％（中央）\n\n大：「さらに大きな文字」をオフのまま、サイズ100％（右端）\n\n特大：「さらに大きな文字」をオンにして、サイズ70％（右端から3ノッチ左）"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "노안 프리(돋보기 불필요)를 목표로 합니다\n\n향후 변경 안내\n곧 표준, 크게, 아주 크게를 자동으로 통합합니다.\n\n자동은 설정 > 손쉬운 사용 > 디스플레이 및 텍스트 크기 > 더 큰 텍스트와 더 큰 손쉬운 사용 글자 크기에 대응합니다.\n\n현재 옵션과 동일한 시스템 설정\n\n표준: 더 큰 손쉬운 사용 글자 크기를 끄고 크기를 50%(중앙)로 설정\n\n크게: 더 큰 손쉬운 사용 글자 크기를 끄고 크기를 100%(맨 오른쪽)로 설정\n\n아주 크게: 더 큰 손쉬운 사용 글자 크기를 켜고 크기를 70%(맨 오른쪽에서 세 칸 왼쪽)로 설정"
+            "value" : "자동을 선택해 시스템 설정의 글자 크기를 사용해 주세요.\n\n향후 변경 안내\n곧 표준, 크게, 아주 크게를 자동으로 통합합니다.\n\n자동은 설정 > 손쉬운 사용 > 디스플레이 및 텍스트 크기 > 더 큰 텍스트와 더 큰 손쉬운 사용 글자 크기에 대응합니다.\n\n현재 옵션과 동일한 시스템 설정\n\n표준: 더 큰 손쉬운 사용 글자 크기를 끄고 크기를 50%(중앙)로 설정\n\n크게: 더 큰 손쉬운 사용 글자 크기를 끄고 크기를 100%(맨 오른쪽)로 설정\n\n아주 크게: 더 큰 손쉬운 사용 글자 크기를 켜고 크기를 70%(맨 오른쪽에서 세 칸 왼쪽)로 설정"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "以對老花友善為目標\n\n即將變更\n近期將把「標準／大／特大」整合至「自動」。\n\n「自動」支援「設定」>「輔助使用」>「顯示與文字大小」>「放大文字」，包括「更大的輔助使用字體」。\n\n目前各選項對應的系統設定\n\n標準：關閉「更大的輔助使用字體」，大小設為 50%（中央）\n\n大：關閉「更大的輔助使用字體」，大小設為 100%（最右側）\n\n特大：開啟「更大的輔助使用字體」，大小設為 70%（從最右側向左三格）"
+            "value" : "請選擇「自動」，使用系統設定的文字大小。\n\n即將變更\n近期將把「標準／大／特大」整合至「自動」。\n\n「自動」支援「設定」>「輔助使用」>「顯示與文字大小」>「放大文字」，包括「更大的輔助使用字體」。\n\n目前各選項對應的系統設定\n\n標準：關閉「更大的輔助使用字體」，大小設為 50%（中央）\n\n大：關閉「更大的輔助使用字體」，大小設為 100%（最右側）\n\n特大：開啟「更大的輔助使用字體」，大小設為 70%（從最右側向左三格）"
           }
         }
       }

@@ -1,7 +1,7 @@
-・Added suggestion lists for device and location fields to make entry easier.
-・Tapping the Records tab again now opens the sheet for adding a new record.
-・Improved an issue where the keyboard closed while typing notes.
-・Ads are now limited to a single banner in the header area.
-・Improved the layout on iPad.
-・Rows with no readings at all are now removed and closed up in multiple measurements.
-・Fixed a layout issue with long item names.
+・New: Symptom notes
+　- Record symptoms separately from measurements
+　- Record when a symptom started and when it ended
+　- Record the environment (temperature, pressure) and what came before onset, and analyze them
+・Measurements can now record the environment (temperature, pressure) too.
+・Graphs and statistics are no longer separate. Place any chart freely on three new tabs.
+・Fixed an issue where pressing Return in a note confirmed the input.

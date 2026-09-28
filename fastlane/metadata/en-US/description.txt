@@ -1,6 +1,6 @@
 Record and review your vitals — blood pressure, heart rate, temperature, weight and more.
 
-A health diary that works with Apple Health to manage blood pressure, heart rate, weight, body temperature, steps, body fat, and skeletal muscle all in one place. Log entries quickly with an intuitive dial, and see how your body changes at a glance through graphs and statistics.
+A health diary that works with Apple Health to manage blood pressure, heart rate, weight, body temperature, steps, body fat, and skeletal muscle all in one place. Log entries quickly with an intuitive dial, and see how your body changes at a glance through graphs and statistics. You can also record symptoms such as headaches or stiff shoulders together with the environment, like temperature and pressure, and what came before, then look back on them.
 
 ■ Apple HealthKit Sync
 Data you record is synced automatically to the Health app. You can also import data from Health, so readings from Apple Watch, body composition scales, and other devices are managed together.
@@ -12,9 +12,16 @@ Data you record is synced automatically to the Health app. You can also import d
 ・Weight / BMI / body fat / skeletal muscle
 ・Steps
 
+■ Symptom Notes
+・Record symptoms such as headaches, stiff shoulders, or dizziness with onset and end times and severity
+・Record the environment: temperature, humidity, pressure, and 24-hour pressure change (fetched from the Japan Meteorological Agency in Japan)
+・Tag what came before, such as lack of sleep or stress, and what you did, such as medicine or rest
+・See patterns with the onset calendar, onset periodicity, onsets and environment, and onsets and what came before
+
 ■ Main Features
 ・Dial input: intuitive, just spin to set a value
 ・Categories: auto-selected by time of day — waking, before bed, before/after exercise, and more
+・Analysis: place graph, statistics, and symptom charts freely on three tabs
 ・Graphs: view trends visually from weekly to yearly
 ・Statistics: detailed analysis such as BP distribution (JSH criteria) and weight summary
 ・Appearance: choose Light, Dark, or system Auto
@@ -23,5 +30,6 @@ Data you record is synced automatically to the Health app. You can also import d
 ■ Great For
 ・Managing Apple Watch and body-scale data all together
 ・Keeping a careful daily record and analysis of blood pressure and weight
+・Understanding patterns in recurring symptoms such as headaches or stiff shoulders
 ・Having your records ready at hand for doctor visits
 ・Anyone working on dieting or better health

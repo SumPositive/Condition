@@ -72,15 +72,23 @@ struct SettingsView: View {
     ]
 
     private var aboutURL: URL {
-        let isJapanese = Locale.preferredLanguages.first?.hasPrefix("ja") ?? false
-        let urlString = isJapanese
-            ? "https://docs.azukid.com/jp/sumpo/Condition/condition.html"
-            : "https://docs.azukid.com/en/sumpo/Condition/condition.html"
+        let urlString = "https://docs.azukid.com/\(manualLocaleDirectory)/sumpo/Condition/condition.html"
         var components = URLComponents(string: urlString)!
         components.queryItems = [
             URLQueryItem(name: "fontScale", value: webFontScaleValue)
         ]
         return components.url!
+    }
+
+    /// 取扱説明のロケール。アプリが実際に表示している言語に合わせる
+    /// （端末の言語ではなく、アプリ単位の言語設定も反映される preferredLocalizations を使う）。
+    /// 取扱説明は ja / en / ko / zh-Hant があり、日本語だけディレクトリ名が jp
+    private var manualLocaleDirectory: String {
+        let language = Bundle.main.preferredLocalizations.first ?? "en"
+        if language.hasPrefix("ja") { return "jp" }
+        if language.hasPrefix("ko") { return "ko" }
+        if language.hasPrefix("zh-Hant") { return "zh-Hant" }
+        return "en"
     }
 
     private var webFontScaleValue: String {

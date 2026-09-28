@@ -2,10 +2,10 @@
 
 この `README.md` は、開発者向けの設計メモです。
 
-**最新バージョン**: 2.8.3（公開中）
+**最新バージョン**: 2.9.0（準備中）
 
 **User Guide**  
-[English](https://docs.azukid.com/en/sumpo/Condition/condition.html) / [日本語](https://docs.azukid.com/jp/sumpo/Condition/condition.html)
+[English](https://docs.azukid.com/en/sumpo/Condition/condition.html) / [日本語](https://docs.azukid.com/jp/sumpo/Condition/condition.html) / [한국어](https://docs.azukid.com/ko/sumpo/Condition/condition.html) / [繁體中文](https://docs.azukid.com/zh-Hant/sumpo/Condition/condition.html)
 
 ![Platform](https://img.shields.io/badge/platform-iOS%2017%2B-blue)
 ![Swift](https://img.shields.io/badge/Swift-6-orange)
@@ -13,7 +13,7 @@
 
 ## 概要
 
-Condition は、血圧、心拍数、体温、体重、体脂肪率、骨格筋率などを記録して、日々の変化を確認するためのアプリです。
+Condition は、血圧、心拍数、体温、体重、体脂肪率、骨格筋率などを記録して、日々の変化を確認するためのアプリです。2.9.0 からは、頭痛・肩こりなどの症状を、発症時の環境や直前の状況と一緒に記録して分析する「症状メモ」を備えます。
 
 2012 年に公開した旧版を、2026 年に SwiftUI / SwiftData ベースで再構築しました。旧 Core Data 版の記録は、初回起動時に SwiftData へ自動移行します。
 
@@ -26,13 +26,17 @@ App Store の公開名は言語ごとに異なります（日本語: 体調メ�
 - 血圧の測定部位（左右の腕・手首）を「L・R」で指定 — 記録一覧に表示、統計に左右差パネル
 - 測定タイミングの自動分類 — 起床時、安静時、就寝前、就寝時、運動前、運動後
 - 区分（測定タイミング）の並べ替え、アイコン・名称・色のカスタマイズ、記録一覧の区分フィルター
-- 起動時に開く画面の選択 — 何もしない／新しい記録／記録一覧／グラフ／統計
+- 起動時に開く画面の選択 — 何もしない／新しい記録／記録一覧／分析1〜3
 - [AZDial](https://github.com/SumPositive/AZDial) によるダイアル入力 — ハプティック付きのスクロールホイール操作
 - Apple ヘルスケア連携 — 書き込みのみ、読み込みのみ、双方向を選択可能
-- グラフ表示 — 1週間、1ヶ月、3ヶ月、6ヶ月、1年の期間を切り替え
-- 補助グラフ — 平均血圧、体重移動平均などを表示可能
-- 統計分析 — 血圧分布・JSH 基準比率・測定タイミング相関・血圧の左右差・体重×血圧相関散布図など
-- PDF、CSV、JSON での書き出し
+- 症状メモ — 症状・発症／終息日時・程度・直前の状況・対処・メモを記録（測定と同じ一覧に時系列で表示）
+- 環境の記録 — 気温・湿度・気圧・24時間気圧差（国内は気象庁アメダスから取得）、室温・室内湿度、端末の気圧計。症状・測定の両方で記録可能
+- 分析1〜3 — グラフ・統計・症状の図表を3ページへ自由に配置（期間は 1週間〜1年をページごとに切り替え）
+- グラフ — 血圧・脈圧・心拍数・体温・体重・体重変化量・体脂肪率・骨格筋率・BMI、補助グラフ（平均血圧、体重移動平均など）
+- 統計 — 血圧分布・JSH 基準比率・測定タイミング相関・血圧の左右差・体重×血圧相関散布図など
+- 症状の分析 — 発症カレンダー・発症の周期性・発症と環境・発症と直前の状況
+- 記録一覧の絞り込み — すべて／測定（区分）／症状（症状名）
+- PDF、CSV、JSON での書き出し（記録一覧の絞り込みに従う）、全記録の JSON バックアップ
 - 表示項目と並び順のカスタマイズ
 - 外観モード — 自動、ライト、ダーク
 - ダイアル設定 — デザイン、回しやすさ、反応を調整可能
@@ -45,14 +49,16 @@ App Store の公開名は言語ごとに異なります（日本語: 体調メ�
 Condition/
 ├── Components/       — 共通 UI コンポーネント
 ├── Core/
-│   ├── Models/       — BodyRecord、DateOpt、MeasureRange
+│   ├── Models/       — BodyRecord、SymptomRecord、SymptomCatalog、EnvironmentSnapshot、AnalysisLayout、DateOpt
 │   ├── DataStore/    — SwiftData 設定、旧 Core Data からの移行
-│   ├── Services/     — HealthKitService、PDFPanelExporter
+│   ├── Services/     — HealthKitService、RecordsJSONIO、JMAWeatherService、DevicePressureService、PDFPanelExporter
 │   └── Settings/     — AppSettings、設定キー、TipStore
 ├── Features/
 │   ├── RecordList/   — 記録一覧、エクスポート
 │   ├── RecordEdit/   — 記録入力、編集、ダイアル入力
-│   ├── Graph/        — グラフ表示、PDF 出力
+│   ├── SymptomEdit/  — 症状の記録、症状・直前の状況・対処のタグ選択
+│   ├── Environment/  — 環境（気象・室内・端末気圧）の入力シート
+│   ├── Graph/        — 分析ページ（AnalysisPageView）、グラフ表示、PDF 出力
 │   ├── Statistics/   — 統計表示、PDF 出力
 │   └── Settings/     — 設定画面
 └── Resources/        — アセット、ローカライズ、Info.plist
@@ -105,6 +111,34 @@ Condition/
 ---
 
 ## 開発者メモ
+
+### 症状メモ設計（2.9.0）
+
+**データ**
+- `SymptomRecord`（SwiftData）は 1 レコード 1 症状。症状・直前の状況・対処は表示名ではなく ID で保存する（4 言語で集計キーが割れないように）
+- 直前の状況・対処は複数持てるので、ID 配列を JSON 文字列（`sTriggerIDs` / `sMedicineIDs`）で持ち、`triggerIDs` / `medicineIDs` でアクセスする。1 件あたり各 10 個まで
+- 終息していない記録は `bOngoing = true`・`endAt = nil`。一覧の砂時計で後から閉じる
+- 環境は `EnvironmentSnapshot` で測定記録と共通。0℃・0%・変化量 0 は有効値なので、値ではなく入力有無フラグ（`bTempSet` など）で判定する
+
+**タグ（症状・直前の状況・対処）**
+- 内蔵辞書 `SymptomCatalog` / `TriggerCatalog` / `MedicineCatalog`（各 10 件）は読み取り専用。利用者が選んだものだけがタグリスト（UserDefaults に JSON、`KVS_SettSymptomTags` / `KVS_SettTriggerTags` / `KVS_SettMedicineTags`）に入る
+- ユーザー追加タグの ID は `u:<UUID>`。削除は非表示のみ（過去の記録が名前を参照するため）。並びは最終使用日時の降順（MRU）
+- 種類ごとの分岐は `SymptomTagKind` の拡張（`tagList` / `displayName(of:)` / 辞書の引き先）に集約
+- 辞書を変えたら `SymptomTagMigration.catalogVersion` を上げる。起動時に一度だけ、名前の引き先が無いタグの片付けと、辞書と同名の自作タグの統合を行う
+- 直前の状況の未選択は「思い当たらない」として扱う（専用タグは持たない）
+
+**分析**
+- 図表 ID は `AnalysisPanelID`（名前空間付き文字列で永続化）。追加した図表は `AnalysisLayout.normalize()` が既定ページの末尾へ補う
+- 発症件数は発症日時で数える（`SymptomAnalysisRange.containsStart`）。日をまたいで終息しても 2 件にしない。程度「なし」は数えない
+- 発症カレンダーは上部の期間に関係なく年・月・日でたどる
+- 周期性は単一症状の発症間隔の中央値とばらつきから推定（4 件以上）
+
+**書き出し・バックアップ**
+- 記録一覧の書き出し（PDF・CSV・JSON）は一覧の絞り込み（種別・区分・症状）に従う。CSV は測定と症状を別の表にする
+- 設定の「全記録を書き出す」（`RecordsJSONIO`、schemaVersion 2）は症状・タグリストを含む。直前の状況は任意項目の追加なので版は上げていない
+
+**スクリーンショット**
+- `SnapshotSeed` が症状 22 件（直前の状況・対処・環境つき、環境は地名なしの手入力扱い）を投入する。分析3は上部と下へ送った位置の 2 カット
 
 ### 区分推定アルゴリズム
 
