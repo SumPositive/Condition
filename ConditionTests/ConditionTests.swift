@@ -2312,6 +2312,41 @@ private func makeSymptomInMemoryContainer() throws -> ModelContainer {
 @Suite("Symptom Trigger Tests")
 struct SymptomTriggerTests {
 
+    @Test("続けて記録は同時発生に共通する項目だけを引き継ぐ")
+    @MainActor
+    func continuationCarriesSharedValuesOnly() {
+        let start = Date(timeIntervalSince1970: 1_780_000_000)
+        var environment = EnvironmentSnapshot()
+        environment.source = .manual
+        environment.temp_10c = 245
+        environment.isTempSet = true
+
+        let vm = SymptomEditViewModel(mode: .addNew)
+        vm.startAt = start
+        vm.endAt = start.addingTimeInterval(3600)
+        vm.hasEnded = true
+        vm.symptomID = "headache"
+        vm.severity = .severe
+        vm.note = "強い痛み"
+        vm.medicineIDs = ["analgesic"]
+        vm.triggerIDs = ["lackOfSleep", "stress"]
+        vm.environment = environment
+
+        let next = vm.makeContinuation()
+
+        #expect(next.startAt == start)
+        #expect(next.environment == environment)
+        #expect(next.triggerIDs == ["lackOfSleep", "stress"])
+        #expect(next.symptomID.isEmpty)
+        #expect(next.severity == .defaultForNewRecord)
+        #expect(next.medicineIDs.isEmpty)
+        #expect(next.note.isEmpty)
+        #expect(!next.hasEnded)
+        #expect(next.endAt == start)
+        #expect(!next.isModified)
+        #expect(!next.canSave)
+    }
+
     @Test("直前の状況IDは JSON で往復し、空や壊れた値は空配列になる")
     func triggerIDsAccessor() {
         let record = SymptomRecord(startAt: Date(), symptomID: "headache")

@@ -6,7 +6,6 @@ import SwiftData
 
 struct SymptomEditView: View {
 
-    let mode: SymptomEditViewModel.Mode
     var onModifiedChanged: ((Bool) -> Void)? = nil
 
     @Environment(\.modelContext) private var context
@@ -25,14 +24,13 @@ struct SymptomEditView: View {
     @State private var showEndPicker = false
     @State private var didEnterBackground = false
     @State private var showStaleDateAlert = false
-    /// 保存後に「続けて記録」で2件目を作るかの確認
-    @State private var showContinueSheet = false
+    /// 保存後に同時発生した2件目を記録するかの確認
+    @State private var showContinueAlert = false
     @FocusState private var noteFocused: Bool
 
     private var settings: AppSettings { AppSettings.shared }
 
     init(mode: SymptomEditViewModel.Mode, onModifiedChanged: ((Bool) -> Void)? = nil) {
-        self.mode = mode
         self.onModifiedChanged = onModifiedChanged
         _vm = State(initialValue: SymptomEditViewModel(mode: mode))
     }
@@ -43,6 +41,9 @@ struct SymptomEditView: View {
                 dateSection
                 symptomSection
                 noteSection
+                if isEditingRecord {
+                    continuationSection
+                }
             }
             // メモを打ったあと下へスクロールしたらキーボードを引き下げる。
             // 複数行入力なので、指の動きに追従する .interactively にする
@@ -149,6 +150,12 @@ struct SymptomEditView: View {
             } message: {
                 Text("record.datetime.stale.message")
             }
+            .alert("symptom.continue.title", isPresented: $showContinueAlert) {
+                Button("symptom.continue.addAnother") { prepareContinuation() }
+                Button("action.close", role: .cancel) { dismiss() }
+            } message: {
+                Text("symptom.continue.message")
+            }
             // 未保存の変更があるときはスワイプで閉じさせない（測定シートと同じ）。
             // 破棄はキャンセルの二段タップでのみ行う
             .interactiveDismissDisabled(vm.isModified)
@@ -178,7 +185,12 @@ struct SymptomEditView: View {
     // MARK: - 日時
 
     private var isNewRecord: Bool {
-        if case .addNew = mode { return true }
+        if case .addNew = vm.mode { return true }
+        return false
+    }
+
+    private var isEditingRecord: Bool {
+        if case .edit = vm.mode { return true }
         return false
     }
 
@@ -421,6 +433,21 @@ struct SymptomEditView: View {
         }
     }
 
+    /// 編集中の記録と同時に出た別の症状を追加する導線
+    private var continuationSection: some View {
+        Section {
+            Button {
+                saveAndContinue()
+            } label: {
+                Label("symptom.continue.addAnother", systemImage: "plus.circle")
+                    .frame(maxWidth: .infinity, alignment: .center)
+            }
+            .disabled(!vm.canSave)
+        } footer: {
+            Text("symptom.continue.editHelp")
+        }
+    }
+
     // MARK: - 環境（天候・室内・端末気圧）
 
     /// 中身は測定記録と共用の環境シートに置く。
@@ -508,7 +535,27 @@ struct SymptomEditView: View {
     private func saveAndDismiss() {
         guard vm.save(in: context) != nil else { return }
         onModifiedChanged?(false)
-        dismiss()
+        // 編集時は従来どおり閉じ、新規時だけ同時に出た症状を追加できるようにする
+        if isNewRecord {
+            showContinueAlert = true
+        } else {
+            dismiss()
+        }
+    }
+
+    /// 編集内容を保存してから、同時発生した症状の入力へ移る
+    private func saveAndContinue() {
+        guard vm.save(in: context) != nil else { return }
+        onModifiedChanged?(false)
+        prepareContinuation()
+    }
+
+    /// 1件目と同時に出た症状の入力へ切り替える
+    private func prepareContinuation() {
+        noteFocused = false
+        clearCancelArmed()
+        vm = vm.makeContinuation()
+        onModifiedChanged?(false)
     }
 
     /// 辞書から選ばれたタグをタグリストへ入れる

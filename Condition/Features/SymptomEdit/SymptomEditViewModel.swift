@@ -115,6 +115,25 @@ final class SymptomEditViewModel {
         }
     }
 
+    /// 同時に出た別の症状を続けて記録するための入力状態を作る
+    /// 発症日時・環境・直前の状況だけを引き継ぎ、症状固有の入力は初期化する
+    func makeContinuation() -> SymptomEditViewModel {
+        let next = SymptomEditViewModel(mode: .addNew)
+        next.isLoading = true
+        next.startAt = startAt
+        next.endAt = startAt
+        next.hasEnded = false
+        next.symptomID = ""
+        next.severity = .defaultForNewRecord
+        next.note = ""
+        next.medicineIDs = []
+        next.triggerIDs = triggerIDs
+        next.environment = environment
+        next.isLoading = false
+        next.isModified = false
+        return next
+    }
+
     // MARK: - 保存
 
     /// 入力値をモデルへ書き戻す。新規なら挿入して返す
