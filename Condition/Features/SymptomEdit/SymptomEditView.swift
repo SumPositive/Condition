@@ -458,7 +458,8 @@ struct SymptomEditView: View {
     private var environmentSummary: String {
         let snapshot = vm.environment
         var parts: [String] = []
-        if snapshot.source.isPresent, snapshot.temp_10c != 0 {
+        // 0℃は有効値なので、値ではなく入力有無フラグで判定する
+        if snapshot.isTempSet {
             parts.append(String(format: "%.1f℃", Double(snapshot.temp_10c) / 10))
         }
         if snapshot.pressure_10hpa > 0 {

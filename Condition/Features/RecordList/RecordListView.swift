@@ -29,6 +29,8 @@ struct RecordListView: View {
     @State private var showHKTimeoutAlert = false
     /// 区分フィルター（nil = 全区分表示）
     @State private var categoryFilter: DateOpt? = nil
+    /// 症状フィルター（nil = 全症状表示）。症状ID
+    @State private var symptomFilter: String? = nil
 
     private var settings: AppSettings { AppSettings.shared }
     private var hkService: HealthKitService { HealthKitService.shared }
@@ -94,7 +96,27 @@ struct RecordListView: View {
 
     /// 絞り込み後の症状記録。区分フィルターは測定側の概念なので症状には掛けない
     private var visibleSymptomRecords: [SymptomRecord] {
-        settings.recordDomain.includesSymptom ? symptomRecords : []
+        guard settings.recordDomain.includesSymptom else { return [] }
+        guard let symptomFilter else { return symptomRecords }
+        return symptomRecords.filter { $0.sSymptomID == symptomFilter }
+    }
+
+    /// 絞り込みに出す症状。記録がある症状を件数の多い順に並べる
+    private var filterSymptomIDs: [String] {
+        let counts = symptomRecords.reduce(into: [String: Int]()) { counts, record in
+            guard !record.sSymptomID.isEmpty else { return }
+            counts[record.sSymptomID, default: 0] += 1
+        }
+        return counts.keys.sorted { lhs, rhs in
+            let l = counts[lhs, default: 0]
+            let r = counts[rhs, default: 0]
+            if l != r { return r < l }
+            return symptomName(lhs).localizedStandardCompare(symptomName(rhs)) == .orderedAscending
+        }
+    }
+
+    private func symptomName(_ id: String) -> String {
+        (settings.symptomTags.tag(for: id) ?? SymptomTag(id: id)).symptomDisplayName
     }
 
     /// 測定と症状を1つの時系列へ混ぜた行。
@@ -251,7 +273,15 @@ struct RecordListView: View {
                 SymptomEditView(mode: .edit(record))
             }
             .sheet(isPresented: $showExportSheet) {
-                ExportSheetView(records: categoryFilteredRecords, visibleKinds: visibleRecordKinds)
+                // 書き出しも一覧の絞り込み（種別・区分・症状）どおりにする
+                ExportSheetView(
+                    records: settings.recordDomain.includesMeasurement ? categoryFilteredRecords : [],
+                    symptoms: visibleSymptomRecords,
+                    visibleKinds: visibleRecordKinds,
+                    domain: settings.recordDomain,
+                    categoryName: categoryFilter?.displayName,
+                    symptomName: symptomFilter.map { symptomName($0) }
+                )
             }
             // 新規の複数回測定（表形式）シートは ConditionApp のルートレベルで
             // settings.showMeasurementAvgSheet により呈示する（起動時アクションと共通）。
@@ -304,32 +334,61 @@ struct RecordListView: View {
 
     // MARK: - 区分フィルター
 
-    /// 区分で絞り込むメニュー。デフォルトは全区分表示、1区分を選ぶと絞り込む
+    /// 種別で絞り込むメニュー。「測定」「症状」は右へ展開するサブメニューにし、
+    /// 測定なら区分、症状なら症状名まで1回の操作で選べるようにする。
+    /// 選んだ種別と絞り込みは、サブメニュー見出しの2行目にも出す
     @ViewBuilder
     private var categoryFilterMenu: some View {
         Menu {
-            Picker("filter.domain.title", selection: Bindable(settings).recordDomain) {
-                ForEach(RecordDomain.allCases) { domain in
-                    Label(
-                        NSLocalizedString(domain.labelKey, comment: ""),
-                        systemImage: domain.icon
-                    )
-                    .tag(domain)
+            // 「すべて」は展開先が無いので、チェックを出せる Toggle で置く
+            Toggle(isOn: Binding(
+                get: { settings.recordDomain == .all },
+                set: { if $0 { selectFilter(domain: .all) } }
+            )) {
+                Label(
+                    NSLocalizedString(RecordDomain.all.labelKey, comment: ""),
+                    systemImage: RecordDomain.all.icon
+                )
+            }
+
+            Menu {
+                Picker("filter.category.title", selection: measurementFilterSelection) {
+                    Text("filter.category.all").tag(FilterSelection.all)
+                    ForEach(settings.orderedDefinedDateOpts, id: \.self) { opt in
+                        Label {
+                            Text(opt.displayName)
+                        } icon: {
+                            Image(systemName: opt.icon)
+                        }
+                        .tag(FilterSelection.item(String(opt.rawValue)))
+                    }
+                }
+            } label: {
+                Label {
+                    Text(LocalizedStringKey(RecordDomain.measurement.labelKey))
+                    if settings.recordDomain == .measurement {
+                        Text(categoryFilter?.displayName ?? String(localized: "filter.category.all"))
+                    }
+                } icon: {
+                    Image(systemName: RecordDomain.measurement.icon)
                 }
             }
-            // 区分は測定側の概念なので、症状だけを見ているときは出さない
-            if settings.recordDomain.includesMeasurement {
-                Divider()
-                Picker("filter.category.title", selection: $categoryFilter) {
-                Text("filter.category.all").tag(DateOpt?.none)
-                ForEach(settings.orderedDefinedDateOpts, id: \.self) { opt in
-                    Label {
-                        Text(opt.displayName)
-                    } icon: {
-                        Image(systemName: opt.icon)
+
+            Menu {
+                Picker("filter.symptom.title", selection: symptomFilterSelection) {
+                    Text("filter.symptom.all").tag(FilterSelection.all)
+                    ForEach(filterSymptomIDs, id: \.self) { id in
+                        Text(symptomName(id)).tag(FilterSelection.item(id))
                     }
-                    .tag(DateOpt?.some(opt))
+                }
+            } label: {
+                Label {
+                    Text(LocalizedStringKey(RecordDomain.symptom.labelKey))
+                    if settings.recordDomain == .symptom {
+                        Text(symptomFilter.map { symptomName($0) } ?? String(localized: "filter.symptom.all"))
                     }
+                } icon: {
+                    Image(systemName: RecordDomain.symptom.icon)
                 }
             }
         } label: {
@@ -344,9 +403,57 @@ struct RecordListView: View {
         }
     }
 
-    /// 絞り込みが効いているか（区分・種別のどちらか）
+    /// サブメニュー内の選択肢。選んでいない種別のサブメニューには
+    /// チェックを出さないよう、どの選択肢とも一致しない .none を返す
+    private enum FilterSelection: Hashable {
+        case none
+        case all
+        case item(String)
+    }
+
+    private var measurementFilterSelection: Binding<FilterSelection> {
+        Binding(
+            get: {
+                guard settings.recordDomain == .measurement else { return .none }
+                return categoryFilter.map { .item(String($0.rawValue)) } ?? .all
+            },
+            set: { selection in
+                switch selection {
+                case .none: return
+                case .all: selectFilter(domain: .measurement)
+                case .item(let raw):
+                    selectFilter(domain: .measurement, category: Int(raw).flatMap(DateOpt.init(rawValue:)))
+                }
+            }
+        )
+    }
+
+    private var symptomFilterSelection: Binding<FilterSelection> {
+        Binding(
+            get: {
+                guard settings.recordDomain == .symptom else { return .none }
+                return symptomFilter.map { .item($0) } ?? .all
+            },
+            set: { selection in
+                switch selection {
+                case .none: return
+                case .all: selectFilter(domain: .symptom)
+                case .item(let id): selectFilter(domain: .symptom, symptom: id)
+                }
+            }
+        )
+    }
+
+    /// 種別と絞り込みをまとめて切り替える。別の種別の絞り込みは残さない
+    private func selectFilter(domain: RecordDomain, category: DateOpt? = nil, symptom: String? = nil) {
+        settings.recordDomain = domain
+        categoryFilter = category
+        symptomFilter = symptom
+    }
+
+    /// 絞り込みが効いているか（種別・区分・症状のいずれか）
     private var isFilterActive: Bool {
-        categoryFilter != nil || settings.recordDomain != .all
+        categoryFilter != nil || symptomFilter != nil || settings.recordDomain != .all
     }
 
     // MARK: - リスト
@@ -1154,7 +1261,14 @@ private struct ExportSortOption: Hashable, Identifiable {
 
 private struct ExportSheetView: View {
     let records: [BodyRecord]
+    let symptoms: [SymptomRecord]
     let visibleKinds: [GraphKind]
+    /// 一覧の種別の絞り込み（すべて／測定／症状）
+    let domain: RecordDomain
+    /// 一覧で絞り込んでいる区分名。nil は全区分
+    let categoryName: String?
+    /// 一覧で絞り込んでいる症状名。nil は全症状
+    let symptomName: String?
     @Environment(\.dismiss) private var dismiss
     private let cal = Calendar.current
     private var settings: AppSettings { AppSettings.shared }
@@ -1171,17 +1285,64 @@ private struct ExportSheetView: View {
     @State private var showExportCompletedAlert = false
     @State private var showExportFailedAlert = false
 
-    init(records: [BodyRecord], visibleKinds: [GraphKind]) {
+    init(
+        records: [BodyRecord],
+        symptoms: [SymptomRecord],
+        visibleKinds: [GraphKind],
+        domain: RecordDomain,
+        categoryName: String?,
+        symptomName: String?
+    ) {
         self.records = records
+        self.symptoms = symptoms
         self.visibleKinds = visibleKinds
+        self.domain = domain
+        self.categoryName = categoryName
+        self.symptomName = symptomName
         _fromDate = State(initialValue: Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date())
     }
 
-    private var targetRecords: [BodyRecord] {
+    private var periodRange: Range<Date> {
         let start = cal.startOfDay(for: fromDate)
         let end   = cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: toDate)) ?? toDate
-        return records.filter { $0.dateTime >= start && $0.dateTime < end }
+        return start..<max(start, end)
+    }
+
+    private var targetRecords: [BodyRecord] {
+        let range = periodRange
+        return records.filter { range.contains($0.dateTime) }
                       .sorted { ascending ? $0.dateTime < $1.dateTime : $0.dateTime > $1.dateTime }
+    }
+
+    /// 期間内に発症した症状。測定と同じ並び順にする
+    private var targetSymptoms: [SymptomRecord] {
+        let range = periodRange
+        return symptoms.filter { range.contains($0.startAt) }
+                       .sorted { ascending ? $0.startAt < $1.startAt : $0.startAt > $1.startAt }
+    }
+
+    /// PDF で測定と症状を1つの時系列に混ぜた行（一覧と同じ見せ方）
+    private var targetRows: [RecordListRow] {
+        let rows = targetRecords.map { RecordListRow.measurement($0) }
+            + targetSymptoms.map { RecordListRow.symptom($0) }
+        return rows.sorted { ascending ? $0.sortDate < $1.sortDate : $0.sortDate > $1.sortDate }
+    }
+
+    private var isEmptyTarget: Bool { targetRecords.isEmpty && targetSymptoms.isEmpty }
+
+    /// 対象件数の表示。種別が両方なら内訳を出す
+    private var targetCountText: String {
+        switch domain {
+        case .all:
+            return String(
+                format: String(localized: "export.targetCount.both"),
+                targetRecords.count, targetSymptoms.count
+            )
+        case .measurement:
+            return String(format: String(localized: "format.recordCount"), targetRecords.count)
+        case .symptom:
+            return String(format: String(localized: "format.recordCount"), targetSymptoms.count)
+        }
     }
 
     private var sortSelectionBinding: Binding<ExportSortOption> {
@@ -1197,6 +1358,19 @@ private struct ExportSheetView: View {
     var body: some View {
         let content = NavigationStack {
             Form {
+                // 出力対象は一覧の絞り込みに従うので、期間より先に条件を示す
+                Section("export.filterCondition") {
+                    if domain.includesMeasurement {
+                        LabeledContent("filter.domain.measurement") {
+                            Text(categoryName ?? String(localized: "filter.category.all"))
+                        }
+                    }
+                    if domain.includesSymptom {
+                        LabeledContent("filter.domain.symptom") {
+                            Text(symptomName ?? String(localized: "filter.symptom.all"))
+                        }
+                    }
+                }
                 Section("filter.period") {
                     DatePicker("filter.start",
                                selection: $fromDate, in: ...toDate,
@@ -1240,7 +1414,7 @@ private struct ExportSheetView: View {
                     HStack {
                         Text("export.targetCount")
                         Spacer()
-                        Text(String(format: String(localized: "format.recordCount"), targetRecords.count))
+                        Text(targetCountText)
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -1267,7 +1441,7 @@ private struct ExportSheetView: View {
                             Text("action.export").bold()
                         }
                     }
-                    .disabled(targetRecords.isEmpty || isGenerating)
+                    .disabled(isEmptyTarget || isGenerating)
                 }
             }
             .overlay { if isGenerating { exportingOverlay } }
@@ -1409,10 +1583,21 @@ private struct ExportSheetView: View {
         }
         let df = ISO8601DateFormatter()
         df.formatOptions = [.withFullDate, .withDashSeparatorInDate]
-        let envelope: [String: Any] = [
+        var envelope: [String: Any] = [
             "exportDate": df.string(from: Date()),
             "records": result,
         ]
+        // 症状はバックアップと同じ形で出す（表示名と ID の両方）
+        if !targetSymptoms.isEmpty {
+            envelope["symptoms"] = targetSymptoms.map {
+                RecordsJSONIO.symptomObject(
+                    $0, iso: iso,
+                    symptomTags: settings.symptomTags,
+                    medicineTags: settings.medicineTags,
+                    triggerTags: settings.triggerTags
+                )
+            }
+        }
         return (try? JSONSerialization.data(withJSONObject: envelope,
                                            options: [.prettyPrinted, .sortedKeys])) ?? Data()
     }
@@ -1459,7 +1644,11 @@ private struct ExportSheetView: View {
         let df = DateFormatter()
         df.setLocalizedDateFormatFromTemplate("yMdEEEEEHmm")
 
-        var rows: [String] = [headers.joined(separator: ",")]
+        var rows: [String] = []
+        // 測定の表。症状だけを書き出すときは出さない
+        let includesMeasurementTable = domain.includesMeasurement
+            && (!targetRecords.isEmpty || targetSymptoms.isEmpty)
+        if includesMeasurementTable { rows.append(headers.joined(separator: ",")) }
         for r in targetRecords {
             var fields = [escape(df.string(from: r.dateTime)), escape(r.dateOpt.displayName)]
             for kind in visibleKinds {
@@ -1485,15 +1674,74 @@ private struct ExportSheetView: View {
             rows.append(fields.joined(separator: ","))
         }
 
+        // 症状の表。列が測定と違うので、空行を挟んで別の表として続ける
+        if !targetSymptoms.isEmpty {
+            if !rows.isEmpty { rows.append("") }
+            rows.append(symptomCSVHeaders().map(escape).joined(separator: ","))
+            for record in targetSymptoms {
+                rows.append(symptomCSVFields(record, dateFormatter: df).map(escape).joined(separator: ","))
+            }
+        }
+
         // UTF-8 BOM を先頭に付加することで Excel が文字化けなく開ける
         return "\u{FEFF}" + rows.joined(separator: "\r\n")
+    }
+
+    private func symptomCSVHeaders() -> [String] {
+        let L = { NSLocalizedString($0, comment: "") }
+        let metric = { (key: String, unit: String) in "\(L(key)) (\(unit))" }
+        return [
+            L("symptom.startAt"),
+            L("symptom.endAt"),
+            L("symptom.section.symptom"),
+            L("symptom.severity"),
+            L("export.symptom.duration"),
+            L("symptom.section.trigger"),
+            L("symptom.section.remedy"),
+            metric("analysis.environment.metric.outdoorTemp", "℃"),
+            metric("analysis.environment.metric.outdoorHumidity", "%"),
+            metric("analysis.environment.metric.stationPressure", "hPa"),
+            metric("analysis.environment.metric.pressureDelta", "hPa"),
+            metric("analysis.environment.metric.indoorTemp", "℃"),
+            metric("analysis.environment.metric.indoorHumidity", "%"),
+            metric("analysis.environment.metric.devicePressure", "hPa"),
+            L("symptom.section.note"),
+        ]
+    }
+
+    /// 症状1件の CSV の値。0℃・0%は有効値なので入力有無フラグで出し分ける
+    private func symptomCSVFields(_ r: SymptomRecord, dateFormatter df: DateFormatter) -> [String] {
+        let decimal = { (value: Int) in String(format: "%.1f", Double(value) / 10.0) }
+        let end: String
+        if let endAt = r.endAt {
+            end = df.string(from: endAt)
+        } else {
+            end = r.bOngoing ? String(localized: "analysis.ongoing") : ""
+        }
+        return [
+            df.string(from: r.startAt),
+            end,
+            SymptomExportText.symptomName(r),
+            NSLocalizedString(r.severity.labelKey, comment: ""),
+            SymptomExportText.duration(r) ?? "",
+            SymptomExportText.triggerNames(r).joined(separator: "・"),
+            SymptomExportText.remedyNames(r).joined(separator: "・"),
+            r.bTempSet ? decimal(r.nTemp_10c) : "",
+            r.bHumiditySet ? "\(r.nHumidity_p)" : "",
+            r.nPressure_10hpa != 0 ? decimal(r.nPressure_10hpa) : "",
+            r.bPressureDelta24hSet ? decimal(r.nPressureDelta24h_10hpa) : "",
+            r.bIndoorTempSet ? decimal(r.nIndoorTemp_10c) : "",
+            r.bIndoorHumiditySet ? "\(r.nIndoorHumidity_p)" : "",
+            r.nDevicePressure_10hpa != 0 ? decimal(r.nDevicePressure_10hpa) : "",
+            r.sNote,
+        ]
     }
 
     // MARK: - PDF（A4 改ページ対応）
 
     @MainActor
     private func generatePDF() -> Data {
-        let pages = paginateRecords(targetRecords)
+        let pages = paginateRows(targetRows)
         var mediaBox = CGRect(x: 0, y: 0, width: PDFLayout.pageW, height: PDFLayout.pageH)
         let pdfData = NSMutableData()
         guard let consumer = CGDataConsumer(data: pdfData),
@@ -1501,7 +1749,10 @@ private struct ExportSheetView: View {
 
         for (i, pageRecords) in pages.enumerated() {
             let view = ExportPDFPageView(
-                records: pageRecords, visibleKinds: visibleKinds,
+                rows: pageRecords,
+                // 症状だけを書き出すときは、測定の列を出さない
+                visibleKinds: domain.includesMeasurement ? visibleKinds : [],
+                symptomOnly: domain == .symptom,
                 fromDate: fromDate, toDate: toDate,
                 pageNumber: i + 1, totalPages: pages.count, isFirstPage: i == 0
             )
@@ -1515,12 +1766,12 @@ private struct ExportSheetView: View {
         return pdfData as Data
     }
 
-    private func paginateRecords(_ records: [BodyRecord]) -> [[BodyRecord]] {
-        var pages: [[BodyRecord]] = []
-        var current: [BodyRecord] = []
+    private func paginateRows(_ rows: [RecordListRow]) -> [[RecordListRow]] {
+        var pages: [[RecordListRow]] = []
+        var current: [RecordListRow] = []
         var remaining = PDFLayout.usableH(isFirst: true)
 
-        for r in records {
+        for r in rows {
             let h = PDFLayout.estimatedRowH(r)
             if current.isEmpty || remaining >= h {
                 current.append(r)
@@ -1560,11 +1811,19 @@ private enum PDFLayout {
             - colHeadH - divH - footerH
     }
 
-    static func estimatedRowH(_ r: BodyRecord) -> CGFloat {
-        // 測定場所・メモは記録セルと同じく1行だけ表示する
-        let memoLine = PDFMemoLineBuilder.line(for: r)
-        guard !memoLine.isEmpty else { return rowH + divH }
-        return rowH + memoLineH + 3 + divH
+    @MainActor
+    static func estimatedRowH(_ row: RecordListRow) -> CGFloat {
+        switch row {
+        case .measurement(let r):
+            // 測定場所・メモは記録セルと同じく1行だけ表示する
+            let memoLine = PDFMemoLineBuilder.line(for: r)
+            guard !memoLine.isEmpty else { return rowH + divH }
+            return rowH + memoLineH + 3 + divH
+        case .symptom(let r):
+            // 直前の状況・対処・環境・メモは最大2行まで出すので、2行分を見込む
+            guard !SymptomExportText.detailLine(r).isEmpty else { return rowH + divH }
+            return rowH + memoLineH * 2 + 3 + divH
+        }
     }
 }
 
@@ -1583,8 +1842,10 @@ private enum PDFMemoLineBuilder {
 // MARK: - PDF ページビュー
 
 private struct ExportPDFPageView: View {
-    let records: [BodyRecord]
+    let rows: [RecordListRow]
     let visibleKinds: [GraphKind]
+    /// 症状だけの書き出し。区分列の見出しを程度にする
+    let symptomOnly: Bool
     let fromDate: Date
     let toDate: Date
     let pageNumber: Int
@@ -1624,8 +1885,11 @@ private struct ExportPDFPageView: View {
             }
             pdfHeaderRow
             Divider().background(Color.gray)
-            ForEach(records) { record in
-                pdfDataRow(record)
+            ForEach(rows) { row in
+                switch row {
+                case .measurement(let record): pdfDataRow(record)
+                case .symptom(let record):     pdfSymptomRow(record)
+                }
                 Divider()
             }
             Spacer(minLength: 0)
@@ -1645,7 +1909,7 @@ private struct ExportPDFPageView: View {
         HStack(spacing: 0) {
             Text("record.datetime")
                 .frame(width: PDFLayout.dateColW, alignment: .leading).padding(3)
-            Text("record.category")
+            Text(LocalizedStringKey(symptomOnly ? "symptom.severity" : "record.category"))
                 .frame(width: PDFLayout.optColW, alignment: .center).padding(3)
             ForEach(visibleKinds, id: \.rawValue) { kind in
                 ForEach(Array(pdfColumnHeaders(kind).enumerated()), id: \.offset) { _, header in
@@ -1697,6 +1961,39 @@ private struct ExportPDFPageView: View {
         .font(.caption)
     }
 
+    /// 症状の行。区分の列に程度を置き、残りの幅に症状名と持続時間、
+    /// 2行目に直前の状況・対処・環境・メモをまとめる
+    private func pdfSymptomRow(_ r: SymptomRecord) -> some View {
+        let detail = SymptomExportText.detailLine(r)
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 0) {
+                Text(Self.dtdf.string(from: r.startAt))
+                    .lineLimit(1)
+                    .frame(width: PDFLayout.dateColW, alignment: .leading).padding(3)
+                Text(LocalizedStringKey(r.severity.labelKey))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .frame(width: PDFLayout.optColW, alignment: .center).padding(3)
+                (Text(SymptomExportText.symptomName(r)).bold()
+                    + Text(verbatim: SymptomExportText.duration(r).map { "  \($0)" } ?? ""))
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(3)
+            }
+            if !detail.isEmpty {
+                Text(detail)
+                    .lineLimit(2)
+                    .foregroundStyle(.secondary)
+                    .frame(width: PDFLayout.notesW - 6, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.leading, PDFLayout.dateColW + 3)
+                    .padding(.trailing, 3)
+                    .padding(.bottom, 3)
+            }
+        }
+        .font(.caption)
+    }
+
     private func pdfColumnHeaders(_ kind: GraphKind) -> [String] {
         switch kind {
         case .bp:
@@ -1733,6 +2030,79 @@ private struct ExportPDFPageView: View {
         case .skMuscle: return 50
         default:        return 0
         }
+    }
+}
+
+// MARK: - 症状の書き出し用テキスト
+
+/// PDF・CSV で使う症状の表示文字列。タグ名は利用者が付けた名前を優先する
+@MainActor
+private enum SymptomExportText {
+    private static var settings: AppSettings { AppSettings.shared }
+
+    static func symptomName(_ r: SymptomRecord) -> String {
+        (settings.symptomTags.tag(for: r.sSymptomID) ?? SymptomTag(id: r.sSymptomID)).symptomDisplayName
+    }
+
+    static func triggerNames(_ r: SymptomRecord) -> [String] {
+        r.triggerIDs.map { (settings.triggerTags.tag(for: $0) ?? SymptomTag(id: $0)).triggerDisplayName }
+    }
+
+    static func remedyNames(_ r: SymptomRecord) -> [String] {
+        r.medicineIDs.map { (settings.medicineTags.tag(for: $0) ?? SymptomTag(id: $0)).medicineDisplayName }
+    }
+
+    /// 持続時間。継続中は「〜経過」の表記にする
+    static func duration(_ r: SymptomRecord) -> String? {
+        guard let duration = r.duration else { return nil }
+        let text = SymptomDurationFormatter.string(from: duration)
+        guard r.needsEnding else { return text }
+        return String(format: NSLocalizedString("symptom.duration.ongoing", comment: ""), text)
+    }
+
+    /// 環境の要約。0℃・0%は有効値なので入力有無フラグで出し分ける
+    static func environmentSummary(_ r: SymptomRecord) -> String {
+        let decimal = { (value: Int) in String(format: "%.1f", Double(value) / 10.0) }
+        var parts: [String] = []
+        if r.bTempSet { parts.append("\(decimal(r.nTemp_10c))℃") }
+        if r.bHumiditySet { parts.append("\(r.nHumidity_p)%") }
+        if r.nPressure_10hpa != 0 { parts.append("\(decimal(r.nPressure_10hpa))hPa") }
+        if r.bPressureDelta24hSet {
+            let sign = r.nPressureDelta24h_10hpa > 0 ? "+" : ""
+            parts.append("24h \(sign)\(decimal(r.nPressureDelta24h_10hpa))hPa")
+        }
+        var indoor: [String] = []
+        if r.bIndoorTempSet { indoor.append("\(decimal(r.nIndoorTemp_10c))℃") }
+        if r.bIndoorHumiditySet { indoor.append("\(r.nIndoorHumidity_p)%") }
+        if !indoor.isEmpty {
+            parts.append(String(localized: "environment.summary.indoorLabel") + " " + indoor.joined(separator: " "))
+        }
+        if r.nDevicePressure_10hpa != 0 {
+            parts.append(String(localized: "environment.summary.deviceLabel")
+                + " \(decimal(r.nDevicePressure_10hpa))hPa")
+        }
+        return parts.joined(separator: " ")
+    }
+
+    /// PDF の2行目。空の項目は出さない
+    static func detailLine(_ r: SymptomRecord) -> String {
+        var parts: [String] = []
+        let triggers = triggerNames(r)
+        if !triggers.isEmpty {
+            parts.append(String(localized: "symptom.section.trigger") + ": " + triggers.joined(separator: "・"))
+        }
+        let remedies = remedyNames(r)
+        if !remedies.isEmpty {
+            parts.append(String(localized: "symptom.section.remedy") + ": " + remedies.joined(separator: "・"))
+        }
+        let environment = environmentSummary(r)
+        if !environment.isEmpty {
+            parts.append(String(localized: "environment.title") + ": " + environment)
+        }
+        if let note = r.sNote.components(separatedBy: .newlines).first(where: { !$0.isEmpty }) {
+            parts.append(note)
+        }
+        return parts.joined(separator: "  ")
     }
 }
 

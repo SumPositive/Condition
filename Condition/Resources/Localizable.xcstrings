@@ -95,6 +95,151 @@
         }
       }
     },
+    "export.filterCondition" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "絞り込み条件"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "필터 조건"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "篩選條件"
+          }
+        }
+      }
+    },
+    "export.symptom.duration" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Duration"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "持続時間"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "지속 시간"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "持續時長"
+          }
+        }
+      }
+    },
+    "export.targetCount.both" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$d measurements, %2$d symptoms"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "測定 %1$d 件・症状 %2$d 件"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "측정 %1$d건 · 증상 %2$d건"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "測量 %1$d 筆・症狀 %2$d 筆"
+          }
+        }
+      }
+    },
+    "filter.symptom.all" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All symptoms"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全症状"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "모든 증상"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部症狀"
+          }
+        }
+      }
+    },
+    "filter.symptom.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter by symptom"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "症状で絞り込み"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "증상으로 필터링"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "依症狀篩選"
+          }
+        }
+      }
+    },
     "symptom.help.remedy" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1781,35 +1926,6 @@
         }
       }
     },
-    "analysis.environment.chartHelp" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The bars show the number of onsets recorded in each environmental range"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "環境値の範囲ごとに、発症した記録件数を表示します"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "환경값 범위별로 증상이 발생한 기록 건수를 표시합니다"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "依環境數值範圍顯示發作記錄次數"
-          }
-        }
-      }
-    },
     "analysis.environment.coverageFormat" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1835,35 +1951,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "症狀記錄 %1$d 筆・環境記錄 %2$d 筆"
-          }
-        }
-      }
-    },
-    "analysis.environment.metric" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Environment"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "環境"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "환경"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "環境"
           }
         }
       }
@@ -2077,25 +2164,25 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No onset records include this environmental factor"
+            "value" : "No onset records include environmental data"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "この環境項目を記録した発症データがありません"
+            "value" : "環境を記録した発症データがありません"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "이 환경 항목을 기록한 증상 발생 데이터가 없습니다"
+            "value" : "환경을 기록한 증상 발생 데이터가 없습니다"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "沒有記錄此環境項目的發作資料"
+            "value" : "沒有記錄環境的發作資料"
           }
         }
       }

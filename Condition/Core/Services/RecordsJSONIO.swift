@@ -324,8 +324,9 @@ enum RecordsJSONIO {
     }
 
     /// 症状1件の JSON オブジェクト。既存の "condition"/"conditionRaw" と同じく、
-    /// 人が読める表示名と復元用の ID を両方出す
-    private static func symptomObject(
+    /// 人が読める表示名と復元用の ID を両方出す。
+    /// 記録一覧の書き出し（JSON）でも同じ形にするため内部公開にする
+    static func symptomObject(
         _ record: SymptomRecord,
         iso: ISO8601DateFormatter,
         symptomTags: SymptomTagList?,

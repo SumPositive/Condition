@@ -1,5 +1,5 @@
 // SnapshotSeed.swift
-// fastlane snapshot 撮影時に、グラフや統計が映えるサンプル記録を投入する
+// fastlane snapshot 撮影時に、グラフや統計・症状の分析が映えるサンプル記録を投入する
 //
 // 【重要】DEBUG ビルド限定・起動引数 -FASTLANE_SNAPSHOT YES のときだけ動く
 //   投入先は in-memory コンテナ（ModelContainer.shared 側で用意）なので、
@@ -86,7 +86,61 @@ enum SnapshotSeed {
             day += (day < 20) ? 1 : 2
         }
 
+        seedSymptoms(context: context, today: today, calendar: cal)
+
         try? context.save()
         #endif
     }
+
+    #if DEBUG
+    /// 分析3（発症カレンダー・周期性・発症と環境・発症と直前の状況）が映える症状記録。
+    /// 頭痛を中心に数日おきに置き、環境・直前の状況・対処も付ける。
+    /// 地名や観測所は言語ごとに合わないので、環境は手入力扱いにする
+    private static func seedSymptoms(context: ModelContext, today: Date, calendar cal: Calendar) {
+        let symptomDays = [0, 2, 4, 6, 9, 11, 13, 16, 18, 21, 24, 27, 29, 32, 35, 38, 41, 44, 47, 50, 53, 57]
+        let severities: [SymptomSeverity] = [.moderate, .mild, .severe, .moderate, .mild]
+        let triggerSets: [[String]] = [
+            ["lackOfSleep"], ["screenTime", "posture"], ["stress"], [],
+            ["cold"], ["alcohol"], ["lackOfSleep", "stress"], ["screenTime"],
+        ]
+
+        for (i, day) in symptomDays.enumerated() {
+            let date = cal.date(byAdding: .day, value: -day, to: today) ?? today
+            let hour = 8 + (i * 5) % 12
+            let start = cal.date(bySettingHour: hour, minute: 15, second: 0, of: date) ?? date
+            // 頭痛を多めにし、肩こり・めまいを混ぜる
+            let symptomID: String
+            switch i % 5 {
+            case 1: symptomID = "stiffShoulder"
+            case 3: symptomID = "dizziness"
+            default: symptomID = "headache"
+            }
+            let record = SymptomRecord(startAt: start, symptomID: symptomID)
+            record.severity = severities[i % severities.count]
+            if i == 0 {
+                // 最新の1件は継続中にして、一覧の「終息」ボタンも映す
+                record.bOngoing = true
+            } else {
+                record.endAt = cal.date(byAdding: .hour, value: 1 + i % 4, to: start)
+            }
+            record.triggerIDs = triggerSets[i % triggerSets.count]
+            switch symptomID {
+            case "stiffShoulder": record.medicineIDs = ["stretch", "bath"]
+            case "dizziness":     record.medicineIDs = ["rest"]
+            default:              record.medicineIDs = i % 3 == 0 ? ["analgesic", "rest"] : ["analgesic"]
+            }
+
+            // 環境: 気温・湿度・気圧・24時間気圧差（x10 単位）
+            record.weatherSource = .manual
+            record.nTemp_10c = 220 + Int(sin(Double(day) * 0.5) * 50)
+            record.bTempSet = true
+            record.nHumidity_p = 50 + (i * 7) % 35
+            record.bHumiditySet = true
+            record.nPressure_10hpa = 10000 + (i * 37) % 160
+            record.nPressureDelta24h_10hpa = 20 - (i * 13) % 70
+            record.bPressureDelta24hSet = true
+            context.insert(record)
+        }
+    }
+    #endif
 }

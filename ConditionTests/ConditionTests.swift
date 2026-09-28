@@ -2299,3 +2299,158 @@ struct HealthKitWriteQueueTests {
         #expect(io.savedSampleCounts == [1])   // weight のみ1サンプル
     }
 }
+
+// MARK: - 直前の状況テスト
+
+/// 症状記録も扱えるインメモリ ModelContainer
+@MainActor
+private func makeSymptomInMemoryContainer() throws -> ModelContainer {
+    let config = ModelConfiguration(isStoredInMemoryOnly: true)
+    return try ModelContainer(for: BodyRecord.self, SymptomRecord.self, configurations: config)
+}
+
+@Suite("Symptom Trigger Tests")
+struct SymptomTriggerTests {
+
+    @Test("直前の状況IDは JSON で往復し、空や壊れた値は空配列になる")
+    func triggerIDsAccessor() {
+        let record = SymptomRecord(startAt: Date(), symptomID: "headache")
+        #expect(record.triggerIDs.isEmpty)
+
+        record.triggerIDs = ["lackOfSleep", "stress"]
+        #expect(record.triggerIDs == ["lackOfSleep", "stress"])
+        #expect(!record.sTriggerIDs.isEmpty)
+
+        record.triggerIDs = []
+        #expect(record.sTriggerIDs.isEmpty)
+
+        record.sTriggerIDs = "{broken"
+        #expect(record.triggerIDs.isEmpty)
+    }
+
+    @Test("バックアップの書き出しと取り込みで直前の状況とタグリストが復元される")
+    @MainActor
+    func jsonRoundTrip() throws {
+        let sourceContainer = try makeSymptomInMemoryContainer()
+        let sourceContext = ModelContext(sourceContainer)
+        let start = Date(timeIntervalSince1970: 1_780_000_000)
+        let userTagID = SymptomTag.newUserDefinedID()
+        let record = SymptomRecord(startAt: start, symptomID: "headache")
+        record.triggerIDs = ["lackOfSleep", userTagID]
+        record.medicineIDs = ["analgesic"]
+        sourceContext.insert(record)
+        try sourceContext.save()
+
+        var triggerTags = SymptomTagList(tags: TriggerCatalog.defaultTagIDs.map { SymptomTag(id: $0) })
+        #expect(triggerTags.add(id: userTagID, customName: "長電話"))
+
+        let data = RecordsJSONIO.export(records: [], symptoms: [record], triggerTags: triggerTags)
+        // 人が読めるよう表示名も出ている
+        let text = String(data: data, encoding: .utf8) ?? ""
+        #expect(text.contains("\"triggerIds\""))
+        #expect(text.contains("長電話"))
+
+        let destinationContainer = try makeSymptomInMemoryContainer()
+        let destinationContext = ModelContext(destinationContainer)
+        let result = try RecordsJSONIO.importJSON(data, into: destinationContext)
+        #expect(result.symptomsInserted == 1)
+        #expect(result.triggerTags?.tag(for: userTagID)?.triggerDisplayName == "長電話")
+
+        let restored = try #require(try destinationContext.fetch(FetchDescriptor<SymptomRecord>()).first)
+        #expect(restored.triggerIDs == ["lackOfSleep", userTagID])
+        #expect(restored.medicineIDs == ["analgesic"])
+    }
+
+    @Test("直前の状況が無い旧バックアップも取り込め、状況は空になる")
+    @MainActor
+    func importLegacyBackupWithoutTriggers() throws {
+        let json = """
+        {
+          "schemaVersion": 2,
+          "records": [],
+          "symptoms": [
+            { "startAt": "2026-05-01T09:00:00+09:00", "symptomId": "headache", "medicineIds": ["rest"] }
+          ]
+        }
+        """
+        let container = try makeSymptomInMemoryContainer()
+        let context = ModelContext(container)
+        let result = try RecordsJSONIO.importJSON(Data(json.utf8), into: context)
+        #expect(result.symptomsInserted == 1)
+        #expect(result.triggerTags == nil)
+
+        let restored = try #require(try context.fetch(FetchDescriptor<SymptomRecord>()).first)
+        #expect(restored.triggerIDs.isEmpty)
+        #expect(restored.medicineIDs == ["rest"])
+    }
+
+    @Test("取り込み時に1件あたりの直前の状況は上限で切り詰める")
+    @MainActor
+    func importClampsTriggerCount() throws {
+        let ids = (0..<(SymptomLimits.maxTriggersPerRecord + 5)).map { "\"t\($0)\"" }
+        let json = """
+        {
+          "schemaVersion": 2,
+          "records": [],
+          "symptoms": [
+            { "startAt": "2026-05-01T09:00:00+09:00", "symptomId": "headache",
+              "triggerIds": [\(ids.joined(separator: ","))] }
+          ]
+        }
+        """
+        let container = try makeSymptomInMemoryContainer()
+        let context = ModelContext(container)
+        try RecordsJSONIO.importJSON(Data(json.utf8), into: context)
+        let restored = try #require(try context.fetch(FetchDescriptor<SymptomRecord>()).first)
+        #expect(restored.triggerIDs.count == SymptomLimits.maxTriggersPerRecord)
+    }
+
+    @Test("記録画面の直前の状況はトグルで付け外しでき、上限を超えて増えない")
+    @MainActor
+    func toggleTrigger() {
+        let vm = SymptomEditViewModel(mode: .addNew)
+        vm.toggleTrigger("stress")
+        vm.toggleTrigger("cold")
+        #expect(vm.triggerIDs == ["stress", "cold"])
+
+        vm.toggleTrigger("stress")
+        #expect(vm.triggerIDs == ["cold"])
+        #expect(vm.isModified)
+
+        for index in 0..<(SymptomLimits.maxTriggersPerRecord + 3) {
+            vm.toggleTrigger("u:\(index)")
+        }
+        #expect(vm.triggerIDs.count == SymptomLimits.maxTriggersPerRecord)
+    }
+
+    @Test("直前の状況の辞書はID重複が無く、既定タグは辞書と一致する")
+    func catalogConsistency() {
+        let ids = TriggerCatalog.all.map(\.id)
+        #expect(Set(ids).count == ids.count)
+        #expect(TriggerCatalog.defaultTagIDs == ids)
+        #expect(TriggerCatalog.entry(for: "lackOfSleep") != nil)
+        #expect(TriggerCatalog.entry(for: "unknown-id") == nil)
+    }
+
+    @Test("辞書と同じ名前で作った自作タグは辞書の状況へ寄せられる")
+    func mergeDuplicateTriggerIntoCatalog() {
+        let userID = SymptomTag.newUserDefinedID()
+        var list = SymptomTagList(tags: [SymptomTag(id: "stress")])
+        list.add(id: userID, customName: "stress-dup")
+        let replacements = list.mergeDuplicatesIntoCatalog { name in
+            name == "stress-dup" ? "stress" : nil
+        }
+        #expect(replacements == [userID: "stress"])
+        #expect(!list.contains(userID))
+        #expect(list.contains("stress"))
+    }
+
+    @Test("分析の配置に発症と直前の状況の図表が補われる")
+    func analysisLayoutIncludesTriggers() {
+        let layout = AnalysisLayout.migrated(
+            graphOrder: [], hiddenGraphs: [], statOrder: [], hiddenStats: [], statDays: 90
+        )
+        #expect(layout.page3.contains(.symptomTriggers))
+        #expect(AnalysisPanelID.symptomTriggers.titleKey == "analysis.trigger")
+    }
+}

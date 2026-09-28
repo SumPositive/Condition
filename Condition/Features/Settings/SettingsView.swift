@@ -586,7 +586,13 @@ struct SettingsView: View {
                 AppAnalytics.shared.logOperation("records_json_export", parameters: ["record_count": records.count])
                 progressMessage = String(localized: "settings.share.exportOpening")
                 await Task.yield()
-                presentShareSheet(url: url)
+                presentShareSheet(
+                    url: url,
+                    summary: String(
+                        format: String(localized: "export.targetCount.both"),
+                        records.count, symptoms.count
+                    )
+                )
             } catch {
                 AppAnalytics.shared.record(error: error, name: "records_json_export_failed")
                 alertItem = .raw(title: String(localized: "settings.share.errorTitle"), message: error.localizedDescription)
@@ -690,7 +696,8 @@ struct SettingsView: View {
         }
     }
 
-    private func presentShareSheet(url: URL) {
+    /// - Parameter summary: 書き出しが済んだときに知らせる件数の内訳
+    private func presentShareSheet(url: URL, summary: String) {
         guard let windowScene = UIApplication.shared.connectedScenes
                 .compactMap({ $0 as? UIWindowScene })
                 .first(where: { $0.activationState == .foregroundActive }),
@@ -710,8 +717,26 @@ struct SettingsView: View {
         }
 
         let activityVC = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-        activityVC.completionWithItemsHandler = { _, _, _, _ in
+        // 共有シートは閉じるだけでは結果が分からないので、保存・送信の成否を知らせる。
+        // キャンセルは利用者の意思なので何も出さない
+        activityVC.completionWithItemsHandler = { _, completed, _, error in
             try? FileManager.default.removeItem(at: url)
+            let message = error?.localizedDescription
+            Task { @MainActor in
+                // 共有シートが閉じてから出す（重ねて出すと表示されないことがある）
+                try? await Task.sleep(for: .milliseconds(350))
+                if let message {
+                    alertItem = .raw(
+                        title: String(localized: "export.failed.file"),
+                        message: message
+                    )
+                } else if completed {
+                    alertItem = .raw(
+                        title: String(localized: "export.completed.file"),
+                        message: summary
+                    )
+                }
+            }
         }
         topVC.present(activityVC, animated: true)
     }
