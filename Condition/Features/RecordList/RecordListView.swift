@@ -200,62 +200,7 @@ struct RecordListView: View {
                 }
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     demoButton
-                    Button {
-                        // 起動時アクションと同じルートレベルのシートで開く。
-                        // ローカル @State で開くと、バックグラウンド復帰時に
-                        // ContentView 側のガードから「シートが開いている」ことが見えず、
-                        // 入力中でも起動時アクションが割り込んでしまうため。
-                        if settings.showMeasurementAvgSheet {
-                            settings.showMeasurementAvgSheet = false
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                                settings.showMeasurementAvgSheet = true
-                            }
-                        } else {
-                            settings.showMeasurementAvgSheet = true
-                        }
-                    } label: {
-                        ToolbarButtonLabel(
-                            systemImage: "text.badge.plus",
-                            captionKey: "records.toolbar.measurement"
-                        )
-                        .foregroundStyle(Color.blue)
-                    }
-                    Button {
-                        if settings.showSymptomSheet {
-                            settings.showSymptomSheet = false
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                                settings.showSymptomSheet = true
-                            }
-                        } else {
-                            settings.showSymptomSheet = true
-                        }
-                    } label: {
-                        ToolbarButtonLabel(
-                            systemImage: "at.badge.plus",
-                            captionKey: "records.toolbar.symptom"
-                        )
-                        .foregroundStyle(Color.blue)
-                    }
-                    // ダイアル式の記録画面は既定で出さない（設定でONにしたときだけ）
-                    if settings.useDialRecordEntry {
-                        Button {
-                            // 状態が true のまま戻っていない異常時はリセットしてから再セット
-                            if settings.showNewRecordSheet {
-                                settings.showNewRecordSheet = false
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                                    settings.showNewRecordSheet = true
-                                }
-                            } else {
-                                settings.showNewRecordSheet = true
-                            }
-                        } label: {
-                            ToolbarButtonLabel(
-                                systemImage: "plus.circle.fill",
-                                captionKey: "records.toolbar.dialEntry"
-                            )
-                            .foregroundStyle(Color.blue)
-                        }
-                    }
+                    newRecordMenu
                 }
             }
             .onChange(of: scenePhase) { _, phase in
@@ -324,6 +269,67 @@ struct RecordListView: View {
     }
 
     // MARK: - シートコンテンツ（型検査の負荷分散のため body 外に切り出す）
+
+    private enum NewRecordSheetKind {
+        case measurement
+        case symptom
+        case dial
+    }
+
+    /// 測定・症状・ダイアルの入口を1つの記録メニューへまとめる
+    private var newRecordMenu: some View {
+        Menu {
+            Button {
+                presentNewRecordSheet(.measurement)
+            } label: {
+                Label("records.add.measurement", systemImage: "text.badge.plus")
+            }
+            Button {
+                presentNewRecordSheet(.symptom)
+            } label: {
+                Label("records.add.symptom", systemImage: "at.badge.plus")
+            }
+            // ダイアル式は設定で有効にした場合だけ候補へ加える
+            if settings.useDialRecordEntry {
+                Divider()
+                Button {
+                    presentNewRecordSheet(.dial)
+                } label: {
+                    Label("records.add.dial", systemImage: "plus.circle.fill")
+                }
+            }
+        } label: {
+            ToolbarButtonLabel(
+                systemImage: "plus.circle.fill",
+                captionKey: "records.toolbar.add"
+            )
+            .foregroundStyle(Color.blue)
+        }
+    }
+
+    /// 起動時アクションと共通のルートシートを開く
+    private func presentNewRecordSheet(_ kind: NewRecordSheetKind) {
+        switch kind {
+        case .measurement:
+            reopenSheetIfNeeded(\.showMeasurementAvgSheet)
+        case .symptom:
+            reopenSheetIfNeeded(\.showSymptomSheet)
+        case .dial:
+            reopenSheetIfNeeded(\.showNewRecordSheet)
+        }
+    }
+
+    /// 状態が残っている場合も一度下ろして確実にシートを開く
+    private func reopenSheetIfNeeded(_ keyPath: ReferenceWritableKeyPath<AppSettings, Bool>) {
+        if settings[keyPath: keyPath] {
+            settings[keyPath: keyPath] = false
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                settings[keyPath: keyPath] = true
+            }
+        } else {
+            settings[keyPath: keyPath] = true
+        }
+    }
 
     @ViewBuilder
     private func editRecordSheet(record: BodyRecord) -> some View {
@@ -471,9 +477,6 @@ struct RecordListView: View {
         }
         return blue("plus.circle.fill") + Text(verbatim: " ")
             + Text(LocalizedStringKey("help.record.add"))
-            + Text(verbatim: "\n\n")
-            + blue("text.badge.plus") + Text(verbatim: " ")
-            + Text(LocalizedStringKey("help.record.avg"))
             + Text(verbatim: "\n\n")
             + Text(LocalizedStringKey("help.record.rest"))
             + Text(verbatim: "\n\n")

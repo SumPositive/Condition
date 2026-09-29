@@ -2,6 +2,7 @@
 // ルートタブビュー
 
 import SwiftUI
+import UIKit
 
 struct ContentView: View {
 
@@ -13,6 +14,8 @@ struct ContentView: View {
     @State private var hasEnteredBackground = false
     /// cold launch 時の起動アクションを onAppear と onChange で二重実行しないためのフラグ
     @State private var didRunInitialLaunchAction = false
+    /// 記録タブの再タップで開く記録メニューの表示状態
+    @State private var isRecordMenuPresented = false
     private var settings: AppSettings { AppSettings.shared }
 
     var body: some View {
@@ -160,18 +163,128 @@ struct ContentView: View {
                 .transition(.opacity)
             }
         }
+        .overlay {
+            // タブ位置を固定して描けるiPhoneだけ独自メニューを使う
+            if supportsRecordTabMenu {
+                recordTabMenuOverlay
+            }
+        }
         .animation(.easeInOut(duration: 0.15), value: isPreparingLaunchSheet)
+        .animation(.easeOut(duration: 0.18), value: isRecordMenuPresented)
     }
 
-    /// TabView の選択バインディング。
-    /// すでに記録タブにいる状態でもう一度「記録」を叩いたときだけ、
-    /// 直前に使った方の新規記録シートを開く（通常のタブ移動はそのまま通す）
+    /// 記録タブの上に独自の吹き出しメニューを重ねる
+    private var recordTabMenuOverlay: some View {
+        GeometryReader { proxy in
+            if isRecordMenuPresented {
+                let tabBarHorizontalInset: CGFloat = 24
+                let menuLeading: CGFloat = 12
+                let menuWidth = min(280, proxy.size.width - menuLeading * 2)
+                let recordTabCenter = tabBarHorizontalInset
+                    + (proxy.size.width - tabBarHorizontalInset * 2) / 10
+                let pointerX = recordTabCenter - menuLeading
+
+                ZStack(alignment: .bottomLeading) {
+                    // メニュー外のタップで閉じる
+                    Color.black.opacity(0.08)
+                        .ignoresSafeArea()
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            isRecordMenuPresented = false
+                        }
+
+                    recordTabMenu
+                        .padding(.bottom, 12)
+                        .frame(width: menuWidth)
+                        .background(
+                            .regularMaterial,
+                            in: RecordTabMenuShape(pointerX: pointerX)
+                        )
+                        .overlay {
+                            RecordTabMenuShape(pointerX: pointerX)
+                                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                        }
+                        .shadow(color: .black.opacity(0.18), radius: 18, y: 8)
+                        .padding(.leading, menuLeading)
+                        // フローティングタブバーの上端へ矢印を合わせる
+                        .padding(.bottom, proxy.safeAreaInsets.bottom + 52)
+                        .transition(
+                            .scale(scale: 0.92, anchor: .bottomLeading)
+                                .combined(with: .opacity)
+                        )
+                        .accessibilityAction(.escape) {
+                            isRecordMenuPresented = false
+                        }
+                }
+                .ignoresSafeArea()
+            }
+        }
+    }
+
+    /// 記録タブから開く追加先メニュー
+    private var recordTabMenu: some View {
+        VStack(spacing: 0) {
+            recordTabMenuButton(
+                titleKey: "records.add.measurement",
+                systemImage: "text.badge.plus",
+                kind: .measurement
+            )
+            recordTabMenuButton(
+                titleKey: "records.add.symptom",
+                systemImage: "at.badge.plus",
+                kind: .symptom
+            )
+            // ダイアル式は設定で有効な場合だけ表示する
+            if settings.useDialRecordEntry {
+                Divider()
+                    .padding(.horizontal)
+                recordTabMenuButton(
+                    titleKey: "records.add.dial",
+                    systemImage: "plus.circle.fill",
+                    kind: .dial
+                )
+            }
+        }
+        .padding(.vertical, 8)
+    }
+
+    /// 吹き出し内の追加先ボタン
+    private func recordTabMenuButton(
+        titleKey: LocalizedStringKey,
+        systemImage: String,
+        kind: RecordSheetKind
+    ) -> some View {
+        Button {
+            isRecordMenuPresented = false
+            // 吹き出しを閉じてから追加シートを開く
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                presentRecordSheet(kind)
+            }
+        } label: {
+            HStack(spacing: 14) {
+                Image(systemName: systemImage)
+                    .font(.title2)
+                    .frame(width: 32)
+                Text(titleKey)
+                    .font(.title3)
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(.primary)
+            .contentShape(Rectangle())
+            .padding(.horizontal, 18)
+            .frame(height: 56)
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// TabView の選択バインディング
+    /// 記録タブを再タップしたときだけ記録メニューを開く
     private var tabSelection: Binding<RootTab> {
         Binding(
             get: { selectedTab },
             set: { newTab in
                 if newTab == .records, selectedTab == .records {
-                    presentLastUsedNewRecordSheet()
+                    presentRecordMenu()
                 } else {
                     selectedTab = newTab
                 }
@@ -179,20 +292,38 @@ struct ContentView: View {
         )
     }
 
-    /// 記録タブ再タップで、直前に使った方の新規記録シートを開く
-    private func presentLastUsedNewRecordSheet() {
-        // すでに新規記録シートが開いているなら二重に開かない
+    /// 記録タブ再タップで記録メニューを開く
+    private func presentRecordMenu() {
+        // iPadではタブ配置が変化するため再タップメニューを表示しない
+        guard supportsRecordTabMenu else { return }
+        // シート表示中はメニューを重ねない
         guard !settings.showNewRecordSheet,
               !settings.showMeasurementAvgSheet,
               !settings.showSymptomSheet else { return }
-        // ダイアル式が無効なら、直前に使っていても複数平均式を開く
-        switch settings.lastNewRecordKind {
-        case .single where settings.useDialRecordEntry:
-            AppAnalytics.shared.logOperation("records_tab_retap_new_single")
-            settings.showNewRecordSheet = true
-        case .single, .multi:
-            AppAnalytics.shared.logOperation("records_tab_retap_new_multi")
+        AppAnalytics.shared.logOperation("records_tab_retap_menu")
+        isRecordMenuPresented = true
+    }
+
+    /// 独自のタブメニューを表示できる端末か
+    private var supportsRecordTabMenu: Bool {
+        UIDevice.current.userInterfaceIdiom == .phone
+    }
+
+    private enum RecordSheetKind {
+        case measurement
+        case symptom
+        case dial
+    }
+
+    /// 記録メニューで選んだ追加シートを開く
+    private func presentRecordSheet(_ kind: RecordSheetKind) {
+        switch kind {
+        case .measurement:
             settings.showMeasurementAvgSheet = true
+        case .symptom:
+            settings.showSymptomSheet = true
+        case .dial:
+            settings.showNewRecordSheet = true
         }
     }
 
@@ -288,6 +419,58 @@ private enum RootTab: Hashable {
         case .analysis3: return "analysis_3"
         case .settings: return "settings"
         }
+    }
+}
+
+/// 記録タブへ向けた矢印を持つ吹き出し形状
+private struct RecordTabMenuShape: Shape {
+    let pointerX: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        let cornerRadius: CGFloat = 24
+        let pointerWidth: CGFloat = 24
+        let pointerHeight: CGFloat = 12
+        let bubbleRect = CGRect(
+            x: rect.minX,
+            y: rect.minY,
+            width: rect.width,
+            height: rect.height - pointerHeight
+        )
+        let adjustedPointerX = min(
+            max(pointerX, cornerRadius + pointerWidth / 2),
+            rect.width - cornerRadius - pointerWidth / 2
+        )
+        var path = Path()
+        path.move(to: CGPoint(x: bubbleRect.minX + cornerRadius, y: bubbleRect.minY))
+        path.addLine(to: CGPoint(x: bubbleRect.maxX - cornerRadius, y: bubbleRect.minY))
+        path.addQuadCurve(
+            to: CGPoint(x: bubbleRect.maxX, y: bubbleRect.minY + cornerRadius),
+            control: CGPoint(x: bubbleRect.maxX, y: bubbleRect.minY)
+        )
+        path.addLine(to: CGPoint(x: bubbleRect.maxX, y: bubbleRect.maxY - cornerRadius))
+        path.addQuadCurve(
+            to: CGPoint(x: bubbleRect.maxX - cornerRadius, y: bubbleRect.maxY),
+            control: CGPoint(x: bubbleRect.maxX, y: bubbleRect.maxY)
+        )
+        path.addLine(
+            to: CGPoint(x: adjustedPointerX + pointerWidth / 2, y: bubbleRect.maxY)
+        )
+        path.addLine(to: CGPoint(x: adjustedPointerX, y: rect.maxY))
+        path.addLine(
+            to: CGPoint(x: adjustedPointerX - pointerWidth / 2, y: bubbleRect.maxY)
+        )
+        path.addLine(to: CGPoint(x: bubbleRect.minX + cornerRadius, y: bubbleRect.maxY))
+        path.addQuadCurve(
+            to: CGPoint(x: bubbleRect.minX, y: bubbleRect.maxY - cornerRadius),
+            control: CGPoint(x: bubbleRect.minX, y: bubbleRect.maxY)
+        )
+        path.addLine(to: CGPoint(x: bubbleRect.minX, y: bubbleRect.minY + cornerRadius))
+        path.addQuadCurve(
+            to: CGPoint(x: bubbleRect.minX + cornerRadius, y: bubbleRect.minY),
+            control: CGPoint(x: bubbleRect.minX, y: bubbleRect.minY)
+        )
+        path.closeSubpath()
+        return path
     }
 }
 

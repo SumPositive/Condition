@@ -8688,54 +8688,25 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add a new record"
+            "value" : "Choose Add Measurement or Add Symptom from Record. Dial Entry also appears when it is enabled in Settings."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "新しい記録を追加します"
+            "value" : "「記録」から「測定を追加」または「症状を追加」を選びます。設定で有効にしている場合は「ダイアル式」も表示されます"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "새 기록을 추가합니다"
+            "value" : "'기록'에서 '측정 추가' 또는 '증상 추가'를 선택합니다. 설정에서 활성화하면 '다이얼 방식'도 표시됩니다"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "新增記錄"
-          }
-        }
-      }
-    },
-    "help.record.avg" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Record the average of multiple measurements"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "測定を繰り返して平均を記録します"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "측정을 반복해 평균을 기록합니다"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重複測量並記錄平均值"
+            "value" : "從「記錄」選擇「新增測量」或「新增症狀」。在設定中啟用後也會顯示「轉盤式」"
           }
         }
       }
@@ -8746,25 +8717,25 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Use + in the top right to add a new record."
+            "value" : "Use Record in the top right to add a new record."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "右上の＋で新しい記録を追加します"
+            "value" : "右上の「記録」ボタンで新しい記録を追加します"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "오른쪽 위 +로 새 기록을 추가합니다."
+            "value" : "오른쪽 위의 '기록' 버튼으로 새 기록을 추가합니다."
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "點右上角的 + 新增記錄。"
+            "value" : "使用右上方的「記錄」按鈕新增記錄。"
           }
         }
       }
@@ -13132,6 +13103,122 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "沒有記錄"
+          }
+        }
+      }
+    },
+    "records.add.dial" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dial Entry"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ダイアル式"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다이얼 방식"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "轉盤式"
+          }
+        }
+      }
+    },
+    "records.add.measurement" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Measurement"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "測定を追加"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "측정 추가"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新增測量"
+          }
+        }
+      }
+    },
+    "records.add.symptom" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Symptom"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "症状を追加"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "증상 추가"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新增症狀"
+          }
+        }
+      }
+    },
+    "records.toolbar.add" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "記録"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "기록"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "記錄"
           }
         }
       }
