@@ -257,7 +257,8 @@ struct AnalysisPageView: View {
   @ViewBuilder
   private func analysisPanel(
     _ panel: AnalysisPanelID,
-    preparedData: PreparedData
+    preparedData: PreparedData,
+    showsAllEnvironmentMetrics: Bool = false
   ) -> some View {
     if let kind = panel.graphKind {
       if preparedData.graphRecords.isEmpty {
@@ -306,7 +307,8 @@ struct AnalysisPageView: View {
           symptomRecords: records,
           range: symptomRange,
           symptomOptions: options,
-          selectedSymptom: selection
+          selectedSymptom: selection,
+          showsAllMetricsByDefault: showsAllEnvironmentMetrics
         )
       case .symptomTriggers:
         AnalysisSymptomTriggerPanel(
@@ -422,7 +424,11 @@ struct AnalysisPageView: View {
       let preparedData = prepareData(for: visiblePanels)
       let panels = visiblePanels.map { panel in
         AnyView(
-          analysisPanel(panel, preparedData: preparedData)
+          analysisPanel(
+            panel,
+            preparedData: preparedData,
+            showsAllEnvironmentMetrics: true
+          )
             .environment(\.chartAvailableWidth, width)
         )
       }
@@ -1930,11 +1936,15 @@ private struct AnalysisEnvironmentMetricSamples {
 }
 
 private struct AnalysisSymptomEnvironmentPanel: View {
+  private static let initialMetricCount = 2
+
   let symptomRecords: [SymptomRecord]
   let range: SymptomAnalysisRange
   let symptomOptions: [AnalysisSymptomFilterOption]
   @Binding var selectedSymptom: AnalysisSymptomFilterOption
+  let showsAllMetricsByDefault: Bool
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+  @State private var showsAllMetrics = false
   private let onsetSeverities: [SymptomSeverity] = [.mild, .moderate, .severe]
 
   /// 期間内に発症した記録（程度「なし」を除く）
@@ -1942,7 +1952,7 @@ private struct AnalysisSymptomEnvironmentPanel: View {
     symptomRecords.filter { range.containsStart($0) && 1 < $0.nSeverity }
   }
 
-  /// 項目を選ぶ手間を省き、記録がある環境項目をすべて並べる
+  /// 記録がある環境項目だけを表示候補にする
   private var metricSamples: [AnalysisEnvironmentMetricSamples] {
     let records = onsetRecords
     return AnalysisEnvironmentMetric.allCases.compactMap { metric -> AnalysisEnvironmentMetricSamples? in
@@ -1975,18 +1985,41 @@ private struct AnalysisSymptomEnvironmentPanel: View {
         )
         .frame(maxWidth: .infinity, minHeight: 220)
       } else {
+        // 初期表示を2項目に絞り、チャート生成と画面の長さを抑える
+        let displaysAllMetrics = showsAllMetricsByDefault || showsAllMetrics
+        let displayedItems = displaysAllMetrics
+          ? items
+          : Array(items.prefix(Self.initialMetricCount))
         LazyVGrid(
           columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: columnCount),
           alignment: .leading,
           spacing: 16
         ) {
-          ForEach(items, id: \.metric) { item in
+          ForEach(displayedItems, id: \.metric) { item in
             AnalysisEnvironmentMiniChart(
               metric: item.metric,
               samples: item.samples,
               severities: onsetSeverities
             )
           }
+        }
+        if !showsAllMetricsByDefault, Self.initialMetricCount < items.count {
+          Button {
+            // 利用者が明示的に開いたときだけ残りのチャートを生成する
+            showsAllMetrics.toggle()
+          } label: {
+            Label(
+              showsAllMetrics
+                ? String(localized: "analysis.environment.showLess")
+                : String(
+                  format: String(localized: "analysis.environment.showMoreFormat"),
+                  items.count - Self.initialMetricCount
+                ),
+              systemImage: showsAllMetrics ? "chevron.up" : "chevron.down"
+            )
+            .frame(maxWidth: .infinity)
+          }
+          .buttonStyle(.bordered)
         }
         chartLegend
       }
