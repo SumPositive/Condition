@@ -176,17 +176,65 @@ final class AppSettings {
     var analysisSymptomFilters: [String: String] = [:] {
         didSet { ud.set(analysisSymptomFilters, forKey: SettingsKeys.settAnalysisSymptomFilters) }
     }
+    /// 全症状パネルで選択中の症状を共有する
+    var analysisSymptomSelectionSync: Bool = true {
+        didSet {
+            ud.set(
+                analysisSymptomSelectionSync,
+                forKey: SettingsKeys.settAnalysisSymptomSelectionSync
+            )
+        }
+    }
 
-    /// パネルごとの症状絞り込みを返し、旧ページ設定があれば初期値として引き継ぐ
+    private static let synchronizedAnalysisSymptomFilterKey = "_synchronized"
+
+    /// 同期中は共通値、同期していない場合はパネルごとの症状絞り込みを返す
     func analysisSymptomFilter(for panel: AnalysisPanelID, in page: AnalysisPage) -> String {
-        analysisSymptomFilters[panel.rawValue]
+        if analysisSymptomSelectionSync {
+            return synchronizedAnalysisSymptomFilter
+        }
+        return analysisSymptomFilters[panel.rawValue]
             ?? analysisSymptomFilters[String(page.rawValue)]
             ?? ""
     }
 
-    /// 空文字も「すべて」の明示選択として保存し、旧ページ設定より優先する
+    /// 同期設定に応じて共通またはパネル個別の症状選択を保存する
     func setAnalysisSymptomFilter(_ symptomID: String, for panel: AnalysisPanelID) {
-        analysisSymptomFilters[panel.rawValue] = symptomID
+        let key = analysisSymptomSelectionSync
+            ? Self.synchronizedAnalysisSymptomFilterKey
+            : panel.rawValue
+        analysisSymptomFilters[key] = symptomID
+    }
+
+    /// 同期を切り替えても画面上の選択が急に変わらないよう現在値を引き継ぐ
+    func setAnalysisSymptomSelectionSync(_ isOn: Bool) {
+        guard analysisSymptomSelectionSync != isOn else { return }
+        var filters = analysisSymptomFilters
+        if isOn {
+            let selected = analysisSymptomFilter(for: .symptomOverview, in: .three)
+            filters[Self.synchronizedAnalysisSymptomFilterKey] = selected
+        } else {
+            let selected = synchronizedAnalysisSymptomFilter
+            for panel in AnalysisPanelID.allCases where panel.isSymptomPanel {
+                filters[panel.rawValue] = selected
+            }
+        }
+        analysisSymptomFilters = filters
+        analysisSymptomSelectionSync = isOn
+    }
+
+    /// 保存済みの個別選択がある場合は同期の初期値として引き継ぐ
+    private var synchronizedAnalysisSymptomFilter: String {
+        if let selected = analysisSymptomFilters[Self.synchronizedAnalysisSymptomFilterKey] {
+            return selected
+        }
+        for panel in AnalysisPanelID.allCases where panel.isSymptomPanel {
+            if let selected = analysisSymptomFilters[panel.rawValue] { return selected }
+        }
+        for page in AnalysisPage.allCases {
+            if let selected = analysisSymptomFilters[String(page.rawValue)] { return selected }
+        }
+        return ""
     }
 
     private func saveGraphHeightOverrides() {
@@ -733,6 +781,11 @@ final class AppSettings {
         {
             // パネルごとの選択と旧ページ設定を次回起動時にも引き継ぐ
             analysisSymptomFilters = filters
+        }
+        if ud.object(forKey: SettingsKeys.settAnalysisSymptomSelectionSync) != nil {
+            analysisSymptomSelectionSync = ud.bool(
+                forKey: SettingsKeys.settAnalysisSymptomSelectionSync
+            )
         }
 
         if ud.object(forKey: SettingsKeys.bGoal) != nil { goalEnabled = ud.bool(forKey: SettingsKeys.bGoal) }

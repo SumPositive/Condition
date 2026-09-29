@@ -1781,6 +1781,64 @@
         }
       }
     },
+    "analysis.details.syncSymptomSelection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synchronize Symptom Selection"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "症状の選択を同期する"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "증상 선택 동기화"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同步症狀選擇"
+          }
+        }
+      }
+    },
+    "analysis.details.syncSymptomSelection.help" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When enabled, changing the selected symptom in one symptom panel applies the same selection to every symptom panel. Turn it off to select a different symptom in each panel."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "オンにすると、いずれかの症状パネルで選んだ症状が、すべての症状パネルに反映されます。パネルごとに別の症状を選ぶ場合はオフにします。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "켜면 한 증상 패널에서 선택한 증상이 모든 증상 패널에 적용됩니다. 패널마다 다른 증상을 선택하려면 끄세요."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開啟後，在任一症狀面板選取的症狀會套用至所有症狀面板。若要為各面板選取不同症狀，請關閉此選項。"
+          }
+        }
+      }
+    },
     "analysis.details.shortTitle" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3353,25 +3411,25 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Summary by symptom"
+            "value" : "Symptom Summary"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "症状別の集計"
+            "value" : "症状サマリー"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "증상별 집계"
+            "value" : "증상 요약"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "依症狀彙整"
+            "value" : "症狀摘要"
           }
         }
       }

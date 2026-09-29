@@ -61,6 +61,7 @@ enum AnalysisPanelID: String, CaseIterable, Codable, Identifiable {
   case statBodyTemperatureDistribution = "statistics.bodyTemperatureDistribution"
   case statWeightBloodPressure = "statistics.weightBloodPressure"
 
+  case symptomOverview = "symptom.overview"
   case symptomCalendar = "symptom.calendar"
   case symptomFrequency = "symptom.frequency"
   case symptomSummary = "symptom.summary"
@@ -72,6 +73,7 @@ enum AnalysisPanelID: String, CaseIterable, Codable, Identifiable {
     if let kind = graphKind { return kind.title }
     if let section = statSection { return section.title }
     switch self {
+    case .symptomOverview: return "analysis.symptomSummary"
     case .symptomCalendar: return "analysis.calendar"
     case .symptomFrequency: return "analysis.trend"
     // 保存済み配置IDを維持したまま、文字中心の集計を環境図表へ置き換える
@@ -254,7 +256,12 @@ struct AnalysisLayout: Codable, Equatable {
     // アップデートで増えた図表は既定ページの末尾へ補う
     for panel in AnalysisPanelID.allCases where !seen.contains(panel) {
       var values = panels(in: panel.defaultPage)
-      values.append(panel)
+      // 症状サマリーは既存利用者にも症状ページの先頭へ追加する
+      if panel == .symptomOverview {
+        values.insert(panel, at: 0)
+      } else {
+        values.append(panel)
+      }
       setPanels(values, in: panel.defaultPage)
       seen.insert(panel)
     }
@@ -285,7 +292,13 @@ struct AnalysisLayout: Codable, Equatable {
     var result = AnalysisLayout(
       page1: graphPanels,
       page2: statPanels,
-      page3: [.symptomCalendar, .symptomFrequency, .symptomSummary, .symptomTriggers],
+      page3: [
+        .symptomOverview,
+        .symptomCalendar,
+        .symptomFrequency,
+        .symptomSummary,
+        .symptomTriggers,
+      ],
       hidden: hidden,
       period1: GraphPeriod.month.rawValue,
       period2: GraphPeriod(rawValue: statDays)?.rawValue ?? GraphPeriod.threeMonths.rawValue,

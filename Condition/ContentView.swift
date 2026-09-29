@@ -37,7 +37,8 @@ struct ContentView: View {
                 }
                 .tag(RootTab.records)
 
-            AnalysisPageView(page: .one)
+            // 選択中の分析ページだけがデータ抽出と図表生成を行う
+            AnalysisPageView(page: .one, isActive: selectedTab == .analysis1)
                 .tabItem {
                     if settings.userLevel == .beginner {
                         // 初心者には番号アイコンの意味を文字でも示す
@@ -60,7 +61,7 @@ struct ContentView: View {
                 }
                 .tag(RootTab.analysis1)
 
-            AnalysisPageView(page: .two)
+            AnalysisPageView(page: .two, isActive: selectedTab == .analysis2)
                 .tabItem {
                     if settings.userLevel == .beginner {
                         Label {
@@ -82,7 +83,7 @@ struct ContentView: View {
                 }
                 .tag(RootTab.analysis2)
 
-            AnalysisPageView(page: .three)
+            AnalysisPageView(page: .three, isActive: selectedTab == .analysis3)
                 .tabItem {
                     if settings.userLevel == .beginner {
                         Label {

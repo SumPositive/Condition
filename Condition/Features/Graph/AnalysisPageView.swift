@@ -9,7 +9,12 @@ import SwiftUI
 import UIKit
 
 struct AnalysisPageView: View {
+  private static let initialPanelCount = 2
+  private static let panelBatchCount = 2
+  private static let panelBatchDelayMS = 120
+
   let page: AnalysisPage
+  let isActive: Bool
   @Query(
     filter: #Predicate<BodyRecord> { $0.dateTime < bodyRecordGoalDate },
     sort: \BodyRecord.dateTime,
@@ -21,21 +26,18 @@ struct AnalysisPageView: View {
   @State private var chartWidth: CGFloat = 390
   @State private var showSettings = false
   @State private var isExporting = false
+  @State private var stagedPanelCount = AnalysisPageView.initialPanelCount
 
   private var period: GraphPeriod { settings.analysisLayout.period(in: page) }
   private var visiblePanels: [AnalysisPanelID] { settings.analysisLayout.visiblePanels(in: page) }
 
-  /// AZPickerで表示する「すべて」と症状名の選択肢
-  private var symptomFilterOptions: [AnalysisSymptomFilterOption] {
-    [AnalysisSymptomFilterOption(id: "", title: String(localized: "analysis.all"))]
-      + symptomIDs.map { AnalysisSymptomFilterOption(id: $0, title: symptomName($0)) }
-  }
-
-  /// 周期性は単一症状の発症間隔を分析するため「すべて」を候補から外す
-  private func symptomFilterOptions(for panel: AnalysisPanelID) -> [AnalysisSymptomFilterOption] {
-    guard panel == .symptomFrequency else { return symptomFilterOptions }
-    let options = symptomIDs.map { AnalysisSymptomFilterOption(id: $0, title: symptomName($0)) }
-    return options.isEmpty ? [AnalysisSymptomFilterOption(id: "", title: "—")] : options
+  /// 1回の画面更新で共有する抽出済みデータ
+  private struct PreparedData {
+    let graphRecords: [BodyRecord]
+    let statRecords: [BodyRecord]
+    let symptomIDs: [String]
+    let symptomOptions: [AnalysisSymptomFilterOption]
+    let symptomRecordsByPanel: [AnalysisPanelID: [SymptomRecord]]
   }
 
   private var periodBinding: Binding<GraphPeriod> {
@@ -53,38 +55,87 @@ struct AnalysisPageView: View {
     )
   }
 
-  private var targetBodyRecords: [BodyRecord] {
-    let cutoff =
-      Calendar.current.date(byAdding: .day, value: -period.rawValue, to: Date()) ?? Date()
-    return bodyRecords.filter { cutoff <= $0.dateTime }
-  }
-
-  /// 測定グラフは従来どおり、選択期間の前後へ横スクロールできるよう1年分を渡す
-  private var graphBodyRecords: [BodyRecord] {
-    let cutoff = Calendar.current.date(byAdding: .day, value: -365, to: Date()) ?? Date()
-    return bodyRecords.filter { cutoff <= $0.dateTime }
-  }
-
-  private var symptomIDs: [String] {
+  /// 表示パネルに必要な期間抽出と症状集計を画面更新ごとに1回だけ行う
+  private func prepareData(for panels: [AnalysisPanelID]) -> PreparedData {
     let now = Date()
+    let needsGraphs = panels.contains { $0.graphKind != nil }
+    let needsStats = panels.contains { $0.statSection != nil }
+    let symptomPanels = panels.filter { $0.isSymptomPanel }
+
+    // 測定グラフは横スクロール用として従来どおり1年分を共有する
+    let graphRecords: [BodyRecord]
+    if needsGraphs {
+      let cutoff = Calendar.current.date(byAdding: .day, value: -365, to: now) ?? now
+      graphRecords = bodyRecords.filter { cutoff <= $0.dateTime }
+    } else {
+      graphRecords = []
+    }
+
+    let statRecords: [BodyRecord]
+    if needsStats {
+      let cutoff =
+        Calendar.current.date(byAdding: .day, value: -period.rawValue, to: now) ?? now
+      statRecords = bodyRecords.filter { cutoff <= $0.dateTime }
+    } else {
+      statRecords = []
+    }
+
+    guard !symptomPanels.isEmpty else {
+      return PreparedData(
+        graphRecords: graphRecords,
+        statRecords: statRecords,
+        symptomIDs: [],
+        symptomOptions: [
+          AnalysisSymptomFilterOption(id: "", title: String(localized: "analysis.all"))
+        ],
+        symptomRecordsByPanel: [:]
+      )
+    }
+
     // 「なし」を除く発症記録を症状ごとに数え、よく記録する症状を上位へ並べる
     let onsetCounts = symptomRecords.reduce(into: [String: Int]()) { counts, record in
       guard !record.sSymptomID.isEmpty,
-            record.startAt <= now,
-            1 < record.nSeverity
+        record.startAt <= now,
+        1 < record.nSeverity
       else { return }
       counts[record.sSymptomID, default: 0] += 1
     }
-    return Set(symptomRecords.map(\.sSymptomID).filter { !$0.isEmpty }).sorted { lhs, rhs in
+    let symptomIDs = Set(symptomRecords.map(\.sSymptomID).filter { !$0.isEmpty }).sorted { lhs, rhs in
       let lhsCount = onsetCounts[lhs, default: 0]
       let rhsCount = onsetCounts[rhs, default: 0]
       if lhsCount != rhsCount { return rhsCount < lhsCount }
       return symptomName(lhs).localizedStandardCompare(symptomName(rhs)) == .orderedAscending
     }
+    let symptomOptions =
+      [AnalysisSymptomFilterOption(id: "", title: String(localized: "analysis.all"))]
+      + symptomIDs.map { AnalysisSymptomFilterOption(id: $0, title: symptomName($0)) }
+
+    // 現在時刻以前の記録を一度だけ絞り、症状別の配列を各パネルで共有する
+    let eligibleRecords = symptomRecords.filter { $0.startAt <= now }
+    let groupedRecords = Dictionary(grouping: eligibleRecords, by: \.sSymptomID)
+    var recordsByPanel: [AnalysisPanelID: [SymptomRecord]] = [:]
+    for panel in symptomPanels {
+      let selectedID = selectedSymptomID(for: panel, symptomIDs: symptomIDs)
+      recordsByPanel[panel] = selectedID.isEmpty
+        ? eligibleRecords
+        : groupedRecords[selectedID] ?? []
+    }
+
+    return PreparedData(
+      graphRecords: graphRecords,
+      statRecords: statRecords,
+      symptomIDs: symptomIDs,
+      symptomOptions: symptomOptions,
+      symptomRecordsByPanel: recordsByPanel
+    )
   }
 
   var body: some View {
-    NavigationStack {
+    let panels = visiblePanels
+    // タブ外では抽出処理と図表ビューの生成を止める
+    let activePanels = isActive ? panels : []
+    let preparedData = prepareData(for: activePanels)
+    return NavigationStack {
       ScrollView {
         VStack(spacing: 0) {
           BeginnerHelpBanner(
@@ -94,15 +145,15 @@ struct AnalysisPageView: View {
           )
           LazyVStack(spacing: 0) {
             periodPicker
-            if visiblePanels.isEmpty {
+            if panels.isEmpty {
               ContentUnavailableView(
                 "analysis.page.empty",
                 systemImage: "rectangle.3.group"
               )
               .padding(.top, 60)
             } else {
-              ForEach(visiblePanels) { panel in
-                analysisPanel(panel)
+              ForEach(stagedPanels(from: activePanels)) { panel in
+                analysisPanel(panel, preparedData: preparedData)
               }
             }
           }
@@ -113,6 +164,9 @@ struct AnalysisPageView: View {
       }
       .scrollIndicators(.hidden)
       .environment(\.chartAvailableWidth, chartWidth)
+      .task(id: panelStageID(for: activePanels)) {
+        await revealPanels(total: activePanels.count)
+      }
       .overlay { if isExporting { exportingOverlay } }
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
@@ -125,7 +179,7 @@ struct AnalysisPageView: View {
               captionKey: "analysis.toolbar.pdf"
             )
           }
-          .disabled(visiblePanels.isEmpty || isExporting)
+          .disabled(panels.isEmpty || isExporting)
         }
         ToolbarItem(placement: .principal) {
           // 画面タイトルはアイコンを使わず分析名を明記する
@@ -159,6 +213,25 @@ struct AnalysisPageView: View {
     }
   }
 
+  /// 初期表示は先頭だけに絞り、残りは小分けにして生成する
+  private func stagedPanels(from panels: [AnalysisPanelID]) -> [AnalysisPanelID] {
+    Array(panels.prefix(min(stagedPanelCount, panels.count)))
+  }
+
+  private func panelStageID(for panels: [AnalysisPanelID]) -> String {
+    panels.map(\.rawValue).joined(separator: "|")
+  }
+
+  @MainActor
+  private func revealPanels(total: Int) async {
+    stagedPanelCount = min(Self.initialPanelCount, total)
+    while stagedPanelCount < total {
+      try? await Task.sleep(for: .milliseconds(Self.panelBatchDelayMS))
+      if Task.isCancelled { return }
+      stagedPanelCount = min(stagedPanelCount + Self.panelBatchCount, total)
+    }
+  }
+
   private var pageTitle: String {
     page.displayTitle(in: settings.analysisLayout)
   }
@@ -182,48 +255,65 @@ struct AnalysisPageView: View {
   }
 
   @ViewBuilder
-  private func analysisPanel(_ panel: AnalysisPanelID) -> some View {
+  private func analysisPanel(
+    _ panel: AnalysisPanelID,
+    preparedData: PreparedData
+  ) -> some View {
     if let kind = panel.graphKind {
-      if graphBodyRecords.isEmpty {
+      if preparedData.graphRecords.isEmpty {
         AnalysisEmptyPanel(titleKey: panel.titleKey)
       } else {
-        AnalysisGraphPanel(kind: kind, records: graphBodyRecords, period: period)
+        AnalysisGraphPanel(kind: kind, records: preparedData.graphRecords, period: period)
       }
     } else if let section = panel.statSection {
-      if targetBodyRecords.isEmpty {
+      if preparedData.statRecords.isEmpty {
         AnalysisEmptyPanel(titleKey: panel.titleKey)
       } else {
-        AnalysisStatPanel(section: section, records: targetBodyRecords)
+        AnalysisStatPanel(section: section, records: preparedData.statRecords)
       }
     } else {
+      let records = preparedData.symptomRecordsByPanel[panel] ?? []
+      let options = symptomFilterOptions(for: panel, preparedData: preparedData)
+      let selection = symptomFilterBinding(
+        for: panel,
+        symptomIDs: preparedData.symptomIDs,
+        options: options
+      )
       switch panel {
+      case .symptomOverview:
+        AnalysisSymptomSummaryPanel(
+          records: records,
+          range: symptomRange,
+          symptomOptions: options,
+          selectedSymptom: selection
+        )
       case .symptomCalendar:
         AnalysisSymptomCalendarPanel(
-          records: filteredSymptomRecords(for: panel),
-          symptomOptions: symptomFilterOptions(for: panel),
-          selectedSymptom: symptomFilterBinding(for: panel),
+          records: records,
+          symptomOptions: options,
+          selectedSymptom: selection,
           name: symptomName
         )
       case .symptomFrequency:
         AnalysisSymptomFrequencyPanel(
-          records: filteredSymptomRecords(for: panel),
+          records: records,
           range: symptomRange,
-          symptomOptions: symptomFilterOptions(for: panel),
-          selectedSymptom: symptomFilterBinding(for: panel)
+          symptomOptions: options,
+          selectedSymptom: selection
         )
       case .symptomSummary:
         AnalysisSymptomEnvironmentPanel(
-          symptomRecords: filteredSymptomRecords(for: panel),
+          symptomRecords: records,
           range: symptomRange,
-          symptomOptions: symptomFilterOptions(for: panel),
-          selectedSymptom: symptomFilterBinding(for: panel)
+          symptomOptions: options,
+          selectedSymptom: selection
         )
       case .symptomTriggers:
         AnalysisSymptomTriggerPanel(
-          symptomRecords: filteredSymptomRecords(for: panel),
+          symptomRecords: records,
           range: symptomRange,
-          symptomOptions: symptomFilterOptions(for: panel),
-          selectedSymptom: symptomFilterBinding(for: panel)
+          symptomOptions: options,
+          selectedSymptom: selection
         )
       default:
         EmptyView()
@@ -232,34 +322,46 @@ struct AnalysisPageView: View {
   }
 
   /// 削除済みIDは各パネルで利用可能な初期選択へ戻す
-  private func selectedSymptomID(for panel: AnalysisPanelID) -> String {
+  private func selectedSymptomID(
+    for panel: AnalysisPanelID,
+    symptomIDs: [String]
+  ) -> String {
     let saved = settings.analysisSymptomFilter(for: panel, in: page)
+    // 同期中は削除済みIDも全パネルで「すべて」へそろえる
+    if settings.analysisSymptomSelectionSync {
+      return symptomIDs.contains(saved) ? saved : ""
+    }
     if symptomIDs.contains(saved) { return saved }
     // 周期性では発症件数が最も多い先頭の症状を初期選択する
     return panel == .symptomFrequency ? symptomIDs.first ?? "" : ""
   }
 
-  private func selectedSymptomOption(for panel: AnalysisPanelID) -> AnalysisSymptomFilterOption {
-    let selectedID = selectedSymptomID(for: panel)
-    let options = symptomFilterOptions(for: panel)
-    return options.first { $0.id == selectedID } ?? options[0]
+  /// 周期性は単一症状の発症間隔を分析するため、同期OFFでは「すべて」を外す
+  private func symptomFilterOptions(
+    for panel: AnalysisPanelID,
+    preparedData: PreparedData
+  ) -> [AnalysisSymptomFilterOption] {
+    guard panel == .symptomFrequency,
+      !settings.analysisSymptomSelectionSync
+    else { return preparedData.symptomOptions }
+    let options = preparedData.symptomOptions.filter { !$0.id.isEmpty }
+    return options.isEmpty ? [AnalysisSymptomFilterOption(id: "", title: "—")] : options
   }
 
   private func symptomFilterBinding(
-    for panel: AnalysisPanelID
+    for panel: AnalysisPanelID,
+    symptomIDs: [String],
+    options: [AnalysisSymptomFilterOption]
   ) -> Binding<AnalysisSymptomFilterOption> {
     Binding(
-      get: { selectedSymptomOption(for: panel) },
+      get: {
+        let selectedID = selectedSymptomID(for: panel, symptomIDs: symptomIDs)
+        return options.first { $0.id == selectedID }
+          ?? options.first
+          ?? AnalysisSymptomFilterOption(id: "", title: "—")
+      },
       set: { settings.setAnalysisSymptomFilter($0.id, for: panel) }
     )
-  }
-
-  private func filteredSymptomRecords(for panel: AnalysisPanelID) -> [SymptomRecord] {
-    let selectedID = selectedSymptomID(for: panel)
-    // パネルで選択した症状と現在時刻以前の記録だけを返す
-    return symptomRecords.filter {
-      (selectedID.isEmpty || $0.sSymptomID == selectedID) && $0.startAt <= Date()
-    }
   }
 
   private var symptomRange: SymptomAnalysisRange {
@@ -316,8 +418,13 @@ struct AnalysisPageView: View {
       defer { isExporting = false }
       try? await Task.sleep(for: .milliseconds(50))
       let width = PDFPanelExporter.contentW
+      let visiblePanels = self.visiblePanels
+      let preparedData = prepareData(for: visiblePanels)
       let panels = visiblePanels.map { panel in
-        AnyView(analysisPanel(panel).environment(\.chartAvailableWidth, width))
+        AnyView(
+          analysisPanel(panel, preparedData: preparedData)
+            .environment(\.chartAvailableWidth, width)
+        )
       }
       let formatter = DateFormatter()
       formatter.setLocalizedDateFormatFromTemplate("yMd")
@@ -625,6 +732,101 @@ private enum AnalysisCalendarGridItem: Identifiable {
     case .placeholder(let index): return "placeholder-\(index)"
     case .day(let number, _): return "day-\(number)"
     }
+  }
+}
+
+/// 対象期間の症状記録をページ先頭で確認するサマリー
+private struct AnalysisSymptomSummaryPanel: View {
+  let records: [SymptomRecord]
+  let range: SymptomAnalysisRange
+  let symptomOptions: [AnalysisSymptomFilterOption]
+  @Binding var selectedSymptom: AnalysisSymptomFilterOption
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+  /// 大きな文字では1列にして項目名を読みやすくする
+  private var summaryColumnCount: Int {
+    DynamicTypeSize.accessibility1 <= dynamicTypeSize ? 1 : 2
+  }
+
+  /// 期間内に開始した症状ありの記録
+  private var onsetRecords: [SymptomRecord] {
+    records.filter { range.containsStart($0) && 1 < $0.nSeverity }
+  }
+
+  /// 期間に重なる継続中の記録
+  private var ongoingCount: Int {
+    records.filter { range.overlaps($0) && $0.bOngoing && 1 < $0.nSeverity }.count
+  }
+
+  /// 終息日時が分かる記録だけで求める平均持続時間
+  private var averageDuration: String {
+    let durations = onsetRecords.compactMap(\.completedDuration)
+    guard !durations.isEmpty else { return "—" }
+    let average = durations.reduce(0, +) / Double(durations.count)
+    return SymptomDurationFormatter.string(from: average)
+  }
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      Text("analysis.symptomSummary")
+        .font(.headline)
+      AnalysisSymptomTargetPicker(
+        options: symptomOptions,
+        selection: $selectedSymptom
+      )
+      LazyVGrid(
+        columns: Array(
+          repeating: GridItem(.flexible(), spacing: 8),
+          count: summaryColumnCount
+        ),
+        spacing: 8
+      ) {
+        summaryMetric(
+          title: "analysis.records",
+          value: onsetRecords.count.formatted(),
+          systemImage: "number"
+        )
+        summaryMetric(
+          title: "analysis.days",
+          value: range.symptomDays(records).formatted(),
+          systemImage: "calendar"
+        )
+        summaryMetric(
+          title: "analysis.ongoing",
+          value: ongoingCount.formatted(),
+          systemImage: "waveform.path"
+        )
+        summaryMetric(
+          title: "analysis.duration",
+          value: averageDuration,
+          systemImage: "timer"
+        )
+      }
+    }
+    .padding()
+    .background(Color.analysisSymptomPanelBackground, in: RoundedRectangle(cornerRadius: 16))
+    .padding(.bottom, 16)
+  }
+
+  private func summaryMetric(
+    title: LocalizedStringKey,
+    value: String,
+    systemImage: String
+  ) -> some View {
+    VStack(alignment: .leading, spacing: 5) {
+      Label(title, systemImage: systemImage)
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .lineLimit(2)
+      Text(value)
+        .font(.headline.monospacedDigit())
+        .lineLimit(1)
+        .minimumScaleFactor(0.65)
+    }
+    .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
+    .padding(10)
+    .background(Color(.secondarySystemGroupedBackground))
+    .clipShape(RoundedRectangle(cornerRadius: 11))
   }
 }
 

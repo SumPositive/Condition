@@ -1877,6 +1877,17 @@ struct GraphSettingsView: View {
             if !showsLayout {
                 // 配置は共通画面で扱い、図表内部の補助線だけをここで設定する
                 Section("analysis.layout.details") {
+                    // ヘルプボタンがトグル操作に吸われないようラベルの外へ分ける
+                    HStack {
+                        SettingsHelpTitle(
+                            titleKey: "analysis.details.syncSymptomSelection",
+                            helpKey: "analysis.details.syncSymptomSelection.help",
+                            storageKey: "helpDismissed.analysis.syncSymptomSelection"
+                        )
+                        Spacer(minLength: 8)
+                        Toggle("", isOn: symptomSelectionSyncBinding)
+                            .labelsHidden()
+                    }
                     Toggle("metric.meanBloodPressure", isOn: $settings.graphBpMean)
                     Toggle("metric.weightMovingAverage", isOn: $settings.graphWeightMA)
                     Toggle("analysis.details.showAverageSD", isOn: $settings.statShowAvg)
@@ -1949,6 +1960,14 @@ struct GraphSettingsView: View {
                 }
             }
         }
+    }
+
+    /// 症状選択の同期切替時に現在の選択を各パネルへ引き継ぐ
+    private var symptomSelectionSyncBinding: Binding<Bool> {
+        Binding(
+            get: { settings.analysisSymptomSelectionSync },
+            set: { settings.setAnalysisSymptomSelectionSync($0) }
+        )
     }
 
     private func resetAnalysisLayout() {

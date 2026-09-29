@@ -93,7 +93,7 @@ enum SnapshotSeed {
     }
 
     #if DEBUG
-    /// 分析3（発症カレンダー・周期性・発症と環境・発症と直前の状況）が映える症状記録。
+    /// 分析3（症状サマリー・発症カレンダー・周期性・環境・直前の状況）が映える症状記録
     /// 頭痛を中心に数日おきに置き、環境・直前の状況・対処も付ける。
     /// 地名や観測所は言語ごとに合わないので、環境は手入力扱いにする
     private static func seedSymptoms(context: ModelContext, today: Date, calendar cal: Calendar) {

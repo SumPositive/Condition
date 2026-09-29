@@ -37,6 +37,7 @@ enum SettingsKeys {
     static let settStatHeightOverrides  = "KVS_SettStatHeightOverrides"  // 統計図別追加高さ (JSON {sectionRaw: extraHeight CGFloat})
     static let settAnalysisLayout       = "KVS_SettAnalysisLayout"       // 3分析ページの配置・表示・期間 (JSONデータ)
     static let settAnalysisSymptomFilters = "KVS_SettAnalysisSymptomFilters" // 症状パネル別の絞り込み ([String: String])
+    static let settAnalysisSymptomSelectionSync = "KVS_SettAnalysisSymptomSelectionSync" // 症状パネルの選択を同期する
 
     // MARK: - 機能切替
     static let bGoal            = "KVS_bGoal"           // 目標値機能
@@ -98,6 +99,7 @@ enum SettingsKeys {
         settGraphHiddenPanels,
         settAnalysisLayout,
         settAnalysisSymptomFilters,
+        settAnalysisSymptomSelectionSync,
         bGoal,
         dateOptWakeHour,
         dateOptRestHour,
