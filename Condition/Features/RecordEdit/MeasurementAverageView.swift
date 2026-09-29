@@ -259,8 +259,10 @@ struct MeasurementAverageView: View {
     /// 編集開始時の状態を保持して未変更か判定する
     @State private var initialSnapshot: MeasurementAverageSnapshot?
 
-    /// 未保存の変更を取り消す確認
-    @State private var showDiscardConfirmation = false
+    /// 変更破棄の2回目のタップを待っているか
+    @State private var isDiscardArmed = false
+    /// 変更破棄の確認状態を一定時間後に戻す
+    @State private var discardResetTask: Task<Void, Never>?
     /// バックグラウンドを経由したか
     @State private var didEnterBackground = false
 
@@ -367,6 +369,8 @@ struct MeasurementAverageView: View {
                     .opacity(hidesKeypad ? 0 : 1)
                     .allowsHitTesting(!hidesKeypad)
             }
+            // 確認中に別の場所をタップしたら通常のキャンセル表示へ戻す
+            .simultaneousGesture(TapGesture().onEnded { resetDiscardConfirmation() })
             // ソフトキーボードの表示／非表示を実測して、テンキーの出し分けに使う
             .onReceive(
                 NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)
@@ -383,38 +387,41 @@ struct MeasurementAverageView: View {
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .principal) {
-                    // アイコンだけでは何のシートか分からないので用途を文字で添える。
-                    // Label はツールバー内だとアイコンだけに畳まれることがあるので HStack で並べる
-                    HStack(spacing: 4) {
-                        Image(systemName: "text.badge.plus")
-                        Text("records.toolbar.measurement")
+                if !isDiscardArmed {
+                    ToolbarItem(placement: .principal) {
+                        // アイコンだけでは何のシートか分からないので用途を文字で添える。
+                        // Label はツールバー内だとアイコンだけに畳まれることがあるので HStack で並べる
+                        HStack(spacing: 4) {
+                            Image(systemName: "text.badge.plus")
+                            Text("records.toolbar.measurement")
+                        }
+                        .font(.headline)
+                        // シートのタイトルは通常のラベル色にする（他のシートと揃える）
+                        .foregroundStyle(Color.primary)
+                        .lineLimit(1)
+                        .fixedSize()
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(Text("record.measurementAvg.title"))
                     }
-                    .font(.headline)
-                    // シートのタイトルは通常のラベル色にする（他のシートと揃える）
-                    .foregroundStyle(Color.primary)
-                    .lineLimit(1)
-                    .fixedSize()
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(Text("record.measurementAvg.title"))
                 }
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("action.cancel") {
+                    Button {
                         handleCancelTapped()
+                    } label: {
+                        Text(LocalizedStringKey(isDiscardArmed ? "action.discard" : "action.cancel"))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                            // 長い確認文がボタンの縁で欠けないよう確認中だけ余白を足す
+                            .padding(.horizontal, isDiscardArmed ? 16 : 0)
                     }
-                    // 未保存の内容は標準の確認ダイアログから取り消す
-                    .confirmationDialog(
-                        "action.cancel",
-                        isPresented: $showDiscardConfirmation,
-                        titleVisibility: .visible
-                    ) {
-                        Button("action.discard", role: .destructive) { dismiss() }
-                    }
+                    .tint(isDiscardArmed ? .red : .accentColor)
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("action.save") { saveAndDismiss() }
-                        .disabled(!hasAnyValue || (record != nil && !hasUnsavedChanges))
-                        .bold()
+                if !isDiscardArmed {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("action.save") { saveAndDismiss() }
+                            .disabled(!hasAnyValue || (record != nil && !hasUnsavedChanges))
+                            .bold()
+                    }
                 }
                 // 削除は「次へ」ボタンの真上に赤背景で配置（sideNextButtonWithToggle）
             }
@@ -511,6 +518,7 @@ struct MeasurementAverageView: View {
             }
             .onDisappear {
                 memoScrollTask?.cancel()
+                discardResetTask?.cancel()
             }
         }
         if settings.fontScale.followsSystem {
@@ -1682,6 +1690,10 @@ struct MeasurementAverageView: View {
         } else {
             inputText += String(d)
         }
+        // 有効範囲から整数部が確定できたら小数点を補う
+        if cell.column.spec.shouldAutoInsertDecimal(after: inputText) {
+            inputText += "."
+        }
         autoCompleteIfNeeded(cell.column)
     }
 
@@ -1811,7 +1823,31 @@ struct MeasurementAverageView: View {
             dismiss()
             return
         }
-        showDiscardConfirmation = true
+        if isDiscardArmed {
+            discardResetTask?.cancel()
+            dismiss()
+            return
+        }
+        armDiscardConfirmation()
+    }
+
+    /// 3秒間だけ変更破棄の2回目のタップを受け付ける
+    private func armDiscardConfirmation() {
+        discardResetTask?.cancel()
+        withAnimation(.easeInOut(duration: 0.15)) { isDiscardArmed = true }
+        discardResetTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(3))
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeInOut(duration: 0.15)) { isDiscardArmed = false }
+        }
+    }
+
+    /// ボタン外の操作で変更破棄の確認状態を解除する
+    private func resetDiscardConfirmation() {
+        guard isDiscardArmed else { return }
+        discardResetTask?.cancel()
+        discardResetTask = nil
+        withAnimation(.easeInOut(duration: 0.15)) { isDiscardArmed = false }
     }
 
     // MARK: 保存

@@ -50,8 +50,10 @@ struct RecordEditView: View {
     @State private var isDateOptExpanded = false
     @State private var measurementSamples: [MeasurementAverageField: [Int]] = [:]
     @State private var showsFloatingAverageAddButton = false
-    /// 未保存の変更を取り消す確認
-    @State private var showDiscardConfirmation = false
+    /// 変更破棄の2回目のタップを待っているか
+    @State private var isDiscardArmed = false
+    /// 変更破棄の確認状態を一定時間後に戻す
+    @State private var discardResetTask: Task<Void, Never>?
     /// メモ欄の自動スクロールを最新の対象だけに限定する
     @State private var memoScrollTask: Task<Void, Never>? = nil
     /// ソフトキーボードが表示中か
@@ -246,7 +248,6 @@ struct RecordEditView: View {
     private let onHKImported: ((Int) -> Void)?
     /// 変更状態が変わるたびに呼ばれるコールバック（true=変更あり / false=変更なし or シート消滅）
     private let onModifiedChanged: ((Bool) -> Void)?
-
     init(mode: EditMode,
          onHKImported: ((Int) -> Void)? = nil,
          onModifiedChanged: ((Bool) -> Void)? = nil) {
@@ -383,6 +384,8 @@ struct RecordEditView: View {
                 .onTapGesture {
                     if focusEquipment { dismissMemoFocus() }
                 }
+                // 確認中に別の場所をタップしたら通常のキャンセル表示へ戻す
+                .simultaneousGesture(TapGesture().onEnded { resetDiscardConfirmation() })
                 .onChange(of: vm.sNote1) { _, _ in scrollFocusedMemoIntoView(proxy) }
                 .onChange(of: vm.sNote2) { _, _ in scrollFocusedMemoIntoView(proxy) }
                 .onChange(of: vm.sEquipment) { _, _ in scrollFocusedMemoIntoView(proxy) }
@@ -420,27 +423,28 @@ struct RecordEditView: View {
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("action.save") {
-                        saveAndDismiss()
+                if !isDiscardArmed {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("action.save") {
+                            saveAndDismiss()
+                        }
+                        .disabled((!vm.isModified && !isNewRecord) || conflictData != nil)
+                        .opacity(conflictData == nil ? 1 : 0)
+                        .bold()
+                        .tint(vm.isModified ? .accentColor : Color(.secondaryLabel))
                     }
-                    .disabled((!vm.isModified && !isNewRecord) || conflictData != nil)
-                    .opacity(conflictData == nil ? 1 : 0)
-                    .bold()
-                    .tint(vm.isModified ? .accentColor : Color(.secondaryLabel))
                 }
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("action.cancel") {
+                    Button {
                         handleCancelTapped()
+                    } label: {
+                        Text(LocalizedStringKey(isDiscardArmed ? "action.discard" : "action.cancel"))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                            // 長い確認文がボタンの縁で欠けないよう確認中だけ余白を足す
+                            .padding(.horizontal, isDiscardArmed ? 16 : 0)
                     }
-                    // 未保存の内容は標準の確認ダイアログから取り消す
-                    .confirmationDialog(
-                        "action.cancel",
-                        isPresented: $showDiscardConfirmation,
-                        titleVisibility: .visible
-                    ) {
-                        Button("action.discard", role: .destructive) { dismiss() }
-                    }
+                    .tint(isDiscardArmed ? .red : .accentColor)
                 }
             }
             .sheet(isPresented: $showDatePicker) {
@@ -517,6 +521,7 @@ struct RecordEditView: View {
             .interactiveDismissDisabled(hasPendingChanges)
             .onDisappear {
                 memoScrollTask?.cancel()
+                discardResetTask?.cancel()
             }
         }
         .overlay(alignment: .top) {
@@ -540,7 +545,31 @@ struct RecordEditView: View {
             dismiss()
             return
         }
-        showDiscardConfirmation = true
+        if isDiscardArmed {
+            discardResetTask?.cancel()
+            dismiss()
+            return
+        }
+        armDiscardConfirmation()
+    }
+
+    /// 3秒間だけ変更破棄の2回目のタップを受け付ける
+    private func armDiscardConfirmation() {
+        discardResetTask?.cancel()
+        withAnimation(.easeInOut(duration: 0.15)) { isDiscardArmed = true }
+        discardResetTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(3))
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeInOut(duration: 0.15)) { isDiscardArmed = false }
+        }
+    }
+
+    /// ボタン外の操作で変更破棄の確認状態を解除する
+    private func resetDiscardConfirmation() {
+        guard isDiscardArmed else { return }
+        discardResetTask?.cancel()
+        discardResetTask = nil
+        withAnimation(.easeInOut(duration: 0.15)) { isDiscardArmed = false }
     }
 
     /// 設定の順序と非表示設定に従った表示フィールド一覧

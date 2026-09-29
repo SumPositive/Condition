@@ -478,6 +478,9 @@ struct RecordListView: View {
         return blue("plus.circle.fill") + Text(verbatim: " ")
             + Text(LocalizedStringKey("help.record.add"))
             + Text(verbatim: "\n\n")
+            + blue("line.3.horizontal.decrease.circle") + Text(verbatim: " ")
+            + Text(LocalizedStringKey("help.record.filter"))
+            + Text(verbatim: "\n\n")
             + Text(LocalizedStringKey("help.record.rest"))
             + Text(verbatim: "\n\n")
             + blue("square.and.arrow.up") + Text(verbatim: " ")
@@ -503,7 +506,8 @@ struct RecordListView: View {
             BeginnerHelpBanner(
                 hintKey: "help.record.hint",
                 messageText: recordHelpMessage,
-                storageKey: "helpDismissed.record"
+                storageKey: "helpDismissed.record",
+                keepsIconOnHintLine: true
             )
             RecordColumnHeader(visibleKinds: visibleRecordKinds)
                 .padding(.horizontal, 16)

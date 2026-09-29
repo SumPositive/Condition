@@ -61,13 +61,13 @@ enum MeasureRange {
     static let bpLo = MeasureSpec(min: 20,  initVal: 80,  max: 200, decimals: 0, autoCompleteFirstDigit: 4)
     // 心拍数 bpm  30以上は2桁で自動確定、10〜29は決定ボタンで確定
     static let pulse = MeasureSpec(min: 10,  initVal: 65,  max: 200, decimals: 0, autoCompleteFirstDigit: 3)
-    // 体重 x10 kg  (650 = 65.0 kg)  小数1桁入力で自動確定
+    // 体重 x10 kg  (650 = 65.0 kg)  整数部確定後に小数点を補い、小数1桁で自動確定
     static let weight = MeasureSpec(min: 0,   initVal: 650, max: 2000, decimals: 1)
-    // 体温 x10 ℃  (365 = 36.5 ℃)  小数1桁入力で自動確定
+    // 体温 x10 ℃  (365 = 36.5 ℃)  整数部確定後に小数点を補い、小数1桁で自動確定
     static let temp = MeasureSpec(min: 310, initVal: 365, max: 429,  decimals: 1)
-    // 体脂肪率 x10 % (235 = 23.5 %)  小数1桁入力で自動確定
+    // 体脂肪率 x10 % (235 = 23.5 %)  整数部確定後に小数点を補い、小数1桁で自動確定
     static let bodyFat = MeasureSpec(min: 0,   initVal: 235, max: 1000,  decimals: 1)
-    // 骨格筋率 x10 % (285 = 28.5 %)  小数1桁入力で自動確定
+    // 骨格筋率 x10 % (285 = 28.5 %)  整数部確定後に小数点を補い、小数1桁で自動確定
     static let skMuscle = MeasureSpec(min: 0,   initVal: 285, max: 1000,  decimals: 1)
     // 脈圧 mmHg  血圧上下から計算される値でテンキー入力はしないため自動確定しきい値なし
     static let bpPp = MeasureSpec(min: 10,  initVal: 40,  max: 100,  decimals: 0)
@@ -86,6 +86,23 @@ struct MeasureSpec {
     /// nil の項目（小数項目）は「小数第 decimals 桁まで入力されたら確定」で判定する。
     /// 例) 血圧上(30〜300, =4): 40〜99は2桁で確定、100〜300は3桁で確定、30〜39は自動確定しない。
     var autoCompleteFirstDigit: Int? = nil
+
+    /// 小数項目で整数部が確定した時点に小数点を自動挿入できるか判定する
+    /// 現在値が範囲内で、さらに整数を1桁続けると最大値を超える場合だけ補う
+    func shouldAutoInsertDecimal(after text: String) -> Bool {
+        guard 0 < decimals,
+              !text.contains("."),
+              let whole = Int(text) else { return false }
+
+        let scale = (0..<decimals).reduce(1) { value, _ in value * 10 }
+        let currentMinimum = whole * scale
+        let currentMaximum = currentMinimum + scale - 1
+        // 小数部を含めても有効範囲に入らない整数部では、次の桁を待つ
+        guard min <= currentMaximum, currentMinimum <= max else { return false }
+
+        let extendedMinimum = whole * 10 * scale
+        return max < extendedMinimum
+    }
 
     /// テンキーで入力途中の文字列 `text` を、これ以上桁を足す必要がなく自動確定してよいか判定する。
     /// - 小数項目: 小数点があり小数第 decimals 桁まで入力されたら true

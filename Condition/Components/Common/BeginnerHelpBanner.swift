@@ -18,6 +18,8 @@ struct BeginnerHelpBanner: View {
     /// ヒント文の前にアイコンを置くか。
     /// 既定は文の後ろだが、長い文だと折り返してアイコンが次の行に落ちて1行無駄になる
     var iconLeading: Bool = false
+    /// ヒント文と末尾のアイコンを縮小して1行に固定するか
+    var keepsIconOnHintLine: Bool = false
     @State private var showsHelpSheet = false
     @State private var sheetContentHeight: CGFloat = 220
 
@@ -58,11 +60,18 @@ struct BeginnerHelpBanner: View {
         self.iconLeading = iconLeading
     }
 
-    init(hintKey: LocalizedStringKey, messageText: Text, storageKey: String, compact: Bool = false) {
+    init(
+        hintKey: LocalizedStringKey,
+        messageText: Text,
+        storageKey: String,
+        compact: Bool = false,
+        keepsIconOnHintLine: Bool = false
+    ) {
         self.hintKey = hintKey
         self.messageKey = ""
         self.messageText = messageText
         self.compact = compact
+        self.keepsIconOnHintLine = keepsIconOnHintLine
     }
 
     var body: some View {
@@ -72,9 +81,17 @@ struct BeginnerHelpBanner: View {
                     // ヒント文がない場合は、見出し行やセル行に収まりやすいアイコンだけにする
                     helpButton
                 } else {
-                    ViewThatFits(in: .horizontal) {
-                        horizontalContent
-                        verticalContent
+                    // 条件分岐をまとめ、後続モディファイアの型を確定させる
+                    Group {
+                        if keepsIconOnHintLine {
+                            // 記録画面の短い案内は疑問符まで同じ1行に収める
+                            horizontalContent
+                        } else {
+                            ViewThatFits(in: .horizontal) {
+                                horizontalContent
+                                verticalContent
+                            }
+                        }
                     }
                     // グラフ・統計の本体上限に引きずられず、ヒント自身で文字サイズを決める
                     .dynamicTypeSize(helpDynamicTypeSize)
@@ -130,6 +147,8 @@ struct BeginnerHelpBanner: View {
         Text(key)
             .font(.caption)
             .foregroundStyle(.secondary)
+            .lineLimit(keepsIconOnHintLine ? 1 : nil)
+            .minimumScaleFactor(keepsIconOnHintLine ? 0.75 : 1)
             .fixedSize(horizontal: false, vertical: true)
     }
 

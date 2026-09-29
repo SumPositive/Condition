@@ -15,8 +15,10 @@ struct SymptomEditView: View {
     @State private var showSymptomPicker = false
     @State private var showMedicinePicker = false
     @State private var showTriggerPicker = false
-    /// 未保存の変更を取り消す確認
-    @State private var showDiscardConfirmation = false
+    /// 変更破棄の2回目のタップを待っているか
+    @State private var isDiscardArmed = false
+    /// 変更破棄の確認状態を一定時間後に戻す
+    @State private var discardResetTask: Task<Void, Never>?
     @State private var showEnvironmentSheet = false
     @State private var showStartPicker = false
     @State private var showEndPicker = false
@@ -43,45 +45,50 @@ struct SymptomEditView: View {
                     continuationSection
                 }
             }
+            // 確認中に別の場所をタップしたら通常のキャンセル表示へ戻す
+            .simultaneousGesture(TapGesture().onEnded { resetDiscardConfirmation() })
             // メモを打ったあと下へスクロールしたらキーボードを引き下げる。
             // 複数行入力なので、指の動きに追従する .interactively にする
             // （測定シートのメモ欄と同じ扱い）
             .scrollDismissesKeyboard(.interactively)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .principal) {
-                    // Label はツールバー内だとアイコンだけに畳まれることがあるので、
-                    // HStack で並べて必ずアイコンと文字の両方を出す
-                    HStack(spacing: 4) {
-                        Image(systemName: "at.badge.plus")
-                        Text("symptom.edit.title")
+                if !isDiscardArmed {
+                    ToolbarItem(placement: .principal) {
+                        // Label はツールバー内だとアイコンだけに畳まれることがあるので、
+                        // HStack で並べて必ずアイコンと文字の両方を出す
+                        HStack(spacing: 4) {
+                            Image(systemName: "at.badge.plus")
+                            Text("symptom.edit.title")
+                        }
+                        .font(.headline)
+                        // シートのタイトルは通常のラベル色にする（他のシートと揃える）
+                        .foregroundStyle(Color.primary)
+                        .lineLimit(1)
+                        .fixedSize()
+                        // アイコンと文字が別々に読み上げられないよう1つにまとめる
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(Text("symptom.edit.title"))
                     }
-                    .font(.headline)
-                    // シートのタイトルは通常のラベル色にする（他のシートと揃える）
-                    .foregroundStyle(Color.primary)
-                    .lineLimit(1)
-                    .fixedSize()
-                    // アイコンと文字が別々に読み上げられないよう1つにまとめる
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(Text("symptom.edit.title"))
                 }
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("action.cancel") {
+                    Button {
                         handleCancelTapped()
+                    } label: {
+                        Text(LocalizedStringKey(isDiscardArmed ? "action.discard" : "action.cancel"))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                            // 長い確認文がボタンの縁で欠けないよう確認中だけ余白を足す
+                            .padding(.horizontal, isDiscardArmed ? 16 : 0)
                     }
-                    // 未保存の内容は標準の確認ダイアログから取り消す
-                    .confirmationDialog(
-                        "action.cancel",
-                        isPresented: $showDiscardConfirmation,
-                        titleVisibility: .visible
-                    ) {
-                        Button("action.discard", role: .destructive) { dismiss() }
-                    }
+                    .tint(isDiscardArmed ? .red : .accentColor)
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("action.save") { saveAndDismiss() }
-                        .disabled(!vm.canSave)
-                        .fontWeight(.semibold)
+                if !isDiscardArmed {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("action.save") { saveAndDismiss() }
+                            .disabled(!vm.canSave)
+                            .fontWeight(.semibold)
+                    }
                 }
             }
             .sheet(isPresented: $showSymptomPicker) {
@@ -158,6 +165,7 @@ struct SymptomEditView: View {
             // 未保存の変更があるときはスワイプで閉じさせない
             .interactiveDismissDisabled(vm.isModified)
             .onChange(of: vm.isModified) { _, newValue in onModifiedChanged?(newValue) }
+            .onDisappear { discardResetTask?.cancel() }
             // 新規シートがバックグラウンドから戻り、日時が30分以上ずれていれば確認する
             .onChange(of: scenePhase) { _, phase in
                 switch phase {
@@ -512,7 +520,31 @@ struct SymptomEditView: View {
             dismiss()
             return
         }
-        showDiscardConfirmation = true
+        if isDiscardArmed {
+            discardResetTask?.cancel()
+            dismiss()
+            return
+        }
+        armDiscardConfirmation()
+    }
+
+    /// 3秒間だけ変更破棄の2回目のタップを受け付ける
+    private func armDiscardConfirmation() {
+        discardResetTask?.cancel()
+        withAnimation(.easeInOut(duration: 0.15)) { isDiscardArmed = true }
+        discardResetTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(3))
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeInOut(duration: 0.15)) { isDiscardArmed = false }
+        }
+    }
+
+    /// ボタン外の操作で変更破棄の確認状態を解除する
+    private func resetDiscardConfirmation() {
+        guard isDiscardArmed else { return }
+        discardResetTask?.cancel()
+        discardResetTask = nil
+        withAnimation(.easeInOut(duration: 0.15)) { isDiscardArmed = false }
     }
 
     // MARK: - 保存

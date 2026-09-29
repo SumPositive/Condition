@@ -190,6 +190,10 @@ private struct NumpadInputSheet: View {
             } else {
                 inputText += String(d)
             }
+            // 有効範囲から整数部が確定できたら小数点を補う
+            if autoCompleteSpec.shouldAutoInsertDecimal(after: inputText) {
+                inputText += "."
+            }
             autoCompleteIfNeeded()
         case .decimal:
             guard decimals > 0, !inputText.contains(".") else { return }
