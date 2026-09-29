@@ -129,9 +129,9 @@ struct AnalysisPageView: View {
         }
         ToolbarItem(placement: .principal) {
           // 画面タイトルはアイコンを使わず分析名を明記する
-          Text(page.displayTitle)
+          Text(page.displayTitle(in: settings.analysisLayout))
             .font(.headline)
-            .accessibilityLabel(page.accessibilityTitle)
+            .accessibilityLabel(page.accessibilityTitle(in: settings.analysisLayout))
         }
         ToolbarItem(placement: .primaryAction) {
           Button {
@@ -160,7 +160,7 @@ struct AnalysisPageView: View {
   }
 
   private var pageTitle: String {
-    page.displayTitle
+    page.displayTitle(in: settings.analysisLayout)
   }
 
   private var periodPicker: some View {
@@ -2107,6 +2107,7 @@ struct AnalysisLayoutSettingsView: View {
   @State private var selectedDestination: AnalysisLayoutDestination
   @State private var expandedPanel: AnalysisPanelID?
   @State private var showDetails = false
+  @FocusState private var isPageNameFocused: Bool
   @Environment(\.dismiss) private var dismiss
 
   init(initialPage: AnalysisPage = .one, isModal: Bool = false) {
@@ -2135,12 +2136,12 @@ struct AnalysisLayoutSettingsView: View {
             VStack(spacing: 2) {
               Image(systemName: page.tabSymbol)
               if settings.userLevel == .beginner {
-                Text(page.displayTitle)
+                Text(page.displayTitle(in: settings.analysisLayout))
                   .font(.caption)
               }
             }
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel(page.accessibilityTitle)
+            .accessibilityLabel(page.accessibilityTitle(in: settings.analysisLayout))
           } else {
             // 初心者には非表示アイコンの意味を文字でも明記する
             VStack(spacing: 2) {
@@ -2165,7 +2166,17 @@ struct AnalysisLayoutSettingsView: View {
         .onMove(perform: movePanels)
       } header: {
         HStack(spacing: 4) {
-          Text(selectedDestinationTitle)
+          if let page = selectedDestination.page {
+            // 選択中ページの名称を図表一覧の見出しで直接編集する
+            TextField(page.numberedTitle, text: pageNameBinding(for: page))
+              .textFieldStyle(.plain)
+              .lineLimit(1)
+              .submitLabel(.done)
+              .focused($isPageNameFocused)
+              .accessibilityLabel(Text("analysis.page.names"))
+          } else {
+            Text("analysis.layout.hidden")
+          }
           // 配置ヘルプは利用レベルにかかわらずアイコンから確認できる
           BeginnerHelpBanner(
             "analysis.layout.help",
@@ -2178,6 +2189,10 @@ struct AnalysisLayoutSettingsView: View {
       }
       .environment(\.editMode, .constant(.active))
 
+    }
+    .onChange(of: selectedDestination) { _, _ in
+      // ページを切り替えたら名称編集を終える
+      isPageNameFocused = false
     }
     .navigationTitle("analysis.layout.title")
     .navigationBarTitleDisplayMode(.inline)
@@ -2227,11 +2242,16 @@ struct AnalysisLayoutSettingsView: View {
     return settings.analysisLayout.hiddenPanels
   }
 
-  private var selectedDestinationTitle: String {
-    if let page = selectedDestination.page {
-      return page.displayTitle
-    }
-    return String(localized: "analysis.layout.hidden")
+  /// ページ名の変更を配置設定と一緒に保存する
+  private func pageNameBinding(for page: AnalysisPage) -> Binding<String> {
+    Binding(
+      get: { settings.analysisLayout.pageNameInput(in: page) },
+      set: { newName in
+        var layout = settings.analysisLayout
+        layout.setPageName(newName, in: page)
+        settings.analysisLayout = layout
+      }
+    )
   }
 
   private func panelRow(_ panel: AnalysisPanelID) -> some View {
@@ -2255,7 +2275,7 @@ struct AnalysisLayoutSettingsView: View {
         if let page = destination.page {
           // 閉じた状態と候補で分析タブと同じアイコンを使う
           Image(systemName: page.tabSymbol)
-            .accessibilityLabel(page.accessibilityTitle)
+            .accessibilityLabel(page.accessibilityTitle(in: settings.analysisLayout))
         } else {
           // 各行では幅を取らないよう非表示をアイコンだけで示す
           Image(systemName: "eye.slash")

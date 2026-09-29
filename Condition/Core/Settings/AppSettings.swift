@@ -112,6 +112,16 @@ enum LaunchAction: Int, CaseIterable, Identifiable {
         case .analysis3:  return "settings.launchAction.analysis3"
         }
     }
+
+    /// 起動時に開く分析ページを返す
+    var analysisPage: AnalysisPage? {
+        switch self {
+        case .graph: return .one
+        case .statistics: return .two
+        case .analysis3: return .three
+        case .none, .newSingle, .newMulti, .records: return nil
+        }
+    }
 }
 
 @Observable
@@ -152,7 +162,7 @@ final class AppSettings {
     var statHeightOverrides: [Int: Double] = [:] {
         didSet { saveStatHeightOverrides() }
     }
-    /// 3つの分析ページに属する図表、順位、表示状態、期間
+    /// 3つの分析ページに属する図表、順位、表示状態、期間、ページ名
     var analysisLayout = AnalysisLayout.migrated(
         graphOrder: GraphKind.allCases.map(\.rawValue),
         hiddenGraphs: [],

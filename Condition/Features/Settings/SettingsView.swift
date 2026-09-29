@@ -58,6 +58,19 @@ struct SettingsView: View {
             $0 != .newSingle || settings.launchAction == .newSingle
         }
     }
+
+    /// 分析ページは利用者が設定したページ名で表示する
+    private func launchActionLabel(_ action: LaunchAction) -> Text {
+        guard let page = action.analysisPage else {
+            return Text(LocalizedStringKey(action.titleKey))
+        }
+        let pageName = page.displayTitle(in: settings.analysisLayout)
+        let title = String(
+            format: String(localized: "settings.launchAction.analysisNamed"),
+            pageName
+        )
+        return Text(title)
+    }
     @State private var isUserLevelExpanded = false
     @State private var isAppearanceModeExpanded = false
     @State private var isFontScaleExpanded = false
@@ -244,7 +257,7 @@ struct SettingsView: View {
                                 isExpanded: $isLaunchActionExpanded,
                                 minWidth: 170
                             ) { action in
-                                Text(LocalizedStringKey(action.titleKey))
+                                launchActionLabel(action)
                             }
                         }
                         .zIndex(isLaunchActionExpanded ? 62 : 0)

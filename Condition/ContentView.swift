@@ -42,16 +42,20 @@ struct ContentView: View {
                     if settings.userLevel == .beginner {
                         // 初心者には番号アイコンの意味を文字でも示す
                         Label {
-                            Text(AnalysisPage.one.displayTitle)
+                            Text(AnalysisPage.one.displayTitle(in: settings.analysisLayout))
                         } icon: {
                             Image(systemName: AnalysisPage.one.tabSymbol)
                         }
                         .accessibilityIdentifier("tab.graph")
-                        .accessibilityLabel(AnalysisPage.one.accessibilityTitle)
+                        .accessibilityLabel(
+                            AnalysisPage.one.accessibilityTitle(in: settings.analysisLayout)
+                        )
                     } else {
                         Image(systemName: AnalysisPage.one.tabSymbol)
                             .accessibilityIdentifier("tab.graph")
-                            .accessibilityLabel(AnalysisPage.one.accessibilityTitle)
+                            .accessibilityLabel(
+                                AnalysisPage.one.accessibilityTitle(in: settings.analysisLayout)
+                            )
                     }
                 }
                 .tag(RootTab.analysis1)
@@ -60,16 +64,20 @@ struct ContentView: View {
                 .tabItem {
                     if settings.userLevel == .beginner {
                         Label {
-                            Text(AnalysisPage.two.displayTitle)
+                            Text(AnalysisPage.two.displayTitle(in: settings.analysisLayout))
                         } icon: {
                             Image(systemName: AnalysisPage.two.tabSymbol)
                         }
                         .accessibilityIdentifier("tab.statistics")
-                        .accessibilityLabel(AnalysisPage.two.accessibilityTitle)
+                        .accessibilityLabel(
+                            AnalysisPage.two.accessibilityTitle(in: settings.analysisLayout)
+                        )
                     } else {
                         Image(systemName: AnalysisPage.two.tabSymbol)
                             .accessibilityIdentifier("tab.statistics")
-                            .accessibilityLabel(AnalysisPage.two.accessibilityTitle)
+                            .accessibilityLabel(
+                                AnalysisPage.two.accessibilityTitle(in: settings.analysisLayout)
+                            )
                     }
                 }
                 .tag(RootTab.analysis2)
@@ -78,16 +86,20 @@ struct ContentView: View {
                 .tabItem {
                     if settings.userLevel == .beginner {
                         Label {
-                            Text(AnalysisPage.three.displayTitle)
+                            Text(AnalysisPage.three.displayTitle(in: settings.analysisLayout))
                         } icon: {
                             Image(systemName: AnalysisPage.three.tabSymbol)
                         }
                         .accessibilityIdentifier("tab.analysis3")
-                        .accessibilityLabel(AnalysisPage.three.accessibilityTitle)
+                        .accessibilityLabel(
+                            AnalysisPage.three.accessibilityTitle(in: settings.analysisLayout)
+                        )
                     } else {
                         Image(systemName: AnalysisPage.three.tabSymbol)
                             .accessibilityIdentifier("tab.analysis3")
-                            .accessibilityLabel(AnalysisPage.three.accessibilityTitle)
+                            .accessibilityLabel(
+                                AnalysisPage.three.accessibilityTitle(in: settings.analysisLayout)
+                            )
                     }
                 }
                 .tag(RootTab.analysis3)
@@ -108,7 +120,7 @@ struct ContentView: View {
                 }
                 .tag(RootTab.settings)
         }
-        // タブ名はシステム側に保持されるため、ユーザーレベル変更時だけ再構成する
+        // タブ項目の構成が変わるユーザーレベル変更時だけ再構成する
         // 選択状態は selectedTab にあるので、再構成後も同じタブを維持する
         .id(settings.userLevel)
         .onAppear {

@@ -13,12 +13,27 @@ enum AnalysisPage: Int, CaseIterable, Codable, Identifiable {
   var id: Int { rawValue }
   /// 分析ページ番号をカレンダー型アイコンで示す
   var tabSymbol: String { "\(rawValue).calendar" }
-  /// 画面とタブで共通して使う分析名
-  var displayTitle: String {
+  /// ページ名が空欄の場合に使う番号名
+  var numberedTitle: String {
     String(format: String(localized: "analysis.page.titleFormat"), rawValue)
   }
-  var accessibilityTitle: String {
-    String(format: String(localized: "analysis.page.accessibilityFormat"), rawValue)
+
+  /// 初回にページ名へ設定するプリセット
+  var presetTitle: String {
+    switch self {
+    case .one: return String(localized: "analysis.page.preset.trends")
+    case .two: return String(localized: "tab.statistics")
+    case .three: return String(localized: "analysis.symptoms")
+    }
+  }
+
+  /// 画面とタブで共通して使う利用者設定済みのページ名
+  func displayTitle(in layout: AnalysisLayout) -> String {
+    layout.title(in: self)
+  }
+
+  func accessibilityTitle(in layout: AnalysisLayout) -> String {
+    displayTitle(in: layout)
   }
 }
 
@@ -147,6 +162,28 @@ struct AnalysisLayout: Codable, Equatable {
   var period1: Int
   var period2: Int
   var period3: Int
+  /// 利用者が変更したページ名
+  /// 未保存の既存データをそのまま読み込めるよう任意値で保持する
+  var pageNames: [String: String]? = nil
+
+  /// 空欄の場合はページ番号を使った名前を返す
+  func title(in page: AnalysisPage) -> String {
+    let name = pageNameInput(in: page).trimmingCharacters(in: .whitespacesAndNewlines)
+    return name.isEmpty ? page.numberedTitle : name
+  }
+
+  /// 未設定のページにはプリセットを初期値として返す
+  func pageNameInput(in page: AnalysisPage) -> String {
+    pageNames?[String(page.rawValue)] ?? page.presetTitle
+  }
+
+  /// ページ名を6文字まで保存し、空欄も利用者の選択として残す
+  mutating func setPageName(_ name: String, in page: AnalysisPage) {
+    var names = pageNames ?? [:]
+    let limitedName = String(name.prefix(6))
+    names[String(page.rawValue)] = limitedName
+    pageNames = names
+  }
 
   func panels(in page: AnalysisPage) -> [AnalysisPanelID] {
     switch page {
