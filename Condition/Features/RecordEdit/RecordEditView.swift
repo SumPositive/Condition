@@ -50,8 +50,8 @@ struct RecordEditView: View {
     @State private var isDateOptExpanded = false
     @State private var measurementSamples: [MeasurementAverageField: [Int]] = [:]
     @State private var showsFloatingAverageAddButton = false
-    @State private var isCancelArmed = false
-    @State private var cancelArmTask: Task<Void, Never>? = nil
+    /// 未保存の変更を取り消す確認
+    @State private var showDiscardConfirmation = false
     /// メモ欄の自動スクロールを最新の対象だけに限定する
     @State private var memoScrollTask: Task<Void, Never>? = nil
     /// ソフトキーボードが表示中か
@@ -93,6 +93,11 @@ struct RecordEditView: View {
     private var hasAverageSamples: Bool {
         // 測定追加後は平均計算中として扱い、不用意な閉じ操作を抑止する
         measurementSamples.values.contains { !$0.isEmpty }
+    }
+
+    /// 通常の編集と平均計算中の測定値をまとめて未保存変更として扱う
+    private var hasPendingChanges: Bool {
+        vm.isModified || hasAverageSamples
     }
 
     private var dateOptCandidates: [DateOpt] {
@@ -425,22 +430,16 @@ struct RecordEditView: View {
                     .tint(vm.isModified ? .accentColor : Color(.secondaryLabel))
                 }
                 ToolbarItem(placement: .cancellationAction) {
-                    Button {
+                    Button("action.cancel") {
                         handleCancelTapped()
-                    } label: {
-                        Text("action.cancel")
-                            // 平均計算中はキャンセル文字を小さくして、誤タップしにくくする
-                            .font(hasAverageSamples ? .caption2 : .body)
-                            .foregroundColor(isCancelArmed ? .white : .primary)
-                            .padding(.horizontal, hasAverageSamples ? 6 : 0)
-                            .padding(.vertical, hasAverageSamples ? 3 : 0)
-                            .background {
-                                if isCancelArmed {
-                                    // 1回目タップ後は背景も赤にして、再タップで閉じる状態を明示する
-                                    Capsule()
-                                        .fill(Color.red)
-                                }
-                            }
+                    }
+                    // 未保存の内容は標準の確認ダイアログから取り消す
+                    .confirmationDialog(
+                        "action.cancel",
+                        isPresented: $showDiscardConfirmation,
+                        titleVisibility: .visible
+                    ) {
+                        Button("action.discard", role: .destructive) { dismiss() }
                     }
                 }
             }
@@ -514,15 +513,9 @@ struct RecordEditView: View {
             }
             // isModified は ViewModel の didSet で管理（View 側 onChange 不要）
             .onChange(of: vm.isModified) { _, newValue in onModifiedChanged?(newValue) }
-            .onChange(of: hasAverageSamples) { _, hasSamples in
-                if !hasSamples {
-                    clearCancelArmed()
-                }
-            }
-            // 平均計算中は、下スワイプでシートを閉じられないようにする
-            .interactiveDismissDisabled(hasAverageSamples)
+            // 未保存の編集がある間は下スワイプで閉じられないようにする
+            .interactiveDismissDisabled(hasPendingChanges)
             .onDisappear {
-                cancelArmTask?.cancel()
                 memoScrollTask?.cancel()
             }
         }
@@ -543,32 +536,11 @@ struct RecordEditView: View {
     // MARK: - セクション分割ヘルパー
 
     private func handleCancelTapped() {
-        guard hasAverageSamples else {
+        guard hasPendingChanges else {
             dismiss()
             return
         }
-
-        if isCancelArmed {
-            clearCancelArmed()
-            dismiss()
-            return
-        }
-
-        // 平均計算中は1回目のタップで警告色にし、2秒以内の再タップだけキャンセル実行する
-        isCancelArmed = true
-        cancelArmTask?.cancel()
-        cancelArmTask = Task { @MainActor in
-            try? await Task.sleep(for: .seconds(2))
-            if !Task.isCancelled {
-                isCancelArmed = false
-            }
-        }
-    }
-
-    private func clearCancelArmed() {
-        cancelArmTask?.cancel()
-        cancelArmTask = nil
-        isCancelArmed = false
+        showDiscardConfirmation = true
     }
 
     /// 設定の順序と非表示設定に従った表示フィールド一覧

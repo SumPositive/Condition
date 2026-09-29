@@ -15,10 +15,8 @@ struct SymptomEditView: View {
     @State private var showSymptomPicker = false
     @State private var showMedicinePicker = false
     @State private var showTriggerPicker = false
-    /// キャンセルの二段タップ（測定シートと同じ作法）。
-    /// 1回目で赤くなり、2秒以内にもう一度押すと破棄する
-    @State private var isCancelArmed = false
-    @State private var cancelArmTask: Task<Void, Never>? = nil
+    /// 未保存の変更を取り消す確認
+    @State private var showDiscardConfirmation = false
     @State private var showEnvironmentSheet = false
     @State private var showStartPicker = false
     @State private var showEndPicker = false
@@ -68,19 +66,16 @@ struct SymptomEditView: View {
                     .accessibilityLabel(Text("symptom.edit.title"))
                 }
                 ToolbarItem(placement: .topBarLeading) {
-                    Button {
+                    Button("action.cancel") {
                         handleCancelTapped()
-                    } label: {
-                        Text("action.cancel")
-                            .font(vm.isModified ? .caption2 : .body)
-                            .foregroundColor(isCancelArmed ? .white : .primary)
-                            .padding(.horizontal, vm.isModified ? 6 : 0)
-                            .padding(.vertical, vm.isModified ? 3 : 0)
-                            .background {
-                                if isCancelArmed {
-                                    Capsule().fill(Color.red)
-                                }
-                            }
+                    }
+                    // 未保存の内容は標準の確認ダイアログから取り消す
+                    .confirmationDialog(
+                        "action.cancel",
+                        isPresented: $showDiscardConfirmation,
+                        titleVisibility: .visible
+                    ) {
+                        Button("action.discard", role: .destructive) { dismiss() }
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -143,8 +138,8 @@ struct SymptomEditView: View {
                 ) { updated in
                     // 環境シートは閉じるたびに結果を返すので、開いただけでも
                     // ここが呼ばれる。値が変わっていなければ代入しない
-                    // （代入すると markModified が走り、キャンセルが
-                    // 二段タップの破棄モードになってしまう）
+                    // （代入すると markModified が走り、キャンセル時に
+                    // 変更取り消しの確認が表示されてしまう）
                     if updated != vm.environment { vm.environment = updated }
                 }
             }
@@ -160,8 +155,7 @@ struct SymptomEditView: View {
             } message: {
                 Text("symptom.continue.message")
             }
-            // 未保存の変更があるときはスワイプで閉じさせない（測定シートと同じ）。
-            // 破棄はキャンセルの二段タップでのみ行う
+            // 未保存の変更があるときはスワイプで閉じさせない
             .interactiveDismissDisabled(vm.isModified)
             .onChange(of: vm.isModified) { _, newValue in onModifiedChanged?(newValue) }
             // 新規シートがバックグラウンドから戻り、日時が30分以上ずれていれば確認する
@@ -180,7 +174,6 @@ struct SymptomEditView: View {
                     break
                 }
             }
-            .onDisappear { cancelArmTask?.cancel() }
         }
         // .sheet では App の dynamicTypeSize が届かないことがあるため明示する
         .azAppFontScale()
@@ -513,30 +506,13 @@ struct SymptomEditView: View {
 
     // MARK: - キャンセル
 
-    /// 未変更ならそのまま閉じる。変更があるときは1回目で赤くし、
-    /// 2秒以内の2回目で破棄する（誤タップで入力を失わないため）
+    /// 未変更ならそのまま閉じ、変更がある場合だけ確認する
     private func handleCancelTapped() {
         guard vm.isModified else {
             dismiss()
             return
         }
-        if isCancelArmed {
-            clearCancelArmed()
-            dismiss()
-            return
-        }
-        isCancelArmed = true
-        cancelArmTask?.cancel()
-        cancelArmTask = Task { @MainActor in
-            try? await Task.sleep(for: .seconds(2))
-            if !Task.isCancelled { isCancelArmed = false }
-        }
-    }
-
-    private func clearCancelArmed() {
-        cancelArmTask?.cancel()
-        cancelArmTask = nil
-        isCancelArmed = false
+        showDiscardConfirmation = true
     }
 
     // MARK: - 保存
@@ -562,7 +538,6 @@ struct SymptomEditView: View {
     /// 1件目と同時に出た症状の入力へ切り替える
     private func prepareContinuation() {
         noteFocused = false
-        clearCancelArmed()
         vm = vm.makeContinuation()
         onModifiedChanged?(false)
     }

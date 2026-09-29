@@ -1004,25 +1004,25 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Discard"
+            "value" : "Discard Changes and Close"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "破棄"
+            "value" : "変更を取り消して閉じる"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "취소"
+            "value" : "변경 사항을 취소하고 닫기"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "捨棄"
+            "value" : "捨棄變更並關閉"
           }
         }
       }
@@ -12208,25 +12208,25 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Set the first measurement value and tap Add Reading\n  (If you tap Save here, the first value will be recorded)\n\nSet the second measurement value and tap Add Reading\n  The average will be shown\n    (If you tap Save here, the average of the two values will be recorded)\n\nSet the third measurement value and tap Add Reading\n  The average and standard deviation will be shown\n    (If you tap Save here, the average of the three values will be recorded)\n\nYou can continue in the same way up to five measurements to calculate and display the average\n\nWhile entering measurements, accidental cancellation is prevented\nTap Cancel twice within 2 seconds to cancel"
+            "value" : "Set the first measurement value and tap Add Reading\n  (If you tap Save here, the first value will be recorded)\n\nSet the second measurement value and tap Add Reading\n  The average will be shown\n    (If you tap Save here, the average of the two values will be recorded)\n\nSet the third measurement value and tap Add Reading\n  The average and standard deviation will be shown\n    (If you tap Save here, the average of the three values will be recorded)\n\nYou can continue in the same way up to five measurements to calculate and display the average\n\nIf you tap Cancel after making changes, you will be asked whether to discard them."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "1回目の測定値をセットしてタップ\n　（ここで保存をタップすれば1回目の値が記録されます）\n\n2回目の測定値をセットしてタップ\n　平均値が表示されます\n　　（ここで保存をタップすれば2回の平均値が記録されます）\n\n3回目の測定値をセットしてタップ\n　平均値と標準偏差が表示されます\n　　（ここで保存をタップすれば3回の平均値が記録されます）\n\n最大5回まで同様に平均値を求めて表示します\n\n入力中は不意のキャンセルを防止します\nキャンセル ボタンを2秒以内に2回タップしてキャンセルします"
+            "value" : "1回目の測定値をセットしてタップ\n　（ここで保存をタップすれば1回目の値が記録されます）\n\n2回目の測定値をセットしてタップ\n　平均値が表示されます\n　　（ここで保存をタップすれば2回の平均値が記録されます）\n\n3回目の測定値をセットしてタップ\n　平均値と標準偏差が表示されます\n　　（ここで保存をタップすれば3回の平均値が記録されます）\n\n最大5回まで同様に平均値を求めて表示します\n\n変更後にキャンセルすると、変更を取り消すか確認します"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "1회차 측정값을 설정하고 탭\n　(여기서 저장을 탭하면 1회차 값이 기록됩니다)\n\n2회차 측정값을 설정하고 탭\n　평균값이 표시됩니다\n　　(여기서 저장을 탭하면 2회의 평균값이 기록됩니다)\n\n3회차 측정값을 설정하고 탭\n　평균값과 표준편차가 표시됩니다\n　　(여기서 저장을 탭하면 3회의 평균값이 기록됩니다)\n\n최대 5회까지 같은 방식으로 평균값을 구해 표시합니다\n\n입력 중에는 실수로 인한 취소를 방지합니다\n취소 버튼을 2초 이내에 2회 탭하면 취소됩니다"
+            "value" : "1회차 측정값을 설정하고 탭\n　(여기서 저장을 탭하면 1회차 값이 기록됩니다)\n\n2회차 측정값을 설정하고 탭\n　평균값이 표시됩니다\n　　(여기서 저장을 탭하면 2회의 평균값이 기록됩니다)\n\n3회차 측정값을 설정하고 탭\n　평균값과 표준편차가 표시됩니다\n　　(여기서 저장을 탭하면 3회의 평균값이 기록됩니다)\n\n최대 5회까지 같은 방식으로 평균값을 구해 표시합니다\n\n변경 후 취소를 탭하면 변경 사항을 취소할지 확인합니다"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "設定第 1 次測量值後點一下\n　（在此點儲存，會記錄第 1 次的數值）\n\n設定第 2 次測量值後點一下\n　會顯示平均值\n　　（在此點儲存，會記錄 2 次的平均值）\n\n設定第 3 次測量值後點一下\n　會顯示平均值與標準差\n　　（在此點儲存，會記錄 3 次的平均值）\n\n最多可用同樣方式計算並顯示至 5 次的平均值\n\n輸入期間會防止意外取消\n在 2 秒內點兩次取消按鈕即可取消"
+            "value" : "設定第 1 次測量值後點一下\n　（在此點儲存，會記錄第 1 次的數值）\n\n設定第 2 次測量值後點一下\n　會顯示平均值\n　　（在此點儲存，會記錄 2 次的平均值）\n\n設定第 3 次測量值後點一下\n　會顯示平均值與標準差\n　　（在此點儲存，會記錄 3 次的平均值）\n\n最多可用同樣方式計算並顯示至 5 次的平均值\n\n變更後點取消時，會確認是否要捨棄變更"
           }
         }
       }
@@ -12796,7 +12796,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "変更を破棄しますか？"
+            "value" : "変更を取り消しますか？"
           }
         },
         "ko" : {

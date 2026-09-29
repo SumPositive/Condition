@@ -259,9 +259,8 @@ struct MeasurementAverageView: View {
     /// 編集開始時の状態を保持して未変更か判定する
     @State private var initialSnapshot: MeasurementAverageSnapshot?
 
-    /// キャンセル誤タップ防止
-    @State private var isCancelArmed = false
-    @State private var cancelArmTask: Task<Void, Never>? = nil
+    /// 未保存の変更を取り消す確認
+    @State private var showDiscardConfirmation = false
     /// バックグラウンドを経由したか
     @State private var didEnterBackground = false
 
@@ -400,19 +399,16 @@ struct MeasurementAverageView: View {
                     .accessibilityLabel(Text("record.measurementAvg.title"))
                 }
                 ToolbarItem(placement: .cancellationAction) {
-                    Button {
+                    Button("action.cancel") {
                         handleCancelTapped()
-                    } label: {
-                        Text("action.cancel")
-                            .font(hasUnsavedChanges ? .caption2 : .body)
-                            .foregroundColor(isCancelArmed ? .white : .primary)
-                            .padding(.horizontal, hasUnsavedChanges ? 6 : 0)
-                            .padding(.vertical, hasUnsavedChanges ? 3 : 0)
-                            .background {
-                                if isCancelArmed {
-                                    Capsule().fill(Color.red)
-                                }
-                            }
+                    }
+                    // 未保存の内容は標準の確認ダイアログから取り消す
+                    .confirmationDialog(
+                        "action.cancel",
+                        isPresented: $showDiscardConfirmation,
+                        titleVisibility: .visible
+                    ) {
+                        Button("action.discard", role: .destructive) { dismiss() }
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
@@ -514,7 +510,6 @@ struct MeasurementAverageView: View {
                 }
             }
             .onDisappear {
-                cancelArmTask?.cancel()
                 memoScrollTask?.cancel()
             }
         }
@@ -1816,23 +1811,7 @@ struct MeasurementAverageView: View {
             dismiss()
             return
         }
-        if isCancelArmed {
-            clearCancelArmed()
-            dismiss()
-            return
-        }
-        isCancelArmed = true
-        cancelArmTask?.cancel()
-        cancelArmTask = Task { @MainActor in
-            try? await Task.sleep(for: .seconds(2))
-            if !Task.isCancelled { isCancelArmed = false }
-        }
-    }
-
-    private func clearCancelArmed() {
-        cancelArmTask?.cancel()
-        cancelArmTask = nil
-        isCancelArmed = false
+        showDiscardConfirmation = true
     }
 
     // MARK: 保存
