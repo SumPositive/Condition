@@ -36,6 +36,13 @@ struct SettingsView: View {
     @Environment(\.openURL) private var openURL
     @AppStorage("settings.shareExportFormat") private var exportFormatRaw = RecordJSONExportStyle.compact.rawValue
     @State private var settings = AppSettings.shared
+    // 廃止に向かう設定（文字サイズ・起動時に開く・ダイアル式）は、既定のまま使っている人には選択肢を出さない
+    // （文字サイズは行を残して「設定アプリで変更できます」と示し、他の2つは行ごと隠す）。
+    // 新規インストールでは表示されず、既定から変えている既存の利用者だけが見て戻せる。
+    // 画面を作った時点で決めるので、既定へ戻しても開いている間は消えず、次に開いたときから隠れる
+    @State private var showsFontScale = AppSettings.shared.fontScale != .system
+    @State private var showsLaunchAction = AppSettings.shared.launchAction != .none
+    @State private var showsDialRecordEntry = AppSettings.shared.useDialRecordEntry
     @State private var healthKit = HealthKitService.shared
     @State private var showHKSettings = false
     @State private var showSafari = false
@@ -102,6 +109,17 @@ struct SettingsView: View {
         if language.hasPrefix("ko") { return "ko" }
         if language.hasPrefix("zh-Hant") { return "zh-Hant" }
         return "en"
+    }
+
+    /// 「設定アプリで変更できます」。訳文の [..](app-settings:) をリンクにして下線を付ける。
+    /// app-settings: は設定アプリのこのアプリのページを開く公開URL
+    /// （文字サイズの画面を直接開く公開URLは無いため、設定アプリを開くところまでにする）
+    private var fontScaleSystemNote: AttributedString {
+        var text = AttributedString(localized: "settings.fontScale.systemNote")
+        for run in text.runs where run.link != nil {
+            text[run.range].underlineStyle = .single
+        }
+        return text
     }
 
     private var webFontScaleValue: String {
@@ -207,6 +225,8 @@ struct SettingsView: View {
                     }
                     .zIndex(isAppearanceModeExpanded ? 65 : 0)
 
+                    // 文字サイズは項目ごと残し、「自動」の人には選択肢の代わりに
+                    // システム設定で変えられることを示す（どこで変えるのか迷わないように）
                     VStack(alignment: .leading, spacing: 8) {
                         AZAdaptiveControlRow {
                             SettingsHelpTitle(
@@ -216,14 +236,22 @@ struct SettingsView: View {
                             )
                             .font(.subheadline)
                         } control: {
-                            // 文字サイズも同じドロップダウンPickerで選ぶ
-                            AZDropdownPicker(
-                                options: AppFontScale.allCases,
-                                selection: $settings.fontScale,
-                                isExpanded: $isFontScaleExpanded,
-                                minWidth: 150
-                            ) { scale in
-                                Text(LocalizedStringKey(scale.titleKey))
+                            if showsFontScale {
+                                // 以前「標準／大／特大」を選んだ人だけ、戻せるよう選択肢を残す
+                                AZDropdownPicker(
+                                    options: AppFontScale.allCases,
+                                    selection: $settings.fontScale,
+                                    isExpanded: $isFontScaleExpanded,
+                                    minWidth: 150
+                                ) { scale in
+                                    Text(LocalizedStringKey(scale.titleKey))
+                                }
+                            } else {
+                                // 「設定アプリ」の部分だけ下線付きのリンクにし、押すと設定アプリを開く
+                                Text(fontScaleSystemNote)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                    .multilineTextAlignment(.trailing)
                             }
                         }
                         .zIndex(isFontScaleExpanded ? 64 : 0)
@@ -241,26 +269,28 @@ struct SettingsView: View {
 
                 // MARK: - 記録
                 Section("tab.records") {
-                    VStack(alignment: .leading, spacing: 8) {
-                        AZAdaptiveControlRow {
-                            SettingsHelpTitle(
-                                titleKey: "settings.launchAction",
-                                helpKey: "settings.help.launchAction",
-                                storageKey: "helpDismissed.settings.launchAction"
-                            )
-                                .font(.subheadline)
-                        } control: {
-                            // 起動時に開く画面も共通のドロップダウンPickerで選ぶ
-                            AZDropdownPicker(
-                                options: availableLaunchActions,
-                                selection: $settings.launchAction,
-                                isExpanded: $isLaunchActionExpanded,
-                                minWidth: 170
-                            ) { action in
-                                launchActionLabel(action)
+                    if showsLaunchAction {
+                        VStack(alignment: .leading, spacing: 8) {
+                            AZAdaptiveControlRow {
+                                SettingsHelpTitle(
+                                    titleKey: "settings.launchAction",
+                                    helpKey: "settings.help.launchAction",
+                                    storageKey: "helpDismissed.settings.launchAction"
+                                )
+                                    .font(.subheadline)
+                            } control: {
+                                // 起動時に開く画面も共通のドロップダウンPickerで選ぶ
+                                AZDropdownPicker(
+                                    options: availableLaunchActions,
+                                    selection: $settings.launchAction,
+                                    isExpanded: $isLaunchActionExpanded,
+                                    minWidth: 170
+                                ) { action in
+                                    launchActionLabel(action)
+                                }
                             }
+                            .zIndex(isLaunchActionExpanded ? 62 : 0)
                         }
-                        .zIndex(isLaunchActionExpanded ? 62 : 0)
                     }
                     NavigationLink("settings.fieldOrder") {
                         FieldOrderSettingsView()
@@ -302,16 +332,18 @@ struct SettingsView: View {
 
                     // ダイアル式の記録画面を使うか。
                     // ヘルプは Toggle のラベルに入れるとタップがトグルに吸われるので外に出す
-                    HStack {
-                        SettingsHelpTitle(
-                            titleKey: "settings.useDialRecordEntry",
-                            helpKey: "settings.help.useDialRecordEntry",
-                            storageKey: "helpDismissed.settings.useDialRecordEntry"
-                        )
-                        .font(.subheadline)
-                        Spacer(minLength: 8)
-                        Toggle("", isOn: $settings.useDialRecordEntry)
-                            .labelsHidden()
+                    if showsDialRecordEntry {
+                        HStack {
+                            SettingsHelpTitle(
+                                titleKey: "settings.useDialRecordEntry",
+                                helpKey: "settings.help.useDialRecordEntry",
+                                storageKey: "helpDismissed.settings.useDialRecordEntry"
+                            )
+                            .font(.subheadline)
+                            Spacer(minLength: 8)
+                            Toggle("", isOn: $settings.useDialRecordEntry)
+                                .labelsHidden()
+                        }
                     }
 
                     // 記録をまとめる（衝突検出）は、ダイアル式で1件ずつ入力したときに
@@ -388,7 +420,7 @@ struct SettingsView: View {
                         AnalysisLayoutSettingsView()
                     } label: {
                         // 分析ページと共通のアイコンで配置設定を示す
-                        Label("analysis.layout.title", systemImage: "text.pad.header")
+                        Label("analysis.layout.title", systemImage: AppSymbol.layout)
                     }
                 }
 
@@ -1943,7 +1975,7 @@ struct GraphSettingsView: View {
                 ToolbarItem(placement: .principal) {
                     // 配置画面の詳細設定ボタンと同じアイコンをタイトルに添える
                     HStack(spacing: 4) {
-                        Image(systemName: "ellipsis.calendar")
+                        Image(systemName: AppSymbol.period)
                         Text("analysis.details.shortTitle")
                     }
                     .font(.headline)

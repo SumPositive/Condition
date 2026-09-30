@@ -256,169 +256,184 @@ struct RecordEditView: View {
         self.onModifiedChanged = onModifiedChanged
     }
 
+    /// 記録フォーム本体。body の式が長くなり型チェックが時間内に終わらなくなるため切り出す
+    private var recordFormContent: some View {
+        Form {
+            hkImportSection
+            dateSection
+            // 各測定項目（体重・血圧・脈拍…）を独立したカード（Section）として並べ、
+            // 項目ごとに1セルに見えるようにする。見出しと「測定を追加」は先頭カードに載せる。
+            ForEach(Array(orderedRecordFields.enumerated()), id: \.element.rawValue) { index, kind in
+                Section {
+                    fieldRow(for: kind)
+                } header: {
+                    if index == 0 {
+                        HStack(alignment: .center, spacing: 8) {
+                            Text("record.measurements")
+                            if !showsFloatingAverageAddButton {
+                                Spacer(minLength: 8)
+                                // 英語表示などで見出しと重ならないよう、通常ボタンは右寄せにする
+                                averageAddHeaderControl(font: .caption.weight(.semibold))
+                            }
+                        }
+                    }
+                }
+            }
+            healthKitSection
+
+            // メモセクション
+            Section("record.memo.section") {
+                // 測定場所・機器をメモ入力より先に配置する
+                // 候補は入力欄ではなくキーボード直上へ表示する
+                HStack(spacing: 8) {
+                    TextField("record.device", text: $vm.sEquipment)
+                        .id(equipmentAnchorID)
+                        .focused($focusEquipment)
+                        .onChange(of: focusEquipment) { _, isFocused in
+                            // 再入力時は候補選択の保留値を解除する
+                            if isFocused { pendingEquipmentSelection = nil }
+                        }
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .submitLabel(.done)
+                        .onSubmit { focusEquipment = false }
+                        .onChange(of: vm.sEquipment) { _, newValue in
+                            // IMEの遅延書き戻しより候補選択を優先する
+                            if let pending = pendingEquipmentSelection {
+                                if newValue == pending {
+                                    pendingEquipmentSelection = nil
+                                } else {
+                                    vm.sEquipment = pending
+                                }
+                                return
+                            }
+                            // 測定場所・機器は最大100文字へ制限する
+                            if 100 < newValue.count {
+                                vm.sEquipment = String(newValue.prefix(100))
+                                return
+                            }
+                            // 末尾改行を除去
+                            let trimmed = newValue.replacingOccurrences(
+                                of: "\n+$", with: "", options: .regularExpression
+                            )
+                            if trimmed != newValue { vm.sEquipment = trimmed }
+                        }
+
+                    // 入力中だけ内容をまとめて消せるようにする
+                    if !vm.sEquipment.isEmpty {
+                        Button {
+                            pendingEquipmentSelection = nil
+                            vm.sEquipment = ""
+                            focusEquipment = true
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(Text("action.clear"))
+                    }
+                }
+                AZMemoEditor(placeholder: "record.memo1", text: $vm.sNote1, isFocused: $focusNote1)
+                    .id(note1AnchorID)
+                AZMemoEditor(placeholder: "record.memo2", text: $vm.sNote2, isFocused: $focusNote2)
+                    .id(note2AnchorID)
+                Toggle(isOn: $vm.bCaution) {
+                    HStack(spacing: 6) {
+                        if vm.bCaution {
+                            Image(systemName: "flag.fill")
+                                .foregroundStyle(.orange)
+                        }
+                        Text("record.cautionFlag")
+                    }
+                }
+            }
+
+            // 削除ボタン（編集時のみ）
+            if case .edit(let record) = vm.mode {
+                Section {
+                    Button(role: .destructive) {
+                        showDeleteAlert = true
+                    } label: {
+                        Label(
+                            "record.delete.button",
+                            systemImage: "trash"
+                        )
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+                .alert(
+                    "record.delete.confirm",
+                    isPresented: $showDeleteAlert
+                ) {
+                    Button("action.delete", role: .destructive) {
+                        deleteRecord(record)
+                    }
+                    Button("action.cancel", role: .cancel) {}
+                }
+            }
+        }
+    }
+
+    /// フォームと、フォーム全体に掛けるタップ・余白の設定
+    private var recordForm: some View {
+        recordFormContent
+            // 測定項目カード（Section）どうしの間隔を区切り線程度まで詰め、セルが密に並んで見えるようにする
+            .listSectionSpacing(2)
+            // スクロールでの終了は標準の挙動に任せる（指の動きに追従して閉じる）
+            .scrollDismissesKeyboard(.interactively)
+            // メモ欄（AZMemoEditor）外のタップは AZMemoEditor 側のウィンドウ監視が閉じる。
+            // ここは UITextView を持たない測定場所欄のための保険。
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if focusEquipment { dismissMemoFocus() }
+            }
+            // 確認中に別の場所をタップしたら通常のキャンセル表示へ戻す
+            .simultaneousGesture(TapGesture().onEnded { resetDiscardConfirmation() })
+    }
+
+    /// メモ・測定場所の入力中の自動スクロールとキーボード余白。body から切り出して式を分ける
+    private func memoInputBehavior<Content: View>(_ content: Content, proxy: ScrollViewProxy) -> some View {
+        content
+            .onChange(of: vm.sNote1) { _, _ in scrollFocusedMemoIntoView(proxy) }
+            .onChange(of: vm.sNote2) { _, _ in scrollFocusedMemoIntoView(proxy) }
+            .onChange(of: vm.sEquipment) { _, _ in scrollFocusedMemoIntoView(proxy) }
+            .onChange(of: focusNote1) { _, isFocused in if isFocused { scrollMemoIntoView(note1AnchorID, proxy: proxy) } }
+            .onChange(of: focusNote2) { _, isFocused in if isFocused { scrollMemoIntoView(note2AnchorID, proxy: proxy) } }
+            .onChange(of: focusEquipment) { _, isFocused in
+                if isFocused { scrollMemoIntoView(equipmentAnchorID, proxy: proxy, anchor: .top) }
+            }
+            .safeAreaInset(edge: .bottom) {
+                if isKeyboardVisible || isMemoFocused {
+                    ZStack(alignment: .bottom) {
+                        Color.clear
+                        if focusEquipment && !shownEquipmentCandidates.isEmpty {
+                            // 確保領域の下端に候補バーを表示する
+                            equipmentCandidateBar
+                        }
+                    }
+                    .frame(height: memoInputReservedHeight)
+                }
+            }
+            .onReceive(
+                NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)
+            ) { _ in
+                isKeyboardVisible = true
+            }
+            .onReceive(
+                NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)
+            ) { _ in
+                isKeyboardVisible = false
+                // スクロールでの終了は UIKit 側が閉じるため @FocusState が残る。
+                // 確保していた下端余白を戻すために、ここで揃える。
+                if isMemoFocused { dismissMemoFocus() }
+            }
+    }
+
     var body: some View {
         let navContent = NavigationStack {
             ScrollViewReader { proxy in
-                Form {
-                    hkImportSection
-                    dateSection
-                    // 各測定項目（体重・血圧・脈拍…）を独立したカード（Section）として並べ、
-                    // 項目ごとに1セルに見えるようにする。見出しと「測定を追加」は先頭カードに載せる。
-                    ForEach(Array(orderedRecordFields.enumerated()), id: \.element.rawValue) { index, kind in
-                        Section {
-                            fieldRow(for: kind)
-                        } header: {
-                            if index == 0 {
-                                HStack(alignment: .center, spacing: 8) {
-                                    Text("record.measurements")
-                                    if !showsFloatingAverageAddButton {
-                                        Spacer(minLength: 8)
-                                        // 英語表示などで見出しと重ならないよう、通常ボタンは右寄せにする
-                                        averageAddHeaderControl(font: .caption.weight(.semibold))
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    healthKitSection
-
-                    // メモセクション
-                    Section("record.memo.section") {
-                        // 測定場所・機器をメモ入力より先に配置する
-                        // 候補は入力欄ではなくキーボード直上へ表示する
-                        HStack(spacing: 8) {
-                            TextField("record.device", text: $vm.sEquipment)
-                                .id(equipmentAnchorID)
-                                .focused($focusEquipment)
-                                .onChange(of: focusEquipment) { _, isFocused in
-                                    // 再入力時は候補選択の保留値を解除する
-                                    if isFocused { pendingEquipmentSelection = nil }
-                                }
-                                .textInputAutocapitalization(.never)
-                                .autocorrectionDisabled()
-                                .submitLabel(.done)
-                                .onSubmit { focusEquipment = false }
-                                .onChange(of: vm.sEquipment) { _, newValue in
-                                    // IMEの遅延書き戻しより候補選択を優先する
-                                    if let pending = pendingEquipmentSelection {
-                                        if newValue == pending {
-                                            pendingEquipmentSelection = nil
-                                        } else {
-                                            vm.sEquipment = pending
-                                        }
-                                        return
-                                    }
-                                    // 測定場所・機器は最大100文字へ制限する
-                                    if 100 < newValue.count {
-                                        vm.sEquipment = String(newValue.prefix(100))
-                                        return
-                                    }
-                                    // 末尾改行を除去
-                                    let trimmed = newValue.replacingOccurrences(
-                                        of: "\n+$", with: "", options: .regularExpression
-                                    )
-                                    if trimmed != newValue { vm.sEquipment = trimmed }
-                                }
-
-                            // 入力中だけ内容をまとめて消せるようにする
-                            if !vm.sEquipment.isEmpty {
-                                Button {
-                                    pendingEquipmentSelection = nil
-                                    vm.sEquipment = ""
-                                    focusEquipment = true
-                                } label: {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-                                        .foregroundStyle(.secondary)
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityLabel(Text("action.clear"))
-                            }
-                        }
-                        AZMemoEditor(placeholder: "record.memo1", text: $vm.sNote1, isFocused: $focusNote1)
-                            .id(note1AnchorID)
-                        AZMemoEditor(placeholder: "record.memo2", text: $vm.sNote2, isFocused: $focusNote2)
-                            .id(note2AnchorID)
-                        Toggle(isOn: $vm.bCaution) {
-                            HStack(spacing: 6) {
-                                if vm.bCaution {
-                                    Image(systemName: "flag.fill")
-                                        .foregroundStyle(.orange)
-                                }
-                                Text("record.cautionFlag")
-                            }
-                        }
-                    }
-
-                    // 削除ボタン（編集時のみ）
-                    if case .edit(let record) = vm.mode {
-                        Section {
-                            Button(role: .destructive) {
-                                showDeleteAlert = true
-                            } label: {
-                                Label(
-                                    "record.delete.button",
-                                    systemImage: "trash"
-                                )
-                                .frame(maxWidth: .infinity)
-                            }
-                        }
-                        .alert(
-                            "record.delete.confirm",
-                            isPresented: $showDeleteAlert
-                        ) {
-                            Button("action.delete", role: .destructive) {
-                                deleteRecord(record)
-                            }
-                            Button("action.cancel", role: .cancel) {}
-                        }
-                    }
-                }
-                // 測定項目カード（Section）どうしの間隔を区切り線程度まで詰め、セルが密に並んで見えるようにする
-                .listSectionSpacing(2)
-                // スクロールでの終了は標準の挙動に任せる（指の動きに追従して閉じる）
-                .scrollDismissesKeyboard(.interactively)
-                // メモ欄（AZMemoEditor）外のタップは AZMemoEditor 側のウィンドウ監視が閉じる。
-                // ここは UITextView を持たない測定場所欄のための保険。
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    if focusEquipment { dismissMemoFocus() }
-                }
-                // 確認中に別の場所をタップしたら通常のキャンセル表示へ戻す
-                .simultaneousGesture(TapGesture().onEnded { resetDiscardConfirmation() })
-                .onChange(of: vm.sNote1) { _, _ in scrollFocusedMemoIntoView(proxy) }
-                .onChange(of: vm.sNote2) { _, _ in scrollFocusedMemoIntoView(proxy) }
-                .onChange(of: vm.sEquipment) { _, _ in scrollFocusedMemoIntoView(proxy) }
-                .onChange(of: focusNote1) { _, isFocused in if isFocused { scrollMemoIntoView(note1AnchorID, proxy: proxy) } }
-                .onChange(of: focusNote2) { _, isFocused in if isFocused { scrollMemoIntoView(note2AnchorID, proxy: proxy) } }
-                .onChange(of: focusEquipment) { _, isFocused in
-                    if isFocused { scrollMemoIntoView(equipmentAnchorID, proxy: proxy, anchor: .top) }
-                }
-                .safeAreaInset(edge: .bottom) {
-                    if isKeyboardVisible || isMemoFocused {
-                        ZStack(alignment: .bottom) {
-                            Color.clear
-                            if focusEquipment && !shownEquipmentCandidates.isEmpty {
-                                // 確保領域の下端に候補バーを表示する
-                                equipmentCandidateBar
-                            }
-                        }
-                        .frame(height: memoInputReservedHeight)
-                    }
-                }
-                .onReceive(
-                    NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)
-                ) { _ in
-                    isKeyboardVisible = true
-                }
-                .onReceive(
-                    NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)
-                ) { _ in
-                    isKeyboardVisible = false
-                    // スクロールでの終了は UIKit 側が閉じるため @FocusState が残る。
-                    // 確保していた下端余白を戻すために、ここで揃える。
-                    if isMemoFocused { dismissMemoFocus() }
-                }
+                memoInputBehavior(recordForm, proxy: proxy)
             }
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)

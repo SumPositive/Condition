@@ -240,6 +240,35 @@
         }
       }
     },
+    "settings.fontScale.systemNote" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change it in the [Settings app](app-settings:)"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "[設定アプリ](app-settings:)で変更できます"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "[설정 앱](app-settings:)에서 변경할 수 있습니다"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可在[設定 App](app-settings:)中變更"
+          }
+        }
+      }
+    },
     "settings.share.pruneDoneMessageBoth" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -14795,25 +14824,25 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choose Auto to use the text size from the system settings.\n\nUpcoming change\nStandard, Large, and Extra Large will soon be consolidated into Auto.\n\nAuto supports Settings > Accessibility > Display & Text Size > Larger Text, including Larger Accessibility Sizes.\n\nEquivalent system settings for the current options\n\nStandard: Keep Larger Accessibility Sizes off and set the size to 50% (center)\n\nLarge: Keep Larger Accessibility Sizes off and set the size to 100% (far right)\n\nExtra Large: Turn Larger Accessibility Sizes on and set the size to 70% (three notches left from the far right)"
+            "value" : "Text size follows your iPhone settings.\n\nTap \"Settings app\" to open Settings, go back to the main list at the top left, then adjust it in Display & Brightness > Text Size.\n\nFor even larger text, turn on Accessibility > Display & Text Size > Larger Text.\n\nIf you previously chose Standard, Large, or Extra Large, choose Auto to follow this setting."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "「自動」を選択して、システム設定の文字サイズを利用してください\n\n【今後の変更】\n近日中に「標準／大／特大」を「自動」に統合します\n\n「自動」は、システム設定の「アクセシビリティ」→「画面表示とテキストサイズ」→「さらに大きな文字」に対応します\n\n現在の各設定は、次のシステム設定と同等です\n\n標準：「さらに大きな文字」をオフのまま、サイズ50％（中央）\n\n大：「さらに大きな文字」をオフのまま、サイズ100％（右端）\n\n特大：「さらに大きな文字」をオンにして、サイズ70％（右端から3ノッチ左）"
+            "value" : "文字サイズは iPhone の設定に従います。\n\n「設定アプリ」を押すと設定が開くので、左上で一覧に戻り、「画面表示と明るさ」→「テキストサイズを変更」で調整してください。\n\nさらに大きくするには、「アクセシビリティ」→「画面表示とテキストサイズ」→「さらに大きな文字」をオンにします。\n\n以前「標準／大／特大」を選んでいた場合は、「自動」にするとこの設定に従います。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "자동을 선택해 시스템 설정의 글자 크기를 사용해 주세요.\n\n향후 변경 안내\n곧 표준, 크게, 아주 크게를 자동으로 통합합니다.\n\n자동은 설정 > 손쉬운 사용 > 디스플레이 및 텍스트 크기 > 더 큰 텍스트와 더 큰 손쉬운 사용 글자 크기에 대응합니다.\n\n현재 옵션과 동일한 시스템 설정\n\n표준: 더 큰 손쉬운 사용 글자 크기를 끄고 크기를 50%(중앙)로 설정\n\n크게: 더 큰 손쉬운 사용 글자 크기를 끄고 크기를 100%(맨 오른쪽)로 설정\n\n아주 크게: 더 큰 손쉬운 사용 글자 크기를 켜고 크기를 70%(맨 오른쪽에서 세 칸 왼쪽)로 설정"
+            "value" : "글자 크기는 iPhone 설정을 따릅니다.\n\n\"설정 앱\"을 누르면 설정이 열리니, 왼쪽 위에서 목록으로 돌아가 \"디스플레이 및 밝기\" > \"텍스트 크기\"에서 조절해 주세요.\n\n더 크게 하려면 \"손쉬운 사용\" > \"디스플레이 및 텍스트 크기\" > \"더 큰 텍스트\"를 켭니다.\n\n이전에 표준, 크게, 아주 크게를 선택했다면 자동을 선택하면 이 설정을 따릅니다."
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "請選擇「自動」，使用系統設定的文字大小。\n\n即將變更\n近期將把「標準／大／特大」整合至「自動」。\n\n「自動」支援「設定」>「輔助使用」>「顯示與文字大小」>「放大文字」，包括「更大的輔助使用字體」。\n\n目前各選項對應的系統設定\n\n標準：關閉「更大的輔助使用字體」，大小設為 50%（中央）\n\n大：關閉「更大的輔助使用字體」，大小設為 100%（最右側）\n\n特大：開啟「更大的輔助使用字體」，大小設為 70%（從最右側向左三格）"
+            "value" : "文字大小依 iPhone 的設定。\n\n點一下「設定 App」即可開啟設定，請在左上角返回列表，再到「螢幕顯示與亮度」>「文字大小」調整。\n\n若要更大，請開啟「輔助使用」>「顯示與文字大小」>「放大文字」。\n\n若先前選擇了「標準／大／特大」，改選「自動」即可依此設定。"
           }
         }
       }

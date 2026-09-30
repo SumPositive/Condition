@@ -192,7 +192,7 @@ struct AnalysisPageView: View {
             showSettings = true
           } label: {
             ToolbarButtonLabel(
-              systemImage: "text.pad.header",
+              systemImage: AppSymbol.layout,
               captionKey: "analysis.toolbar.layout"
             )
           }
@@ -393,7 +393,7 @@ struct AnalysisPageView: View {
     }
     return Text("analysis.page.help")
       + Text(verbatim: "\n\n")
-      + blue("text.pad.header") + Text(verbatim: " ")
+      + blue(AppSymbol.layout) + Text(verbatim: " ")
       + Text("analysis.page.helpSettings")
       + Text(verbatim: "\n\n")
       + blue("square.and.arrow.up") + Text(verbatim: " ")
@@ -2402,13 +2402,39 @@ struct AnalysisLayoutSettingsView: View {
       } header: {
         HStack(spacing: 4) {
           if let page = selectedDestination.page {
-            // 選択中ページの名称を図表一覧の見出しで直接編集する
-            TextField(page.numberedTitle, text: pageNameBinding(for: page))
-              .textFieldStyle(.plain)
-              .lineLimit(1)
-              .submitLabel(.done)
-              .focused($isPageNameFocused)
-              .accessibilityLabel(Text("analysis.page.names"))
+            // 選択中ページの名称を図表一覧の見出しで直接編集する。
+            // 見出しの文字のままだと編集できると気づけないので、入力欄とわかる枠・背景・鉛筆を付ける
+            HStack(spacing: 6) {
+              TextField(page.numberedTitle, text: pageNameBinding(for: page))
+                .textFieldStyle(.plain)
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .submitLabel(.done)
+                .focused($isPageNameFocused)
+                .accessibilityLabel(Text("analysis.page.names"))
+              Image(systemName: "pencil")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(isPageNameFocused ? Color.accentColor : .secondary)
+                .accessibilityHidden(true)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+              Color(.secondarySystemGroupedBackground),
+              in: RoundedRectangle(cornerRadius: 10)
+            )
+            .overlay {
+              RoundedRectangle(cornerRadius: 10)
+                .stroke(
+                  isPageNameFocused ? Color.accentColor : Color.secondary.opacity(0.35),
+                  lineWidth: isPageNameFocused ? 1.5 : 1
+                )
+            }
+            // 鉛筆や余白を押しても入力を始められるようにする
+            .contentShape(RoundedRectangle(cornerRadius: 10))
+            .onTapGesture { isPageNameFocused = true }
+            .textCase(nil)
           } else {
             Text("analysis.layout.hidden")
           }
@@ -2438,7 +2464,7 @@ struct AnalysisLayoutSettingsView: View {
       ToolbarItem(placement: .principal) {
         // Labelの省略を避け、画面タイトルにアイコンと文字を必ず表示する
         HStack(spacing: 4) {
-          Image(systemName: "text.pad.header")
+          Image(systemName: AppSymbol.layout)
           Text("analysis.layout.title")
         }
         .font(.headline)
@@ -2461,7 +2487,7 @@ struct AnalysisLayoutSettingsView: View {
           showDetails = true
         } label: {
           ToolbarButtonLabel(
-            systemImage: "ellipsis.calendar",
+            systemImage: AppSymbol.period,
             captionKey: "analysis.details.shortTitle"
           )
         }

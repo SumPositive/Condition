@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import UIKit
 
 enum AnalysisPage: Int, CaseIterable, Codable, Identifiable {
   case one = 1
@@ -11,8 +12,11 @@ enum AnalysisPage: Int, CaseIterable, Codable, Identifiable {
   case three = 3
 
   var id: Int { rawValue }
-  /// 分析ページ番号をカレンダー型アイコンで示す
-  var tabSymbol: String { "\(rawValue).calendar" }
+  /// 分析ページ番号をカレンダー型アイコンで示す。
+  /// 「1.calendar」は iOS 26 からの記号なので、それより前は番号入りの四角で代用する
+  var tabSymbol: String {
+    AppSymbol.available("\(rawValue).calendar", fallback: "\(rawValue).square")
+  }
   /// ページ名が空欄の場合に使う番号名
   var numberedTitle: String {
     String(format: String(localized: "analysis.page.titleFormat"), rawValue)
@@ -34,6 +38,20 @@ enum AnalysisPage: Int, CaseIterable, Codable, Identifiable {
 
   func accessibilityTitle(in layout: AnalysisLayout) -> String {
     displayTitle(in: layout)
+  }
+}
+
+/// iOS の版によって無い SF Symbols を、ある記号へ差し替える。
+/// 対応OSは iOS 18 からだが、一部の記号は iOS 26 で追加されたもので、
+/// 古い iOS では空白になってしまう（アイコンだけのタブやボタンが見えなくなる）
+enum AppSymbol {
+  /// 分析の配置
+  static let layout = available("text.pad.header", fallback: "rectangle.3.group")
+  /// 分析の期間
+  static let period = available("ellipsis.calendar", fallback: "calendar")
+
+  static func available(_ name: String, fallback: String) -> String {
+    UIImage(systemName: name) != nil ? name : fallback
   }
 }
 

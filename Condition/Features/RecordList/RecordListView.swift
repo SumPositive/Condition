@@ -538,7 +538,9 @@ struct RecordListView: View {
         // DemoDataGenerator 自体が #if DEBUG なので、条件を揃えておかないと
         // Release のシミュレータ構成でビルドが通らない
         #if DEBUG && targetEnvironment(simulator)
-        if !settings.hkDisabledByDemo
+        // fastlane snapshot の撮影中は、App Store のスクリーンショットに写らないよう出さない
+        if !SnapshotSeed.isActive,
+           !settings.hkDisabledByDemo
             || !symptomRecords.contains(where: { $0.sWeatherSourceURL == "vitalin-demo://symptoms" }) {
             Button {
                 do {

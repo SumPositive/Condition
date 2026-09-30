@@ -703,6 +703,8 @@ struct AZAdaptiveRadioRow<Option: Hashable & Identifiable, Title: View, Label: V
 struct AZFlowLayout: Layout {
     var spacing: CGFloat
     var rowSpacing: CGFloat
+    /// 計測と配置で幅が丸めにより食い違っても、行分けを変えないための許容幅
+    private static let roundingTolerance: CGFloat = 1
     /// 各行の横方向の配置
     var alignment: HorizontalAlignment = .trailing
     /// 行末へ収まる後続項目を繰り上げるか
@@ -728,8 +730,11 @@ struct AZFlowLayout: Layout {
             var usedWidth = sizes[start].width
 
             while true {
-                let availableSpace = availableWidth - usedWidth - spacing
-                if availableSpace <= 0 { break }
+                // 計測時の幅と配置時の幅は、画素への丸めで僅かに食い違うことがある。
+                // ぴったり収まる行が配置時だけ折り返すと、計測した高さを超えて下の要素に重なるので、
+                // 1pt までのはみ出しは同じ行に収まるものとして扱う
+                let availableSpace = availableWidth - usedWidth - spacing + Self.roundingTolerance
+                if availableSpace <= Self.roundingTolerance { break }
                 let remainingRange = (start + 1)..<count
                 let nextIndex: Int?
                 if packToFill {
