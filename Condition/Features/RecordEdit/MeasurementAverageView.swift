@@ -606,6 +606,8 @@ struct MeasurementAverageView: View {
         }
         .lineLimit(1)
         .minimumScaleFactor(0.7)
+        // 入力行と同じ高さにそろえ、表の行間を一定に見せる
+        .frame(height: cellHeight)
         .frame(width: tableViewportWidth == 0 ? nil : max(0, tableViewportWidth - 24))
     }
 
@@ -645,6 +647,9 @@ struct MeasurementAverageView: View {
             minOptionWidth: 0,
             maxOptionWidth: 60,
             horizontalPadding: 10,
+            // 外枠（上下の groupPadding）込みで入力行の高さに収める
+            verticalPadding: 0,
+            minHeight: max(cellHeight - 4, 20),
             optionSpacing: 4,
             groupPadding: 2,
             wrapsOptions: false,
@@ -762,7 +767,8 @@ struct MeasurementAverageView: View {
     // 文字サイズに応じて列幅・行高さも少し大きくなるようにする
     @ScaledMetric(relativeTo: .footnote) private var trialLabelWidth: CGFloat = 40
     @ScaledMetric(relativeTo: .callout) private var cellWidth: CGFloat = 72
-    @ScaledMetric(relativeTo: .callout) private var cellHeight: CGFloat = 42
+    // 行を詰めて一度に見える回数を増やす（数値の文字は title3 のまま収まる高さ）
+    @ScaledMetric(relativeTo: .callout) private var cellHeight: CGFloat = 32
 
     private var headerRow: some View {
         HStack(spacing: 6) {
