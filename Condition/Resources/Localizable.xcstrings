@@ -95,6 +95,64 @@
         }
       }
     },
+    "environment.device.measurePressure" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Measure pressure with this iPhone"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "この iPhone で気圧を測る"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 iPhone으로 기압 측정"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用這支 iPhone 測量氣壓"
+          }
+        }
+      }
+    },
+    "environment.help.japanOnly" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatic weather data is available only in Japan (Japan Meteorological Agency). Enter outdoor values manually."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "気象データの自動取得は日本国内のみです（気象庁アメダス）。屋外の値は手入力してください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "기상 데이터 자동 가져오기는 일본 국내에서만 가능합니다(일본 기상청 AMeDAS). 실외 값은 직접 입력해 주세요."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "氣象資料自動取得僅限日本國內（日本氣象廳 AMeDAS）。室外數值請手動輸入。"
+          }
+        }
+      }
+    },
     "export.filterCondition" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -19610,7 +19668,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Get weather data for near here and now"
+            "value" : "Get weather here now"
           }
         },
         "ja" : {

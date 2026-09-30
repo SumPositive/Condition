@@ -102,8 +102,17 @@ final class EnvironmentEditViewModel {
         Self.isWithinAutomaticFetchRange(recordDate)
     }
 
+    /// 日本国内らしいか。気象庁アメダスは国内だけなので、押す前に端末の地域とタイムゾーンで推定する。
+    /// 旅行中などで外れても、取得時の「国外のようです」の案内に落ちるだけで困らない
+    static var isLikelyInJapan: Bool {
+        Locale.current.region?.identifier == "JP" || TimeZone.current.identifier == "Asia/Tokyo"
+    }
+
+    /// 気象データの自動取得を出すか（国外では出さず、端末気圧と手入力にする）
+    var offersWeatherFetch: Bool { Self.isLikelyInJapan }
+
     var canFetchJMA: Bool {
-        canAutomaticallyFetch && JMAWeatherService.isWithinAvailableRange(recordDate)
+        offersWeatherFetch && canAutomaticallyFetch && JMAWeatherService.isWithinAvailableRange(recordDate)
     }
 
     /// 対応端末かつ自動取得できる時間帯なら端末気圧を測れる
@@ -194,6 +203,8 @@ final class EnvironmentEditViewModel {
     /// 広告を見ずに取得できるか。初回と、前回から1時間が過ぎていれば無料。
     /// 広告を見たあと取得に失敗した場合も、成功するまでは見直しを求めない
     var canFetchWithoutAd: Bool {
+        // 広告は気象データの取得に対するもの。端末の気圧計だけなら求めない
+        if !offersWeatherFetch { return true }
         if hasWatchedAd { return true }
         guard let lastFetchAt else { return true }
         return Date().timeIntervalSince(lastFetchAt) >= Self.fetchFreeInterval
@@ -215,7 +226,7 @@ final class EnvironmentEditViewModel {
             return
         }
         // 広告を1回見たぶんは、気象データの取得に成功した時点で使い切る
-        if await fetchFromJMA() {
+        if offersWeatherFetch, await fetchFromJMA() {
             hasWatchedAd = false
         }
         // 気象データ側でエラーが出ていても端末気圧は独立して測れるので続ける

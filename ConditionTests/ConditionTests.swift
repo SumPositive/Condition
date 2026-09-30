@@ -2524,6 +2524,8 @@ struct SymptomTriggerTests {
     @Test("広告を見たあとは、取得に成功するまで再試行に広告を求めない")
     @MainActor
     func adRewardKeepsUntilFetchSucceeds() {
+        // 広告は国内の気象データ取得にだけ掛かる。国外と推定される環境（英語の端末など）では対象外
+        guard EnvironmentEditViewModel.isLikelyInJapan else { return }
         let key = "UDEF_LastWeatherFetchAt"
         let original = UserDefaults.standard.object(forKey: key)
         defer { UserDefaults.standard.set(original, forKey: key) }

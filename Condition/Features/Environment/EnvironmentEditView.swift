@@ -28,8 +28,9 @@ struct EnvironmentEditView: View {
     var body: some View {
         NavigationStack {
             Form {
-                // 記録日時が現在から離れている場合は自動取得の操作を出さない
-                if vm.canAutomaticallyFetch {
+                // 記録日時が現在から離れている場合は自動取得の操作を出さない。
+                // 国外で気圧計も無い端末は、取れるものが無いので出さない
+                if vm.canAutomaticallyFetch, vm.offersWeatherFetch || vm.canFetchDevicePressure {
                     fetchButtonSection
                 }
                 outdoorSection
@@ -133,10 +134,12 @@ struct EnvironmentEditView: View {
                             ProgressView().tint(.white)
                         } else {
                             // 広告を挟むときは再生マークにして、押す前に気づけるようにする
-                            Image(systemName: vm.canFetchWithoutAd
-                                  ? "location.fill" : "play.rectangle.fill")
+                            Image(systemName: !vm.offersWeatherFetch ? "barometer"
+                                  : vm.canFetchWithoutAd ? "location.fill" : "play.rectangle.fill")
                         }
+                        // 国外では気象データを取れないので、端末の気圧計で測る操作として見せる
                         Text(vm.isFetching ? "symptom.weather.fetching"
+                             : !vm.offersWeatherFetch ? "environment.device.measurePressure"
                              : vm.canFetchWithoutAd ? "symptom.weather.fetchJMA"
                              : "environment.adGate.watch")
                             .fontWeight(.semibold)
@@ -159,6 +162,13 @@ struct EnvironmentEditView: View {
                 // 無料で取れる間は出さない（読む必要が無いため）
                 if vm.canFetchAny, !vm.canFetchWithoutAd {
                     Text("environment.help.fetchInterval")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                // 国外では、気象データが自動で入らない理由と、手入力できることを示す
+                if !vm.offersWeatherFetch {
+                    Text("environment.help.japanOnly")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
