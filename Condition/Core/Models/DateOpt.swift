@@ -5,12 +5,14 @@ import Foundation
 import SwiftUI
 
 enum DateOpt: Int, CaseIterable, Codable, Identifiable {
+    // 既定の名称は新規インストール向け（2.9.0 で見直し）。
+    // それ以前からの利用者は旧既定（就寝時・運動後あり）を保存して固定する（legacyDefault* 参照）
     case cat01 = 0  // 既定: 起床時
     case cat02 = 1  // 既定: 安静時
     case cat03 = 2  // 既定: 就寝前
-    case cat04 = 3  // 既定: 就寝時
+    case cat04 = 3  // 既定: 体調不良時（旧既定: 就寝時）
     case cat05 = 4  // 既定: 運動前
-    case cat06 = 5  // 既定: 運動後
+    case cat06 = 5  // 既定: 未定義（旧既定: 運動後）
     case cat07 = 6  // 既定: 未定義
     case cat08 = 7  // 既定: 未定義
 
@@ -36,7 +38,7 @@ enum DateOpt: Int, CaseIterable, Codable, Identifiable {
         case .cat03: return defaultNamedIcon
         case .cat04: return defaultNamedIcon
         case .cat05: return defaultNamedIcon
-        case .cat06: return defaultNamedIcon
+        case .cat06: return undefinedIcon
         case .cat07: return undefinedIcon
         case .cat08: return undefinedIcon
         }
@@ -53,9 +55,9 @@ enum DateOpt: Int, CaseIterable, Codable, Identifiable {
         case .cat01: return "green"
         case .cat02: return "blue"
         case .cat03: return "orange"
-        case .cat04: return "purple"
+        case .cat04: return "pink"
         case .cat05: return "teal"
-        case .cat06: return "red"
+        case .cat06: return "gray"
         case .cat07: return "gray"
         case .cat08: return "gray"
         }
@@ -89,9 +91,9 @@ enum DateOpt: Int, CaseIterable, Codable, Identifiable {
         case .cat01: return "sun.horizon.fill"
         case .cat02: return "heart.fill"
         case .cat03: return "moon.fill"
-        case .cat04: return "moon.zzz.fill"
+        case .cat04: return "bolt.heart.fill"
         case .cat05: return "figure.wave"
-        case .cat06: return "figure.walk"
+        case .cat06: return "6.square.fill"
         case .cat07: return "7.square.fill"
         case .cat08: return "8.square.fill"
         }
@@ -143,9 +145,15 @@ struct DateOptAppearance: Codable, Equatable, Identifiable {
         Self.currentLanguageCode == "ja" ? !nameJa.isEmpty : !nameEn.isEmpty
     }
 
-    /// nameEn が英語プリセットのまま（＝ユーザーが編集していない）か
+    /// nameEn が英語プリセットのまま（＝ユーザーが編集していない）か。
+    /// 更新時に固定した旧既定（Bedtime / PostEx）も、編集していない名前として扱う
     private var isNameEnStillDefault: Bool {
-        nameEn == fallbackNameEn
+        nameEn == fallbackNameEn || isNameEnLegacyDefault
+    }
+
+    private var isNameEnLegacyDefault: Bool {
+        guard let legacy = DateOpt(rawValue: dateOptRawValue)?.legacyDefaultNameEn else { return false }
+        return !nameEn.isEmpty && nameEn == legacy
     }
 
     /// 名称編集フィールドの初期値。ja は nameJa、それ以外は nameEn を編集する。
@@ -161,9 +169,11 @@ struct DateOptAppearance: Codable, Equatable, Identifiable {
         }
     }
 
-    /// 現在の言語のプリセット既定名（ko/zh-Hant 用）
+    /// 現在の言語のプリセット既定名（ko/zh-Hant 用）。旧既定のままなら旧既定の現地語名
     private var localizedFallbackName: String {
-        DateOpt(rawValue: dateOptRawValue)?.defaultLocalizedName ?? ""
+        guard let opt = DateOpt(rawValue: dateOptRawValue) else { return "" }
+        if isNameEnLegacyDefault, let legacy = opt.legacyDefaultLocalizedName { return legacy }
+        return opt.defaultLocalizedName
     }
 
     private var fallbackNameJa: String {
@@ -188,9 +198,9 @@ extension DateOpt {
         case .cat01: return "起床時"
         case .cat02: return "安静時"
         case .cat03: return "就寝前"
-        case .cat04: return "就寝時"
+        case .cat04: return "体調不良時"
         case .cat05: return "運動前"
-        case .cat06: return "運動後"
+        case .cat06: return ""
         case .cat07: return ""
         case .cat08: return ""
         }
@@ -201,9 +211,9 @@ extension DateOpt {
         case .cat01: return "Wake"
         case .cat02: return "Rest"
         case .cat03: return "PreBed"
-        case .cat04: return "Bedtime"
+        case .cat04: return "Unwell"
         case .cat05: return "PreEx"
-        case .cat06: return "PostEx"
+        case .cat06: return ""
         case .cat07: return ""
         case .cat08: return ""
         }
@@ -214,9 +224,9 @@ extension DateOpt {
         case .cat01: return "기상"
         case .cat02: return "안정"
         case .cat03: return "취침전"
-        case .cat04: return "취침"
+        case .cat04: return "컨디션 불량"
         case .cat05: return "운동전"
-        case .cat06: return "운동후"
+        case .cat06: return ""
         case .cat07: return ""
         case .cat08: return ""
         }
@@ -227,9 +237,9 @@ extension DateOpt {
         case .cat01: return "起床"
         case .cat02: return "安靜"
         case .cat03: return "睡前"
-        case .cat04: return "就寢"
+        case .cat04: return "身體不適"
         case .cat05: return "運動前"
-        case .cat06: return "運動後"
+        case .cat06: return ""
         case .cat07: return ""
         case .cat08: return ""
         }
@@ -253,6 +263,48 @@ extension DateOpt {
             iconName: defaultIcon,
             colorKey: defaultColorKey
         )
+    }
+
+    // MARK: 旧既定（2.8.x まで）
+
+    /// 2.8.x までの既定。cat04 は「就寝時」、cat06 は「運動後」だった。
+    /// 区分を編集したことのない既存の利用者は、既定をその場で使って表示しているので、
+    /// 既定を変えると過去の記録の区分名まで変わってしまう。更新時にこの旧既定を保存して固定する
+    var legacyDefaultAppearance: DateOptAppearance {
+        switch self {
+        case .cat04:
+            return DateOptAppearance(
+                dateOptRawValue: rawValue, nameJa: "就寝時", nameEn: "Bedtime",
+                iconName: "moon.zzz.fill", colorKey: "purple"
+            )
+        case .cat06:
+            return DateOptAppearance(
+                dateOptRawValue: rawValue, nameJa: "運動後", nameEn: "PostEx",
+                iconName: "figure.walk", colorKey: "red"
+            )
+        default:
+            return defaultAppearance
+        }
+    }
+
+    /// 旧既定の英語名と、その現地語名（ko / zh-Hant）。
+    /// 固定した旧既定を、韓国語・繁体字でも英語のままにせず現地語で表示するために使う
+    var legacyDefaultNameEn: String? {
+        switch self {
+        case .cat04: return "Bedtime"
+        case .cat06: return "PostEx"
+        default:     return nil
+        }
+    }
+
+    var legacyDefaultLocalizedName: String? {
+        switch (self, DateOptAppearance.currentLanguageCode) {
+        case (.cat04, "ko"):      return "취침"
+        case (.cat04, "zh-Hant"): return "就寢"
+        case (.cat06, "ko"):      return "운동후"
+        case (.cat06, "zh-Hant"): return "運動後"
+        default:                  return nil
+        }
     }
 }
 

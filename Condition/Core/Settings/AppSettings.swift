@@ -466,7 +466,18 @@ final class AppSettings {
     }
 
     /// 出荷時初期値（画像定義）
+    /// 家庭血圧の基本（朝の起床後・夜の就寝前）に合わせ、それ以外の時間は安静時にする。
+    /// 体調不良時・運動前は時刻で決まらないので割り当てない
     static let factoryDefaultHourMap: [Int] = [
+        2, 2, 2,       // 0-2:   就寝前（夜更かしの就寝前）
+        0, 0, 0, 0, 0, // 3-7:   起床時
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // 8-19: 安静時
+        2, 2, 2, 2,    // 20-23: 就寝前
+    ]
+
+    /// 2.8.x までの出荷時初期値（就寝時・運動前・運動後を含む）。
+    /// 既存の利用者で割り当てを保存していない人は、これで固定する
+    static let legacyFactoryDefaultHourMap: [Int] = [
         3, 3, 3,       // 0-2:   就寝時
         0, 0, 0, 0, 0, // 3-7:   起床時
         1, 1, 1,       // 8-10:  安静時
@@ -476,6 +487,36 @@ final class AppSettings {
         2, 2,          // 20-21: 就寝前
         3, 3,          // 22-23: 就寝時
     ]
+
+    /// 起動時の読み込み前に、区分の名称・時刻の割り当てが保存済みだったか。
+    /// 読み込みは既定値も保存するので、読み込み後の UserDefaults では判定できない
+    @ObservationIgnored private var hadSavedDateOptAppearances = true
+    @ObservationIgnored private var hadSavedDateOptHourMap = true
+
+    /// 区分の既定を見直した版（2.9.0）への切り替えを済ませたか
+    private static let dateOptDefaultsVersionKey = "UDEF_DateOptDefaultsVersion"
+    private static let dateOptDefaultsVersion = 2
+
+    /// 区分の既定（名称・アイコン・色・時刻の割り当て）の見直しを、既存の利用者には適用しない。
+    ///
+    /// 起動時の読み込みは区分の名称・時刻の割り当てを保存するので、2.5.0 以降を一度でも起動した人は
+    /// 旧既定がすでに保存されていて、ここで何もしなくても区分名は変わらない。
+    /// それより前の版から直接更新した人は保存が無く、既定をその場で使っていたので、
+    /// 既定だけ変えると過去の「就寝時」「運動後」の記録の区分名まで変わってしまう。
+    /// 記録がある（＝既存の利用者）なら旧既定を保存して固定する。記録の無い新規インストールは新しい既定のまま。
+    /// 一度だけ判定する（新規の人が後で記録を付けても旧既定には戻さない）
+    func freezeLegacyDateOptDefaultsIfNeeded(hasRecords: Bool) {
+        guard ud.integer(forKey: Self.dateOptDefaultsVersionKey) < Self.dateOptDefaultsVersion else { return }
+        defer { ud.set(Self.dateOptDefaultsVersion, forKey: Self.dateOptDefaultsVersionKey) }
+        guard hasRecords else { return }
+        if !hadSavedDateOptAppearances {
+            dateOptAppearances = DateOpt.allCases.map(\.legacyDefaultAppearance)
+        }
+        // 旧設定（起床・就寝の時刻）から作った割り当てはそのまま使い、新しい出荷時初期値のときだけ戻す
+        if !hadSavedDateOptHourMap, dateOptHourMap == Self.factoryDefaultHourMap {
+            dateOptHourMap = Self.legacyFactoryDefaultHourMap
+        }
+    }
 
     /// 旧設定（wakeHour/downHour/sleepHour）からのマイグレーション用
     static func makeDefaultHourMap(wake: Int, down: Int, sleep: Int) -> [Int] {
@@ -642,6 +683,10 @@ final class AppSettings {
             UDefKeys.estimateDateOpt: true,
         ])
         migrateFromKVSIfNeeded()
+        // 読み込みで既定値が保存されてしまう前に、区分を保存済みだったかを控える
+        // （freezeLegacyDateOptDefaultsIfNeeded の判定に使う）
+        hadSavedDateOptAppearances = ud.data(forKey: SettingsKeys.settDateOptAppearances) != nil
+        hadSavedDateOptHourMap = ud.object(forKey: SettingsKeys.settDateOptHourMap) != nil
         loadFromUserDefaults()
         // UserDefaults（デバイス個別）読み込み
         hkDisabledByDemo = ud.bool(forKey: UDefKeys.hkDisabledByDemo)

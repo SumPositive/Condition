@@ -4756,25 +4756,25 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bedtime"
+            "value" : "When Unwell"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "就寝時"
+            "value" : "体調不良時"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "취침 시"
+            "value" : "컨디션 불량 시"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "就寢時"
+            "value" : "身體不適時"
           }
         }
       }

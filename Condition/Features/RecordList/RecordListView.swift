@@ -211,6 +211,8 @@ struct RecordListView: View {
             .onAppear {
                 // 重複チェック前に作られた「花粉症」などのユーザー追加タグを辞書へ寄せる（初回のみ）
                 SymptomTagMigration.runIfNeeded(context: context)
+                // 区分の既定を見直した版で、既存の利用者の区分名が変わらないよう旧既定を固定する（初回のみ）
+                settings.freezeLegacyDateOptDefaultsIfNeeded(hasRecords: !hasNoRecords)
                 if hkService.needsAutoImport {
                     hkService.needsAutoImport = false
                     Task { await autoImportFromHealthKitIfNeeded() }

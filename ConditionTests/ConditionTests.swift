@@ -2728,3 +2728,41 @@ struct SettingsBackupTests {
         #expect(result.settings == nil)
     }
 }
+
+// MARK: - 区分の既定（2.9.0 見直し）
+
+@Suite("DateOpt Defaults Tests")
+struct DateOptDefaultsTests {
+
+    @Test("新規インストールの既定は 起床時・安静時・就寝前・体調不良時・運動前 で、6〜8 は未使用")
+    func newDefaults() {
+        #expect(DateOpt.cat01.defaultNameJa == "起床時")
+        #expect(DateOpt.cat02.defaultNameJa == "安静時")
+        #expect(DateOpt.cat03.defaultNameJa == "就寝前")
+        #expect(DateOpt.cat04.defaultNameJa == "体調不良時")
+        #expect(DateOpt.cat05.defaultNameJa == "運動前")
+        for opt in [DateOpt.cat06, .cat07, .cat08] {
+            #expect(opt.defaultNameJa.isEmpty)
+            #expect(opt.defaultNameEn.isEmpty)
+        }
+    }
+
+    @Test("既存の利用者を固定する旧既定は 就寝時・運動後 を含む")
+    func legacyDefaults() {
+        #expect(DateOpt.cat04.legacyDefaultAppearance.nameJa == "就寝時")
+        #expect(DateOpt.cat04.legacyDefaultAppearance.nameEn == "Bedtime")
+        #expect(DateOpt.cat06.legacyDefaultAppearance.nameJa == "運動後")
+        #expect(DateOpt.cat06.legacyDefaultAppearance.nameEn == "PostEx")
+        // 見直していない区分は新旧で同じ
+        #expect(DateOpt.cat01.legacyDefaultAppearance == DateOpt.cat01.defaultAppearance)
+    }
+
+    @Test("出荷時の時刻の割り当ては24時間ぶんで、起床時・安静時・就寝前だけを指す")
+    @MainActor
+    func factoryHourMap() {
+        let map = AppSettings.factoryDefaultHourMap
+        #expect(map.count == 24)
+        #expect(Set(map).isSubset(of: [DateOpt.cat01.rawValue, DateOpt.cat02.rawValue, DateOpt.cat03.rawValue]))
+        #expect(AppSettings.legacyFactoryDefaultHourMap.count == 24)
+    }
+}
