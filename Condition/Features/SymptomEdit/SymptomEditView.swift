@@ -328,28 +328,30 @@ struct SymptomEditView: View {
         }
     }
 
-    /// 選択中の症状。1件だけなので0個か1個になる
+    /// 選択中の症状。1件だけなので0個か1個になる。
+    /// 症状ごとに色を変えると、程度の色（強い＝赤など）と紛らわしく、他の画面とも合わないので、
+    /// 種類の色（症状＝オレンジ系）に統一する（SymptomTagKind.chipColor）
     private var selectedSymptomChips: [(id: String, title: String, color: Color)] {
         guard !vm.symptomID.isEmpty else { return [] }
         let tag = settings.symptomTags.tag(for: vm.symptomID) ?? SymptomTag(id: vm.symptomID)
-        return [(tag.id, tag.symptomDisplayName, tag.symptomColor)]
+        return [(tag.id, tag.symptomDisplayName, SymptomTagKind.symptom.chipColor)]
     }
 
     /// 選択中の対処。記録に入っている順（選んだ順）で出す
     private var selectedMedicineChips: [(id: String, title: String, color: Color)] {
         vm.medicineIDs.map { id in
             let tag = settings.medicineTags.tag(for: id) ?? SymptomTag(id: id)
-            return (id, tag.medicineDisplayName, Color.accentColor)
+            return (id, tag.medicineDisplayName, SymptomTagKind.medicine.chipColor)
         }
     }
 
     /// 選択中の直前の状況。記録に入っている順（選んだ順）で出す。
-    /// 対処（アクセント色）と見分けられるよう、選択シートのタグと同じ色にする
+    /// 症状・対処と見分けられるよう、種類の色（直前の状況＝紫系）にする
     private var selectedTriggerChips: [(id: String, title: String, color: Color)] {
         vm.triggerIDs.map { id in
             let tag = settings.triggerTags.tag(for: id) ?? SymptomTag(id: id)
-            let color: Color = id == TriggerCatalog.nothingComesToMindID ? .blue : .purple
-            return (id, tag.triggerDisplayName, color)
+            // 「思い当たらない」も選んだ後は、他の状況と同じ紫にそろえる
+            return (id, tag.triggerDisplayName, SymptomTagKind.trigger.chipColor)
         }
     }
 

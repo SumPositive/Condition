@@ -31,11 +31,7 @@ struct SymptomPickerSheet: View {
     /// 下の画面と同じ灰色だとどれを操作しているのか分からなくなる。
     /// 色相でシートの種類が分かるように、標準の灰色へ淡く色を混ぜる
     private var sheetBackground: Color {
-        switch kind {
-        case .symptom:  return .azTintedSheetBackground(.tintColor)
-        case .trigger:  return .azTintedSheetBackground(.systemPurple)
-        case .medicine: return .azTintedSheetBackground(.systemOrange)
-        }
+        .azTintedSheetBackground(kind.sheetTint)
     }
 
     private var navigationTitleKey: LocalizedStringKey {
@@ -192,10 +188,10 @@ struct SymptomPickerSheet: View {
                     && item.id == TriggerCatalog.nothingComesToMindID
                 SymptomTagChip(
                     title: item.title,
-                    // 固定タグだけ青へ寄せ、通常の状況とは性質が違うことを示す
-                    color: isFixedTrigger ? .blue : (kind == .trigger ? .purple : .accentColor),
+                    // 選んだ後の塗りは直前の状況で統一し、固定タグは未選択時の紫の縁取りで見分ける
+                    color: kind.chipColor,
                     isSelected: selectedIDs.contains(item.id),
-                    unselectedTint: isFixedTrigger ? .blue : nil,
+                    unselectedBorder: isFixedTrigger ? kind.chipColor : nil,
                     // 固定タグを除き、プリセットもユーザー追加も長押しで同じ編集欄に載せる
                     // 削除は用意しない（過去の記録が名前を参照しているため）
                     onLongPress: isFixedTrigger ? nil : {

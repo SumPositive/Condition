@@ -1384,16 +1384,15 @@ private struct AnalysisSymptomDayDetailView: View {
       let triggers = triggerNames(record)
       if !triggers.isEmpty {
         detailSection(title: "symptom.section.trigger", systemImage: "clock.arrow.circlepath") {
-          let color: Color = record.triggerIDs == [TriggerCatalog.nothingComesToMindID]
-            ? .blue : .purple
-          tagGrid(triggers, color: color)
+          // 「思い当たらない」も記録画面と同じく直前の状況の紫にそろえる
+          tagGrid(triggers, color: SymptomTagKind.trigger.chipColor)
         }
       }
 
       let remedies = remedyNames(record)
       if !remedies.isEmpty {
         detailSection(title: "symptom.section.remedy", systemImage: "cross.case") {
-          tagGrid(remedies, color: .accentColor)
+          tagGrid(remedies, color: SymptomTagKind.medicine.chipColor)
         }
       }
 

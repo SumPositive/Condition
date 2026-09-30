@@ -87,12 +87,6 @@ extension SymptomTag {
         String(localized: "symptom.name.unknown")
     }
 
-    var symptomColor: Color {
-        // 辞書もユーザー追加も同じ規則（ID から決まる色）にする。
-        // これでプリセットと自作の見た目に差が出ない
-        let key = colorKey.isEmpty ? SymptomPalette.colorKey(for: id) : colorKey
-        return DateOptColorOption.color(for: key)
-    }
 }
 
 // MARK: - タグリスト（並べ替えと更新の純粋ロジック）

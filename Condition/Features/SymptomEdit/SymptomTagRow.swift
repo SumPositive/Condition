@@ -12,8 +12,8 @@ struct SymptomTagChip: View {
     let title: String
     let color: Color
     let isSelected: Bool
-    /// 未選択時にも薄く色を残す特別タグ向けの色
-    var unselectedTint: Color? = nil
+    /// 未選択時に縁取りだけ色を付ける特別タグ向けの色（塗りと文字は通常のタグと同じ）
+    var unselectedBorder: Color? = nil
     /// 長押しの処理。Button の外側に onLongPressGesture を付けても
     /// Button がジェスチャを先に取るため届かないので、ここで受け取る
     var onLongPress: (() -> Void)? = nil
@@ -35,6 +35,11 @@ struct SymptomTagChip: View {
             .background(background)
             .foregroundStyle(foreground)
             .clipShape(Capsule())
+            .overlay {
+                if !isSelected, let unselectedBorder {
+                    Capsule().strokeBorder(unselectedBorder, lineWidth: 1.5)
+                }
+            }
             .contentShape(Capsule())
             .onTapGesture {
                 // 長押し直後に指を離したときのタップは無視する
@@ -54,13 +59,11 @@ struct SymptomTagChip: View {
 
     // 選択は塗りつぶし＋白文字で示す。明度が大きく変わるので一目で分かる
     private var background: Color {
-        if isSelected { return color }
-        return unselectedTint?.opacity(0.14) ?? Color(.secondarySystemBackground)
+        isSelected ? color : Color(.secondarySystemBackground)
     }
 
     private var foreground: Color {
-        if isSelected { return .white }
-        return unselectedTint ?? .primary
+        isSelected ? .white : .primary
     }
 }
 
@@ -90,6 +93,25 @@ extension SymptomTagKind {
             case .trigger:  AppSettings.shared.triggerTags = newValue
             case .medicine: AppSettings.shared.medicineTags = newValue
             }
+        }
+    }
+
+    /// 種類ごとの色。記録画面のチップ・選択シートのチップと背景・分析の表示でそろえる。
+    /// 症状＝オレンジ系、直前の状況＝紫系、対処＝青系で、並んだ3行を色で見分けられるようにする
+    var chipColor: Color {
+        switch self {
+        case .symptom:  return .orange
+        case .trigger:  return .purple
+        case .medicine: return .blue
+        }
+    }
+
+    /// 選択シートの背景に淡く混ぜる色
+    var sheetTint: UIColor {
+        switch self {
+        case .symptom:  return .systemOrange
+        case .trigger:  return .systemPurple
+        case .medicine: return .systemBlue
         }
     }
 

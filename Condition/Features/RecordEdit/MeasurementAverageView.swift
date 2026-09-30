@@ -369,6 +369,8 @@ struct MeasurementAverageView: View {
                     .opacity(hidesKeypad ? 0 : 1)
                     .allowsHitTesting(!hidesKeypad)
             }
+            // iOS 18でポップオーバー終了後に親シート背景が透明化しても背後を透かさない
+            .background(Color(.systemBackground))
             // 確認中に別の場所をタップしたら通常のキャンセル表示へ戻す
             .simultaneousGesture(TapGesture().onEnded { resetDiscardConfirmation() })
             // ソフトキーボードの表示／非表示を実測して、テンキーの出し分けに使う

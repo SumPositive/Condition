@@ -8,27 +8,6 @@
 import Foundation
 import SwiftUI
 
-// MARK: - 色
-
-/// タグの色を ID から決める。
-/// 分類ごとの色分けをやめたので、代わりに ID のハッシュで安定して割り当てる。
-/// 名前を変えても色は変わらない（ID は変わらないため）
-enum SymptomPalette {
-    /// 記録一覧の背景にも敷くので、濃さの近い色をそろえる
-    static let colorKeys = [
-        "purple", "orange", "brown", "cyan", "teal",
-        "red", "pink", "indigo", "blue", "green",
-    ]
-
-    static func colorKey(for id: String) -> String {
-        guard !id.isEmpty else { return "gray" }
-        // hashValue は起動ごとに変わるので使えない（色が毎回変わってしまう）。
-        // バイト列の総和なら同じ ID から必ず同じ色になる
-        let sum = id.utf8.reduce(0) { $0 + Int($1) }
-        return colorKeys[sum % colorKeys.count]
-    }
-}
-
 // MARK: - 辞書エントリ
 
 struct SymptomCatalogEntry: Identifiable, Equatable {
@@ -39,9 +18,6 @@ struct SymptomCatalogEntry: Identifiable, Equatable {
     let healthKitIdentifier: String
 
     var labelKey: String { "symptom.name.\(id)" }
-    /// タグの色。分類を廃したので、ID から安定した色を割り当てる。
-    /// 同じ症状はいつでも同じ色になり、ユーザー追加分も同じ規則で色が付く
-    var colorKey: String { SymptomPalette.colorKey(for: id) }
 
     /// 現在の言語での表示名
     var localizedName: String { NSLocalizedString(labelKey, comment: "") }

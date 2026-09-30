@@ -207,9 +207,8 @@ struct AZDropdownPicker<Option: Hashable & Identifiable, Label: View>: View {
 
     private var collapsedButton: some View {
         Button {
-            withAnimation(.easeOut(duration: 0.16)) {
-                isExpanded.toggle()
-            }
+            // iOS 18では提示状態への明示アニメーションが親シートの描画を乱すため標準遷移へ任せる
+            isExpanded.toggle()
         } label: {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 selectedLabel
@@ -302,9 +301,8 @@ struct AZDropdownPicker<Option: Hashable & Identifiable, Label: View>: View {
         let isSelected = selection == option
         return Button {
             selection = option
-            withAnimation(.easeOut(duration: 0.12)) {
-                isExpanded = false
-            }
+            // ポップオーバー終了はシステム標準遷移で処理し、親シートへのアニメーション波及を防ぐ
+            isExpanded = false
         } label: {
             AZDropdownOptionButton(
                 isSelected: isSelected,
