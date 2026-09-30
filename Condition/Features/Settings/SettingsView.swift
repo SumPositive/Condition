@@ -50,6 +50,10 @@ struct SettingsView: View {
     @State private var showImportPicker = false
     @State private var showPruneOldRecordsConfirmSheet = false
     @State private var alertItem: SettingsAlertItem?
+    /// 取り込んだバックアップに入っていた設定。反映するかを利用者に確かめている間だけ持つ
+    @State private var pendingSettingsRestore: AppSettingsBackup?
+    /// 設定の確認のあとに出す、取り込み完了の知らせ
+    @State private var pendingImportDoneAlert: SettingsAlertItem?
     @State private var isWorking = false
     @State private var progressMessage = ""
     @State private var progressHint = ""
@@ -575,6 +579,19 @@ struct SettingsView: View {
             // 設定変更は個別送信せず、画面離脱時に匿名スナップショットで送る
             AppAnalytics.shared.logSettingsSnapshot(settings: settings, reason: "settings_disappear")
         }
+        // 設定は記録と違い今の値を置き換えるので、取り込むたびに確かめる
+        .alert(
+            "settings.share.restoreSettingsTitle",
+            isPresented: Binding(
+                get: { pendingSettingsRestore != nil },
+                set: { if !$0 { finishSettingsRestore(apply: false) } }
+            )
+        ) {
+            Button("settings.share.restoreSettingsApply") { finishSettingsRestore(apply: true) }
+            Button("settings.share.restoreSettingsSkip", role: .cancel) { finishSettingsRestore(apply: false) }
+        } message: {
+            Text("settings.share.restoreSettingsMessage")
+        }
         .alert(item: $alertItem) { item in
             Alert(
                 title: Text(item.title),
@@ -627,7 +644,8 @@ struct SettingsView: View {
                 categoryAppearances: RecordsJSONIO.normalizedDateOptAppearances(settings.dateOptAppearances),
                 symptomTags: settings.symptomTags,
                 medicineTags: settings.medicineTags,
-                triggerTags: settings.triggerTags
+                triggerTags: settings.triggerTags,
+                settings: settings.makeBackup()
             )
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyyMMdd_HHmmss"
@@ -700,7 +718,7 @@ struct SettingsView: View {
                         "symptoms_updated": result.symptomsUpdated,
                     ]
                 )
-                alertItem = .raw(
+                let doneAlert = SettingsAlertItem.raw(
                     title: String(localized: "settings.share.importDoneTitle"),
                     message: String(
                         format: String(localized: "settings.share.importDoneMessage"),
@@ -708,10 +726,34 @@ struct SettingsView: View {
                         result.updated + result.symptomsUpdated
                     )
                 )
+                if let backup = result.settings {
+                    // 設定を含むバックアップなら、置き換えるかを先に確かめてから完了を知らせる
+                    pendingImportDoneAlert = doneAlert
+                    pendingSettingsRestore = backup
+                } else {
+                    alertItem = doneAlert
+                }
             } catch {
                 AppAnalytics.shared.record(error: error, name: "records_json_import_failed")
                 alertItem = .raw(title: String(localized: "settings.share.errorTitle"), message: error.localizedDescription)
             }
+        }
+    }
+
+    /// 設定の復元の確認に答えたあと、必要なら反映して取り込み完了を知らせる
+    private func finishSettingsRestore(apply: Bool) {
+        guard let backup = pendingSettingsRestore else { return }
+        pendingSettingsRestore = nil
+        if apply {
+            settings.apply(backup)
+            AppAnalytics.shared.logOperation("records_json_import_settings_restored")
+        }
+        let done = pendingImportDoneAlert
+        pendingImportDoneAlert = nil
+        Task { @MainActor in
+            // 確認のアラートが閉じてから出す（重ねて出すと表示されないことがある）
+            try? await Task.sleep(for: .milliseconds(350))
+            alertItem = done
         }
     }
 

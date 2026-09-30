@@ -2671,3 +2671,60 @@ struct SymptomTriggerTests {
         #expect(AnalysisPanelID.symptomTriggers.titleKey == "analysis.trigger")
     }
 }
+
+// MARK: - 設定のバックアップ
+
+@Suite("Settings Backup Tests")
+struct SettingsBackupTests {
+
+    @Test("設定はバックアップの書き出しと取り込みで往復する")
+    @MainActor
+    func settingsRoundTrip() throws {
+        var backup = AppSettingsBackup()
+        backup.userLevel = AppUserLevel.allCases.last?.rawValue
+        backup.fontScale = AppFontScale.large.rawValue
+        backup.launchAction = LaunchAction.records.rawValue
+        backup.useDialRecordEntry = true
+        backup.dateOptHourMap = Array(repeating: DateOpt.cat02.rawValue, count: 24)
+        backup.graphHeightOverrides = ["0": 40]
+        backup.graphBMITall = 172
+        var layout = AnalysisLayout.migrated(
+            graphOrder: [], hiddenGraphs: [], statOrder: [], hiddenStats: [], statDays: 90
+        )
+        layout.setPageName("血圧", in: .one)
+        backup.analysisLayout = layout
+        backup.goals = ["bpHi": 125, "weight": 650]
+
+        let data = RecordsJSONIO.export(records: [], settings: backup)
+        let container = try makeSymptomInMemoryContainer()
+        let result = try RecordsJSONIO.importJSON(data, into: ModelContext(container))
+        #expect(result.settings == backup)
+        #expect(result.settings?.analysisLayout?.pageNames?["1"] == "血圧")
+    }
+
+    @Test("設定の一部が壊れていても、他の項目と記録は取り込める")
+    @MainActor
+    func brokenSettingsFieldIsSkipped() throws {
+        let json = """
+        {
+          "schemaVersion": 2,
+          "records": [],
+          "settings": { "userLevel": "壊れた値", "graphBMITall": 168, "analysisLayout": { "page1": ["unknown.panel"] } }
+        }
+        """
+        let container = try makeSymptomInMemoryContainer()
+        let result = try RecordsJSONIO.importJSON(Data(json.utf8), into: ModelContext(container))
+        #expect(result.settings?.userLevel == nil)
+        #expect(result.settings?.graphBMITall == 168)
+        #expect(result.settings?.analysisLayout == nil)
+    }
+
+    @Test("設定が入っていない旧バックアップでは設定は nil")
+    @MainActor
+    func legacyBackupHasNoSettings() throws {
+        let json = #"{ "schemaVersion": 2, "records": [] }"#
+        let container = try makeSymptomInMemoryContainer()
+        let result = try RecordsJSONIO.importJSON(Data(json.utf8), into: ModelContext(container))
+        #expect(result.settings == nil)
+    }
+}

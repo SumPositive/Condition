@@ -871,3 +871,266 @@ final class AppSettings {
         return orderedDefinedDateOpts.first ?? mapped
     }
 }
+
+// MARK: - 設定のバックアップ（全記録の書き出し／読み込み）
+
+/// 「全記録を書き出す」に同梱する設定。
+///
+/// 端末に結びつく値（ヘルスケア連携・移行済み印・Demo の印・気象取得時刻・購入など）は
+/// 別の端末へ移すと不具合になるので含めない。含めるものだけをここに列挙する（許可リスト）。
+/// 区分の名称・色とタグリストは、記録の表示に要るので従来どおり別枠で書き出す。
+///
+/// 版の違うアプリ同士でやり取りされるので、全項目を任意にし、読めない項目は捨てて
+/// 他の項目は生かす（1項目が壊れていても設定全体を失わない）。
+/// 項目を増やしたら `AppSettings.makeBackup()` / `apply(_:)` と往復テストにも足す
+struct AppSettingsBackup: Codable, Equatable {
+    /// 設定バックアップ自体の版。記録ファイルの schemaVersion とは独立させる
+    /// （上げると古いアプリが記録ごと読めなくなるのを避けるため）
+    var version: Int? = 1
+
+    // 表示
+    var userLevel: Int?
+    var appearanceMode: Int?
+    /// 文字サイズ・起動時に開く・ダイアル式は新規では出さない設定だが、当面は引き継ぐ
+    var fontScale: Int?
+    var dialStyle: String?
+    var dialTuning: AZDialInteractionTuning?
+
+    // 記録
+    var launchAction: Int?
+    var useDialRecordEntry: Bool?
+    var mergeWindowMinutes: Int?
+    var mergeDefaultAction: Int?
+    var estimateDateOpt: Bool?
+    var recordFieldOrder: [Int]?
+    var hiddenFields: [Int]?
+    var dateOptHourMap: [Int]?
+    var dateOptDisplayOrder: [Int]?
+
+    // グラフ
+    var graphDisplayOrder: [Int]?
+    var graphHiddenPanels: [Int]?
+    var graphHeightOverrides: [String: Double]?
+    var graphOneWidth: Int?
+    var graphBpMean: Bool?
+    var graphBpPress: Bool?
+    var graphBMITall: Int?
+    var graphBMI: Bool?
+    var graphWeightMA: Bool?
+    var graphWeightChange: Bool?
+    var graphBpLineMode: Int?
+    var graphBpHiddenDateOpts: [Int]?
+
+    // 統計
+    var statType: Int?
+    var statDays: Int?
+    var statShowAvg: Bool?
+    var statShowTimeLine: Bool?
+    var statShow24HLine: Bool?
+    var statSectionOrder: [Int]?
+    var statHiddenSections: [Int]?
+    var statBpDistributionHiddenDateOpts: [Int]?
+    var statHeightOverrides: [String: Double]?
+
+    // 分析（配置・ページ名・期間、症状パネルの絞り込み）
+    var analysisLayout: AnalysisLayout?
+    var analysisSymptomFilters: [String: String]?
+    var analysisSymptomSelectionSync: Bool?
+
+    // 目標値
+    var goalEnabled: Bool?
+    var goals: [String: Int]?
+
+    init() {}
+
+    init(from decoder: Decoder) throws {
+        // settings がオブジェクトでない壊れたファイルでも、記録の取り込みは止めない
+        guard let c = try? decoder.container(keyedBy: CodingKeys.self) else { return }
+        func value<T: Decodable>(_ key: CodingKeys) -> T? {
+            (try? c.decodeIfPresent(T.self, forKey: key)) ?? nil
+        }
+        version = value(.version)
+        userLevel = value(.userLevel)
+        appearanceMode = value(.appearanceMode)
+        fontScale = value(.fontScale)
+        dialStyle = value(.dialStyle)
+        dialTuning = value(.dialTuning)
+        launchAction = value(.launchAction)
+        useDialRecordEntry = value(.useDialRecordEntry)
+        mergeWindowMinutes = value(.mergeWindowMinutes)
+        mergeDefaultAction = value(.mergeDefaultAction)
+        estimateDateOpt = value(.estimateDateOpt)
+        recordFieldOrder = value(.recordFieldOrder)
+        hiddenFields = value(.hiddenFields)
+        dateOptHourMap = value(.dateOptHourMap)
+        dateOptDisplayOrder = value(.dateOptDisplayOrder)
+        graphDisplayOrder = value(.graphDisplayOrder)
+        graphHiddenPanels = value(.graphHiddenPanels)
+        graphHeightOverrides = value(.graphHeightOverrides)
+        graphOneWidth = value(.graphOneWidth)
+        graphBpMean = value(.graphBpMean)
+        graphBpPress = value(.graphBpPress)
+        graphBMITall = value(.graphBMITall)
+        graphBMI = value(.graphBMI)
+        graphWeightMA = value(.graphWeightMA)
+        graphWeightChange = value(.graphWeightChange)
+        graphBpLineMode = value(.graphBpLineMode)
+        graphBpHiddenDateOpts = value(.graphBpHiddenDateOpts)
+        statType = value(.statType)
+        statDays = value(.statDays)
+        statShowAvg = value(.statShowAvg)
+        statShowTimeLine = value(.statShowTimeLine)
+        statShow24HLine = value(.statShow24HLine)
+        statSectionOrder = value(.statSectionOrder)
+        statHiddenSections = value(.statHiddenSections)
+        statBpDistributionHiddenDateOpts = value(.statBpDistributionHiddenDateOpts)
+        statHeightOverrides = value(.statHeightOverrides)
+        analysisLayout = value(.analysisLayout)
+        analysisSymptomFilters = value(.analysisSymptomFilters)
+        analysisSymptomSelectionSync = value(.analysisSymptomSelectionSync)
+        goalEnabled = value(.goalEnabled)
+        goals = value(.goals)
+    }
+}
+
+extension AppSettings {
+
+    /// いまの設定からバックアップを作る
+    func makeBackup() -> AppSettingsBackup {
+        var b = AppSettingsBackup()
+        b.userLevel = userLevel.rawValue
+        b.appearanceMode = appearanceMode.rawValue
+        b.fontScale = fontScale.rawValue
+        b.dialStyle = dialStyle
+        b.dialTuning = dialTuning
+        b.launchAction = launchAction.rawValue
+        b.useDialRecordEntry = useDialRecordEntry
+        b.mergeWindowMinutes = mergeWindowMinutes
+        b.mergeDefaultAction = mergeDefaultAction
+        b.estimateDateOpt = estimateDateOpt
+        b.recordFieldOrder = graphPanelOrder
+        b.hiddenFields = hiddenFields
+        b.dateOptHourMap = dateOptHourMap
+        b.dateOptDisplayOrder = dateOptDisplayOrder
+        b.graphDisplayOrder = graphDisplayOrder
+        b.graphHiddenPanels = graphHiddenPanels
+        b.graphHeightOverrides = Dictionary(
+            uniqueKeysWithValues: graphHeightOverrides.map { (String($0.key), $0.value) }
+        )
+        b.graphOneWidth = graphOneWidth
+        b.graphBpMean = graphBpMean
+        b.graphBpPress = graphBpPress
+        b.graphBMITall = graphBMITall
+        b.graphBMI = graphBMI
+        b.graphWeightMA = graphWeightMA
+        b.graphWeightChange = graphWeightChange
+        b.graphBpLineMode = graphBpLineMode
+        b.graphBpHiddenDateOpts = graphBpHiddenDateOpts
+        b.statType = statType
+        b.statDays = statDays
+        b.statShowAvg = statShowAvg
+        b.statShowTimeLine = statShowTimeLine
+        b.statShow24HLine = statShow24HLine
+        b.statSectionOrder = statSectionOrder
+        b.statHiddenSections = statHiddenSections
+        b.statBpDistributionHiddenDateOpts = statBpDistributionHiddenDateOpts
+        b.statHeightOverrides = Dictionary(
+            uniqueKeysWithValues: statHeightOverrides.map { (String($0.key), $0.value) }
+        )
+        b.analysisLayout = analysisLayout
+        b.analysisSymptomFilters = analysisSymptomFilters
+        b.analysisSymptomSelectionSync = analysisSymptomSelectionSync
+        b.goalEnabled = goalEnabled
+        b.goals = [
+            "bpHi": goalBpHi, "bpLo": goalBpLo, "pulse": goalPulse,
+            "weight": goalWeight, "temp": goalTemp, "bodyFat": goalBodyFat,
+            "skMuscle": goalSkMuscle, "bpPp": goalBpPp, "bmi": goalBMI,
+        ]
+        return b
+    }
+
+    /// バックアップの設定で置き換える。含まれない項目・読めない値は今の設定のまま残す。
+    /// 画面の作り直しを伴うユーザーレベルは最後に入れる
+    func apply(_ b: AppSettingsBackup) {
+        if let raw = b.appearanceMode, let v = AppAppearanceMode(rawValue: raw) { appearanceMode = v }
+        if let raw = b.fontScale, let v = AppFontScale(rawValue: raw) { fontScale = v }
+        if let v = b.dialStyle, DialStyle.builtin(id: v) != nil { dialStyle = v }
+        if let v = b.dialTuning { dialTuning = v }
+
+        if let raw = b.launchAction, let v = LaunchAction(rawValue: raw) { launchAction = v }
+        if let v = b.useDialRecordEntry { useDialRecordEntry = v }
+        if let v = b.mergeWindowMinutes, 0 <= v { mergeWindowMinutes = v }
+        if let raw = b.mergeDefaultAction, ConflictAction(rawValue: raw) != nil { mergeDefaultAction = raw }
+        if let v = b.estimateDateOpt { estimateDateOpt = v }
+        if let v = b.recordFieldOrder, !v.isEmpty { graphPanelOrder = Self.knownGraphKinds(v) }
+        if let v = b.hiddenFields { hiddenFields = Self.knownGraphKinds(v) }
+        // 24時間ぶん揃っていない割り当ては、区分の自動判定を壊すので使わない
+        if let v = b.dateOptHourMap, v.count == 24 { dateOptHourMap = v }
+        if let v = b.dateOptDisplayOrder, !v.isEmpty {
+            dateOptDisplayOrder = v.filter { DateOpt(rawValue: $0) != nil }
+        }
+
+        if let v = b.graphDisplayOrder, !v.isEmpty { graphDisplayOrder = Self.knownGraphKinds(v) }
+        if let v = b.graphHiddenPanels { graphHiddenPanels = Self.knownGraphKinds(v) }
+        if let v = b.graphHeightOverrides { graphHeightOverrides = Self.intKeyed(v) }
+        if let v = b.graphOneWidth, 0 < v { graphOneWidth = v }
+        if let v = b.graphBpMean { graphBpMean = v }
+        if let v = b.graphBpPress { graphBpPress = v }
+        if let v = b.graphBMITall, 0 < v { graphBMITall = v }
+        if let v = b.graphBMI { graphBMI = v }
+        if let v = b.graphWeightMA { graphWeightMA = v }
+        if let v = b.graphWeightChange { graphWeightChange = v }
+        if let raw = b.graphBpLineMode, GraphBpLineMode(rawValue: raw) != nil { graphBpLineMode = raw }
+        if let v = b.graphBpHiddenDateOpts { graphBpHiddenDateOpts = v.filter { DateOpt(rawValue: $0) != nil } }
+
+        if let v = b.statType { statType = v }
+        if let v = b.statDays, 0 < v { statDays = v }
+        if let v = b.statShowAvg { statShowAvg = v }
+        if let v = b.statShowTimeLine { statShowTimeLine = v }
+        if let v = b.statShow24HLine { statShow24HLine = v }
+        if let v = b.statSectionOrder, !v.isEmpty {
+            statSectionOrder = v.filter { StatSection(rawValue: $0) != nil }
+        }
+        if let v = b.statHiddenSections { statHiddenSections = v.filter { StatSection(rawValue: $0) != nil } }
+        if let v = b.statBpDistributionHiddenDateOpts {
+            statBpDistributionHiddenDateOpts = v.filter { DateOpt(rawValue: $0) != nil }
+        }
+        if let v = b.statHeightOverrides { statHeightOverrides = Self.intKeyed(v) }
+
+        if var layout = b.analysisLayout {
+            // 版の違いで増減した図表を、この版の図表一覧に合わせて整える
+            layout.normalize()
+            analysisLayout = layout
+        }
+        if let v = b.analysisSymptomFilters { analysisSymptomFilters = v }
+        if let v = b.analysisSymptomSelectionSync { analysisSymptomSelectionSync = v }
+
+        if let v = b.goalEnabled { goalEnabled = v }
+        if let g = b.goals {
+            if let v = g["bpHi"] { goalBpHi = v }
+            if let v = g["bpLo"] { goalBpLo = v }
+            if let v = g["pulse"] { goalPulse = v }
+            if let v = g["weight"] { goalWeight = v }
+            if let v = g["temp"] { goalTemp = v }
+            if let v = g["bodyFat"] { goalBodyFat = v }
+            if let v = g["skMuscle"] { goalSkMuscle = v }
+            if let v = g["bpPp"] { goalBpPp = v }
+            if let v = g["bmi"] { goalBMI = v }
+        }
+
+        if let raw = b.userLevel, let v = AppUserLevel(rawValue: raw) { userLevel = v }
+    }
+
+    /// この版に存在するグラフ種別だけを残す
+    private static func knownGraphKinds(_ values: [Int]) -> [Int] {
+        values.filter { GraphKind(rawValue: $0) != nil }
+    }
+
+    private static func intKeyed(_ values: [String: Double]) -> [Int: Double] {
+        var result: [Int: Double] = [:]
+        for (key, value) in values {
+            if let intKey = Int(key) { result[intKey] = value }
+        }
+        return result
+    }
+}

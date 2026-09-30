@@ -45,6 +45,8 @@ struct RecordImportEnvelope: Decodable {
     let medicineTags: SymptomTagList?
     /// 直前の状況のタグリスト。追加前のバックアップには無いので任意
     let triggerTags: SymptomTagList?
+    /// アプリの設定（表示・記録・グラフ・統計・分析の配置・目標値）。追加前のバックアップには無いので任意
+    let settings: AppSettingsBackup?
 }
 
 struct SymptomImportRecord: Decodable {
@@ -208,7 +210,7 @@ struct RecordImportRecord: Decodable {
 enum RecordsJSONIO {
 
     /// 2: 症状メモ（symptoms / symptomTags / medicineTags）を追加。
-    /// 直前の状況（triggerIds / triggerTags）は任意項目の追加なので版は上げない
+    /// 直前の状況（triggerIds / triggerTags）と設定（settings）は任意項目の追加なので版は上げない
     static let currentSchemaVersion = 2
 
     enum IOError: LocalizedError, Equatable {
@@ -235,6 +237,8 @@ enum RecordsJSONIO {
         var symptomTags: SymptomTagList? = nil
         var medicineTags: SymptomTagList? = nil
         var triggerTags: SymptomTagList? = nil
+        /// バックアップが含んでいた設定。反映するかは呼び出し側で利用者に確かめる
+        var settings: AppSettingsBackup? = nil
     }
 
     // MARK: エクスポート
@@ -253,6 +257,7 @@ enum RecordsJSONIO {
         symptomTags: SymptomTagList? = nil,
         medicineTags: SymptomTagList? = nil,
         triggerTags: SymptomTagList? = nil,
+        settings: AppSettingsBackup? = nil,
         exportDate: Date = Date()
     ) -> Data {
         let iso = ISO8601DateFormatter()
@@ -318,6 +323,10 @@ enum RecordsJSONIO {
         }
         if let triggerTags, let object = jsonObject(triggerTags) {
             envelope["triggerTags"] = object
+        }
+        // 設定は任意項目の追加なので schemaVersion は上げない（古いアプリでも記録は取り込める）
+        if let settings, let object = jsonObject(settings) {
+            envelope["settings"] = object
         }
 
         return (try? JSONSerialization.data(withJSONObject: envelope, options: style.jsonOptions)) ?? Data()
@@ -455,6 +464,7 @@ enum RecordsJSONIO {
         result.symptomTags = envelope.symptomTags
         result.medicineTags = envelope.medicineTags
         result.triggerTags = envelope.triggerTags
+        result.settings = envelope.settings
         return result
     }
 

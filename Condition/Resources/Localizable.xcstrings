@@ -298,6 +298,122 @@
         }
       }
     },
+    "settings.share.restoreSettingsApply" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore Settings"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "設定も復元する"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "설정도 복원"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "還原設定"
+          }
+        }
+      }
+    },
+    "settings.share.restoreSettingsMessage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This backup includes settings (display, record screen, graphs, statistics, analysis layout, height, and goals). Restoring replaces your current settings. Records have already been imported."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このバックアップには設定（表示・記録画面・グラフ・統計・分析の配置・身長・目標値）が含まれています。復元すると今の設定は置き換わります。記録は取り込み済みです。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 백업에는 설정(표시·기록 화면·그래프·통계·분석 배치·키·목표값)이 포함되어 있습니다. 복원하면 현재 설정이 바뀝니다. 기록은 이미 가져왔습니다."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此備份包含設定（顯示、記錄畫面、圖表、統計、分析配置、身高與目標值）。還原後會取代目前的設定。記錄已匯入完成。"
+          }
+        }
+      }
+    },
+    "settings.share.restoreSettingsSkip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep Current Settings"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今の設定のまま"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "현재 설정 유지"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保留目前設定"
+          }
+        }
+      }
+    },
+    "settings.share.restoreSettingsTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore settings too?"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "設定も復元しますか？"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "설정도 복원할까요?"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "也要還原設定嗎？"
+          }
+        }
+      }
+    },
     "symptom.help.remedy" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -14795,25 +14911,25 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Exports all records to a JSON file for backup or moving to another device."
+            "value" : "Exports all records and settings (display, record screen, graphs, statistics, analysis layout, height, and goals) to a JSON file. Use it for backups or moving to another device. Device-specific settings such as Health integration are not included."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "すべての記録を JSON ファイルに書き出します。バックアップや他の端末への移行に使えます。"
+            "value" : "すべての記録と設定（表示・記録画面・グラフ・統計・分析の配置・身長・目標値）を JSON ファイルに書き出します。バックアップや他の端末への移行に使えます。ヘルスケア連携など端末ごとの設定は含みません。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "모든 기록을 JSON 파일로 내보냅니다. 백업이나 다른 기기로의 이전에 사용할 수 있습니다."
+            "value" : "모든 기록과 설정(표시·기록 화면·그래프·통계·분석 배치·키·목표값)을 JSON 파일로 내보냅니다. 백업이나 다른 기기로의 이전에 사용할 수 있습니다. 건강 연동 등 기기별 설정은 포함하지 않습니다."
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "將所有記錄匯出為 JSON 檔案，可用於備份或轉移至其他裝置。"
+            "value" : "將所有記錄與設定（顯示、記錄畫面、圖表、統計、分析配置、身高與目標值）匯出為 JSON 檔案。可用於備份或轉移到其他裝置。不包含健康連動等各裝置專屬的設定。"
           }
         }
       }
@@ -14853,25 +14969,25 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Imports records from a JSON backup. If the date and time match, the record is overwritten."
+            "value" : "Imports records from a JSON backup. Records with the same date and time are overwritten. If the backup includes settings, you will be asked whether to restore them too."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "JSON バックアップから記録を取り込みます。日時が同じ記録は上書きします。"
+            "value" : "JSON バックアップから記録を取り込みます。日時が同じ記録は上書きします。バックアップに設定が含まれている場合は、設定も復元するかを確認します。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "JSON 백업에서 기록을 가져옵니다. 날짜·시간이 같은 기록은 덮어씁니다."
+            "value" : "JSON 백업에서 기록을 가져옵니다. 일시가 같은 기록은 덮어씁니다. 백업에 설정이 포함되어 있으면 설정도 복원할지 확인합니다."
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "從 JSON 備份匯入記錄。日期時間相同的記錄會被覆寫。"
+            "value" : "從 JSON 備份匯入記錄。日期時間相同的記錄會被覆寫。若備份包含設定，會詢問是否一併還原設定。"
           }
         }
       }
