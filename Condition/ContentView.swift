@@ -278,8 +278,11 @@ struct ContentView: View {
                 Image(systemName: systemImage)
                     .font(.title2)
                     .frame(width: 32)
+                // 吹き出しは幅が決まっているので、長い訳語でも欠けたり改行したりせず1行に収める
                 Text(titleKey)
                     .font(.title3)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
                 Spacer(minLength: 0)
             }
             .foregroundStyle(.primary)

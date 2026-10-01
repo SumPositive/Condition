@@ -203,6 +203,8 @@ struct MeasurementAverageView: View {
     @State private var environmentRecordDate: Date?
     @State private var showEnvironmentSheet = false
     @State private var tableViewportWidth: CGFloat = 0
+    /// 「＋・血圧部位・環境」の行を詰めて並べたときの幅（画面に収まるかの判定に使う）
+    @State private var addTrialRowNaturalWidth: CGFloat = 0
     @State private var showDatePicker = false
     @State private var showDeleteAlert = false
     @State private var isDateOptExpanded = false
@@ -578,8 +580,37 @@ struct MeasurementAverageView: View {
         columns.contains(.bpHi) || columns.contains(.bpLo)
     }
 
-    /// 左端を番号・ヘルプ列に合わせ、右端に共通の環境シートを置く
+    /// 左端を番号・ヘルプ列に合わせ、環境シートのボタンを置く。
+    /// 画面に見える幅に収まるときは環境ボタンを右端へ寄せ、収まらないときは
+    /// L・R のすぐ右に続けて置く（文字を欠かさず、はみ出しは横スクロールで見せる）。
+    /// 横スクロールのコンテンツ幅に入るよう、収まらないときは行そのものを中身の幅まで広げる
+    /// （外側を画面幅で固定すると、はみ出した環境ボタンまでスクロールできない）
     private var addTrialAndBpSideRow: some View {
+        let viewport = max(0, tableViewportWidth - 24)
+        let fits = tableViewportWidth == 0 || addTrialRowNaturalWidth <= viewport
+        return Group {
+            if fits {
+                addTrialAndBpSideContent(pushesEnvironmentToTrailing: true)
+                    .frame(width: tableViewportWidth == 0 ? nil : viewport)
+            } else {
+                addTrialAndBpSideContent(pushesEnvironmentToTrailing: false)
+                    .frame(width: addTrialRowNaturalWidth, alignment: .leading)
+            }
+        }
+        // 入力行と同じ高さにそろえ、表の行間を一定に見せる
+        .frame(height: cellHeight)
+        // 右端へ寄せない並べ方の自然な幅を測り、収まるかの判定と広げる幅に使う
+        .background(alignment: .leading) {
+            addTrialAndBpSideContent(pushesEnvironmentToTrailing: false)
+                .fixedSize()
+                .hidden()
+                .onGeometryChange(for: CGFloat.self, of: { $0.size.width }) {
+                    addTrialRowNaturalWidth = $0
+                }
+        }
+    }
+
+    private func addTrialAndBpSideContent(pushesEnvironmentToTrailing: Bool) -> some View {
         HStack(spacing: 6) {
             if trialCount < maxTrials {
                 addTrialButton
@@ -592,7 +623,11 @@ struct MeasurementAverageView: View {
                     .foregroundStyle(AvgColumn.bpHi.color.opacity(0.7))
                 bpSideSegment
             }
-            Spacer(minLength: 4)
+            if pushesEnvironmentToTrailing {
+                Spacer(minLength: 4)
+            } else {
+                Color.clear.frame(width: 6, height: 1)
+            }
             Button {
                 commitInputText()
                 dismissMemoFocus()
@@ -605,10 +640,6 @@ struct MeasurementAverageView: View {
             .buttonStyle(.borderless)
         }
         .lineLimit(1)
-        .minimumScaleFactor(0.7)
-        // 入力行と同じ高さにそろえ、表の行間を一定に見せる
-        .frame(height: cellHeight)
-        .frame(width: tableViewportWidth == 0 ? nil : max(0, tableViewportWidth - 24))
     }
 
     /// 入力済みの値だけをまとめ、屋外・室内・端末を区別する
@@ -644,9 +675,10 @@ struct MeasurementAverageView: View {
         AZRadioPicker(
             options: BpSide.allCases,
             selection: $bpSide,
-            minOptionWidth: 0,
+            // 文字幅だけだと選択中の印が縦長の円になって窮屈なので、横長のカプセルになる幅を取る
+            minOptionWidth: 46,
             maxOptionWidth: 60,
-            horizontalPadding: 10,
+            horizontalPadding: 12,
             // 外枠（上下の groupPadding）込みで入力行の高さに収める
             verticalPadding: 0,
             minHeight: max(cellHeight - 4, 20),
@@ -656,7 +688,9 @@ struct MeasurementAverageView: View {
             fillsWidth: false,
             optionTint: { $0.badgeColor }
         ) { side in
+            // L・R は1文字なので、太字にして読みやすくする
             Text(side.code)
+                .fontWeight(.semibold)
         }
     }
 

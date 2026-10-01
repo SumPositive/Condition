@@ -13635,7 +13635,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add Measurement"
+            "value" : "Measurement"
           }
         },
         "ja" : {
@@ -13664,7 +13664,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add Symptom"
+            "value" : "Symptom"
           }
         },
         "ja" : {
