@@ -2842,3 +2842,24 @@ struct SettingsBackupNormalizationTests {
         #expect(result == [0: range.lowerBound, 1: range.upperBound, 4: 80])
     }
 }
+
+@Suite("Record Field Visibility Tests")
+@MainActor
+struct RecordFieldVisibilityTests {
+
+    @Test("記録画面の項目がすべて非表示なら、表示順の先頭を表示に戻す")
+    func keepsFirstFieldVisible() {
+        let fields = GraphKind.allCases.filter(\.isRecordField).map(\.rawValue)
+        let order = fields.reversed().map { $0 }
+        let result = AppSettings.keepingOneRecordFieldVisible(fields, order: order)
+        #expect(!result.contains(order[0]))
+        #expect(result.count == fields.count - 1)
+    }
+
+    @Test("1つでも表示があれば非表示の一覧はそのまま")
+    func leavesPartialHiddenAsIs() {
+        let fields = GraphKind.allCases.filter(\.isRecordField).map(\.rawValue)
+        let hidden = Array(fields.dropFirst())
+        #expect(AppSettings.keepingOneRecordFieldVisible(hidden, order: fields) == hidden)
+    }
+}

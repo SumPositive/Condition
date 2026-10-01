@@ -2153,11 +2153,19 @@ struct FieldOrderSettingsView: View {
 
     private var hiddenSet: Set<Int> { Set(settings.hiddenFields) }
 
+    /// 表示中の項目の数。記録には少なくとも1項目が要るので、最後の1つは OFF にさせない
+    private var visibleFieldCount: Int {
+        settings.graphPanelOrder.filter {
+            GraphKind(rawValue: $0)?.isRecordField == true && !hiddenSet.contains($0)
+        }.count
+    }
+
     var body: some View {
         List {
             Section {
                 ForEach(settings.graphPanelOrder, id: \.self) { raw in
                     if let kind = GraphKind(rawValue: raw), kind.isRecordField {
+                        let isLastVisible = !hiddenSet.contains(raw) && visibleFieldCount <= 1
                         Toggle(isOn: Binding(
                             get: { !hiddenSet.contains(raw) },
                             set: { visible in
@@ -2172,13 +2180,20 @@ struct FieldOrderSettingsView: View {
                         )) {
                             Text(LocalizedStringKey(kind.longTitle))
                         }
+                        .disabled(isLastVisible)
                     }
                 }
                 .onMove { from, to in
                     settings.graphPanelOrder.move(fromOffsets: from, toOffset: to)
                 }
             } footer: {
-                Text("settings.orderIsReflectedInRecordInput")
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("settings.orderIsReflectedInRecordInput")
+                    // 最後の1つを OFF にできない理由を、その状態のときだけ示す
+                    if visibleFieldCount <= 1 {
+                        Text("settings.fieldOrder.keepOne")
+                    }
+                }
             }
         }
         .scrollIndicators(.hidden)

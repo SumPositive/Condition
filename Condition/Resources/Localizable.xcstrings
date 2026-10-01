@@ -385,6 +385,35 @@
         }
       }
     },
+    "settings.fieldOrder.keepOne" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "At least one item is needed to record, so the last one cannot be turned off."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "記録には少なくとも1項目が必要なので、最後の1つはオフにできません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "기록에는 최소 1개 항목이 필요하므로 마지막 항목은 끌 수 없습니다."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "記錄至少需要 1 個項目，因此無法關閉最後一個。"
+          }
+        }
+      }
+    },
     "settings.fontScale.systemNote" : {
       "extractionState" : "manual",
       "localizations" : {

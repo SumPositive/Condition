@@ -753,7 +753,7 @@ final class AppSettings {
             graphPanelOrder.append(kind.rawValue)
         }
         if let arr = ud.array(forKey: SettingsKeys.settFieldHidden) as? [Int] {
-            hiddenFields = arr
+            hiddenFields = Self.keepingOneRecordFieldVisible(arr, order: graphPanelOrder)
         }
         let ow = ud.integer(forKey: SettingsKeys.settGraphOneWid)
         if 0 < ow { graphOneWidth = ow }
@@ -1111,7 +1111,11 @@ extension AppSettings {
         if let v = b.recordFieldOrder, !v.isEmpty {
             graphPanelOrder = Self.normalizedOrder(v, allowed: recordFields)
         }
-        if let v = b.hiddenFields { hiddenFields = Self.normalizedSubset(v, allowed: recordFields) }
+        if let v = b.hiddenFields {
+            hiddenFields = Self.keepingOneRecordFieldVisible(
+                Self.normalizedSubset(v, allowed: recordFields), order: graphPanelOrder
+            )
+        }
         // 24時間ぶん揃っていない・知らない区分を指す割り当ては、区分の自動判定を壊すので使わない
         if let v = b.dateOptHourMap, v.count == 24,
            v.allSatisfy({ $0 == -1 || DateOpt(rawValue: $0) != nil }) {
@@ -1201,6 +1205,16 @@ extension AppSettings {
         var result = values.filter { allowedSet.contains($0) && seen.insert($0).inserted }
         result += allowed.filter { !seen.contains($0) }
         return result
+    }
+
+    /// 記録画面の項目がすべて非表示だと測定を記録できないので、少なくとも1項目は表示に残す。
+    /// すべて非表示なら、表示順の先頭の項目を表示に戻す
+    static func keepingOneRecordFieldVisible(_ hidden: [Int], order: [Int]) -> [Int] {
+        let recordFields = GraphKind.allCases.filter(\.isRecordField).map(\.rawValue)
+        let hiddenSet = Set(hidden)
+        guard recordFields.allSatisfy({ hiddenSet.contains($0) }) else { return hidden }
+        let first = order.first { recordFields.contains($0) } ?? recordFields[0]
+        return hidden.filter { $0 != first }
     }
 
     /// 非表示などの集合を正規化する。この版に無い値と重複を除く（補完はしない）
