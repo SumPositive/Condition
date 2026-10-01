@@ -373,8 +373,9 @@ struct MeasurementAverageView: View {
             }
             // iOS 18でポップオーバー終了後に親シート背景が透明化しても背後を透かさない
             .background(Color(.systemBackground))
-            // 確認中に別の場所をタップしたら通常のキャンセル表示へ戻す
-            .simultaneousGesture(TapGesture().onEnded { resetDiscardConfirmation() })
+            // 確認中の破棄ボタンは2秒で通常のキャンセル表示へ戻る。
+            // 以前は画面全体のタップでも戻していたが、iOS 18 では全体に付けたタップ検知が
+            // 中のボタン（日時など）のタップを横取りして反応しなくなるので付けない
             // ソフトキーボードの表示／非表示を実測して、テンキーの出し分けに使う
             .onReceive(
                 NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)
@@ -612,8 +613,11 @@ struct MeasurementAverageView: View {
 
     private func addTrialAndBpSideContent(pushesEnvironmentToTrailing: Bool) -> some View {
         HStack(spacing: 6) {
+            // 各部品は自然な幅のまま置く。幅を測った行と実際の行で大きさが変わらないようにし、
+            // 伸び縮みする部品（L・R の切り替えは 1 つあたり 46〜60pt）が他の文字を押し出して欠けさせないため
             if trialCount < maxTrials {
                 addTrialButton
+                    .fixedSize()
             } else {
                 Color.clear.frame(width: trialLabelWidth, height: 1)
             }
@@ -621,7 +625,9 @@ struct MeasurementAverageView: View {
                 Text("record.measurementAvg.bpSideLabel")
                     .font(.footnote)
                     .foregroundStyle(AvgColumn.bpHi.color.opacity(0.7))
+                    .fixedSize()
                 bpSideSegment
+                    .fixedSize()
             }
             if pushesEnvironmentToTrailing {
                 Spacer(minLength: 4)
@@ -638,6 +644,7 @@ struct MeasurementAverageView: View {
                     .font(.callout)
             }
             .buttonStyle(.borderless)
+            .fixedSize()
         }
         .lineLimit(1)
     }
@@ -754,10 +761,13 @@ struct MeasurementAverageView: View {
             .scrollDismissesKeyboard(.interactively)
             // メモ欄（AZMemoEditor）外のタップは AZMemoEditor 側のウィンドウ監視が閉じる。
             // ここは UITextView を持たない測定場所欄のための保険。
+            // 画面全体のタップ検知は、iOS 18 では中のボタン（日時など）のタップを横取りするので、
+            // 測定場所欄の入力中だけ有効にする（それ以外は子のジェスチャだけを通す）
             .contentShape(Rectangle())
-            .onTapGesture {
-                if focusEquipment { dismissMemoFocus() }
-            }
+            .gesture(
+                TapGesture().onEnded { dismissMemoFocus() },
+                including: focusEquipment ? .all : .subviews
+            )
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .safeAreaInset(edge: .bottom) {
                 if hidesKeypad {
@@ -1873,24 +1883,17 @@ struct MeasurementAverageView: View {
         armDiscardConfirmation()
     }
 
-    /// 3秒間だけ変更破棄の2回目のタップを受け付ける
+    /// 2秒間だけ変更破棄の2回目のタップを受け付ける
     private func armDiscardConfirmation() {
         discardResetTask?.cancel()
         withAnimation(.easeInOut(duration: 0.15)) { isDiscardArmed = true }
         discardResetTask = Task { @MainActor in
-            try? await Task.sleep(for: .seconds(3))
+            try? await Task.sleep(for: .seconds(2))
             guard !Task.isCancelled else { return }
             withAnimation(.easeInOut(duration: 0.15)) { isDiscardArmed = false }
         }
     }
 
-    /// ボタン外の操作で変更破棄の確認状態を解除する
-    private func resetDiscardConfirmation() {
-        guard isDiscardArmed else { return }
-        discardResetTask?.cancel()
-        discardResetTask = nil
-        withAnimation(.easeInOut(duration: 0.15)) { isDiscardArmed = false }
-    }
 
     // MARK: 保存
 

@@ -45,8 +45,9 @@ struct SymptomEditView: View {
                     continuationSection
                 }
             }
-            // 確認中に別の場所をタップしたら通常のキャンセル表示へ戻す
-            .simultaneousGesture(TapGesture().onEnded { resetDiscardConfirmation() })
+            // 確認中の破棄ボタンは2秒で通常のキャンセル表示へ戻る。
+            // 以前は画面全体のタップでも戻していたが、iOS 18 では全体に付けたタップ検知が
+            // 中のボタン（日時など）のタップを横取りして反応しなくなるので付けない
             // メモを打ったあと下へスクロールしたらキーボードを引き下げる。
             // 複数行入力なので、指の動きに追従する .interactively にする
             // （測定シートのメモ欄と同じ扱い）
@@ -530,24 +531,17 @@ struct SymptomEditView: View {
         armDiscardConfirmation()
     }
 
-    /// 3秒間だけ変更破棄の2回目のタップを受け付ける
+    /// 2秒間だけ変更破棄の2回目のタップを受け付ける
     private func armDiscardConfirmation() {
         discardResetTask?.cancel()
         withAnimation(.easeInOut(duration: 0.15)) { isDiscardArmed = true }
         discardResetTask = Task { @MainActor in
-            try? await Task.sleep(for: .seconds(3))
+            try? await Task.sleep(for: .seconds(2))
             guard !Task.isCancelled else { return }
             withAnimation(.easeInOut(duration: 0.15)) { isDiscardArmed = false }
         }
     }
 
-    /// ボタン外の操作で変更破棄の確認状態を解除する
-    private func resetDiscardConfirmation() {
-        guard isDiscardArmed else { return }
-        discardResetTask?.cancel()
-        discardResetTask = nil
-        withAnimation(.easeInOut(duration: 0.15)) { isDiscardArmed = false }
-    }
 
     // MARK: - 保存
 

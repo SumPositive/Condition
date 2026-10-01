@@ -384,12 +384,16 @@ struct RecordEditView: View {
             .scrollDismissesKeyboard(.interactively)
             // メモ欄（AZMemoEditor）外のタップは AZMemoEditor 側のウィンドウ監視が閉じる。
             // ここは UITextView を持たない測定場所欄のための保険。
+            // 画面全体のタップ検知は、iOS 18 では中のボタン（日時など）のタップを横取りするので、
+            // 測定場所欄の入力中だけ有効にする（それ以外は子のジェスチャだけを通す）
             .contentShape(Rectangle())
-            .onTapGesture {
-                if focusEquipment { dismissMemoFocus() }
-            }
-            // 確認中に別の場所をタップしたら通常のキャンセル表示へ戻す
-            .simultaneousGesture(TapGesture().onEnded { resetDiscardConfirmation() })
+            .gesture(
+                TapGesture().onEnded { dismissMemoFocus() },
+                including: focusEquipment ? .all : .subviews
+            )
+            // 確認中の破棄ボタンは2秒で通常のキャンセル表示へ戻る。
+            // 以前は画面全体のタップでも戻していたが、iOS 18 では全体に付けたタップ検知が
+            // 中のボタン（日時など）のタップを横取りして反応しなくなるので付けない
     }
 
     /// メモ・測定場所の入力中の自動スクロールとキーボード余白。body から切り出して式を分ける
@@ -568,24 +572,17 @@ struct RecordEditView: View {
         armDiscardConfirmation()
     }
 
-    /// 3秒間だけ変更破棄の2回目のタップを受け付ける
+    /// 2秒間だけ変更破棄の2回目のタップを受け付ける
     private func armDiscardConfirmation() {
         discardResetTask?.cancel()
         withAnimation(.easeInOut(duration: 0.15)) { isDiscardArmed = true }
         discardResetTask = Task { @MainActor in
-            try? await Task.sleep(for: .seconds(3))
+            try? await Task.sleep(for: .seconds(2))
             guard !Task.isCancelled else { return }
             withAnimation(.easeInOut(duration: 0.15)) { isDiscardArmed = false }
         }
     }
 
-    /// ボタン外の操作で変更破棄の確認状態を解除する
-    private func resetDiscardConfirmation() {
-        guard isDiscardArmed else { return }
-        discardResetTask?.cancel()
-        discardResetTask = nil
-        withAnimation(.easeInOut(duration: 0.15)) { isDiscardArmed = false }
-    }
 
     /// 設定の順序と非表示設定に従った表示フィールド一覧
     private var orderedRecordFields: [GraphKind] {
