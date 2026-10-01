@@ -185,6 +185,10 @@ struct AnalysisLayout: Codable, Equatable {
   /// 利用者が変更したページ名
   /// 未保存の既存データをそのまま読み込めるよう任意値で保持する
   var pageNames: [String: String]? = nil
+  /// 3ページで期間をそろえるか。未保存の既存データは nil で、同期する（既定 ON）として扱う
+  var periodSync: Bool? = nil
+
+  var isPeriodSynced: Bool { periodSync ?? true }
 
   /// 空欄の場合はページ番号を使った名前を返す
   func title(in page: AnalysisPage) -> String {
@@ -223,8 +227,10 @@ struct AnalysisLayout: Codable, Equatable {
   }
 
   func period(in page: AnalysisPage) -> GraphPeriod {
+    // 同期中は分析1の値を全ページの期間とする（setPeriod が3値をそろえて書く）
+    let target: AnalysisPage = isPeriodSynced ? .one : page
     let raw: Int
-    switch page {
+    switch target {
     case .one: raw = period1
     case .two: raw = period2
     case .three: raw = period3
@@ -233,11 +239,25 @@ struct AnalysisLayout: Codable, Equatable {
   }
 
   mutating func setPeriod(_ period: GraphPeriod, in page: AnalysisPage) {
+    if isPeriodSynced {
+      period1 = period.rawValue
+      period2 = period.rawValue
+      period3 = period.rawValue
+      return
+    }
     switch page {
     case .one: period1 = period.rawValue
     case .two: period2 = period.rawValue
     case .three: period3 = period.rawValue
     }
+  }
+
+  /// 期間の同期を切り替える。ON にしたときは、表示中のページの期間を全ページへそろえ、
+  /// 切り替えた直後に見ている期間が変わらないようにする
+  mutating func setPeriodSync(_ isOn: Bool, keeping page: AnalysisPage) {
+    let current = period(in: page)
+    periodSync = isOn
+    if isOn { setPeriod(current, in: page) }
   }
 
   mutating func setPanels(_ panels: [AnalysisPanelID], in page: AnalysisPage) {

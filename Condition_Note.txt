@@ -993,6 +993,14 @@ $app-store-review-summary
 取扱説明の CSS で、本文の基準フォントを iOS の文字サイズに連動させる方法に統一した
 サイトにある文字サイズ設定が不要になったので削除した
 
+期間フィルターがページ別のまま
+対象：Condition/Core/Models/AnalysisLayout.swift 225〜240行
+3ページで期間を共通化する要件に対し、period1・period2・period3を個別に読み書きしています
+ページを切り替えると異なる期間になり、抽出結果も共有できません
+共通のperiodへ移行するか、変更時に3値すべてを更新する必要があります
+配置：詳細設定：図表の詳細設定：「全ページの期間を同期する」スイッチ（デフォルトON）ONならば3ページの期間を同期し、OFFならば個別にする。(?)アイコンでヘルプシートを表示したい
+
+
 --------------------------------
 2.9.0 新機能・更新内容
 - 症状メモ機能が新しく加わりました
@@ -1010,6 +1018,7 @@ cd /Users/sumpositive/GitLocal/Condition
 fastlane upload_metadata
 ---
 fastlane screenshots
+open fastlane/screenshots/screenshots.html
 fastlane upload_screenshots
 -----
 2.9.0 公開中、公開アプリパネル、取扱説明を更新して

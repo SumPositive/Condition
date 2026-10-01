@@ -2457,7 +2457,8 @@ struct AnalysisLayoutSettingsView: View {
     .navigationTitle("analysis.layout.title")
     .navigationBarTitleDisplayMode(.inline)
     .navigationDestination(isPresented: $showDetails) {
-      GraphSettingsView(showsLayout: false)
+      // 期間の同期を ON にしたとき、いま選んでいるページの期間を残す
+      GraphSettingsView(showsLayout: false, currentPage: selectedDestination.page ?? initialPage)
     }
     .toolbar {
       ToolbarItem(placement: .principal) {

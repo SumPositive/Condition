@@ -1910,6 +1910,8 @@ private struct DateOptEstimateDistributionView: View {
 struct GraphSettingsView: View {
     var isModal: Bool = false
     var showsLayout: Bool = true
+    /// 期間の同期を ON にしたとき、この画面の期間を全ページへそろえる
+    var currentPage: AnalysisPage = .one
     @State private var settings = AppSettings.shared
     @State private var showResetConfirmation = false
     @Environment(\.dismiss) private var dismiss
@@ -1952,6 +1954,16 @@ struct GraphSettingsView: View {
                 // 配置は共通画面で扱い、図表内部の補助線だけをここで設定する
                 Section("analysis.layout.details") {
                     // ヘルプボタンがトグル操作に吸われないようラベルの外へ分ける
+                    HStack {
+                        SettingsHelpTitle(
+                            titleKey: "analysis.details.syncPeriod",
+                            helpKey: "analysis.details.syncPeriod.help",
+                            storageKey: "helpDismissed.analysis.syncPeriod"
+                        )
+                        Spacer(minLength: 8)
+                        Toggle("", isOn: periodSyncBinding)
+                            .labelsHidden()
+                    }
                     HStack {
                         SettingsHelpTitle(
                             titleKey: "analysis.details.syncSymptomSelection",
@@ -2037,6 +2049,17 @@ struct GraphSettingsView: View {
     }
 
     /// 症状選択の同期切替時に現在の選択を各パネルへ引き継ぐ
+    private var periodSyncBinding: Binding<Bool> {
+        Binding(
+            get: { settings.analysisLayout.isPeriodSynced },
+            set: { isOn in
+                var layout = settings.analysisLayout
+                layout.setPeriodSync(isOn, keeping: currentPage)
+                settings.analysisLayout = layout
+            }
+        )
+    }
+
     private var symptomSelectionSyncBinding: Binding<Bool> {
         Binding(
             get: { settings.analysisSymptomSelectionSync },

@@ -128,7 +128,10 @@ struct AnalysisLayoutTests {
         #expect(layout.hidden.contains(.graphBloodPressure))
         #expect(layout.hidden.contains(.statBloodPressureSummary))
         #expect(layout.period(in: .two) == .sixMonths)
-        #expect(Array(layout.page3.prefix(3)) == [.symptomCalendar, .symptomFrequency, .symptomSummary])
+        // 分析3は症状の概要を先頭に、症状の図表を初期順で並べる
+        #expect(layout.page3 == [
+            .symptomOverview, .symptomCalendar, .symptomFrequency, .symptomSummary, .symptomTriggers,
+        ])
         let allPanels = layout.page1 + layout.page2 + layout.page3
         #expect(allPanels.count == AnalysisPanelID.allCases.count)
         #expect(Set(allPanels).count == allPanels.count)
@@ -2766,5 +2769,48 @@ struct DateOptDefaultsTests {
         #expect(map.count == 24)
         #expect(Set(map).isSubset(of: [DateOpt.cat01.rawValue, DateOpt.cat02.rawValue, DateOpt.cat03.rawValue]))
         #expect(AppSettings.legacyFactoryDefaultHourMap.count == 24)
+    }
+}
+
+// MARK: - 分析の期間の同期
+
+@Suite("Analysis Period Sync Tests")
+struct AnalysisPeriodSyncTests {
+
+    private func makeLayout() -> AnalysisLayout {
+        AnalysisLayout.migrated(graphOrder: [], hiddenGraphs: [], statOrder: [], hiddenStats: [], statDays: 90)
+    }
+
+    @Test("既定（未保存）は同期 ON で、1ページの変更が全ページに及ぶ")
+    func syncedByDefault() {
+        var layout = makeLayout()
+        #expect(layout.periodSync == nil)
+        #expect(layout.isPeriodSynced)
+        layout.setPeriod(.year, in: .two)
+        for page in AnalysisPage.allCases {
+            #expect(layout.period(in: page) == .year)
+        }
+    }
+
+    @Test("同期 OFF ならページごとに期間を持つ")
+    func independentWhenOff() {
+        var layout = makeLayout()
+        layout.setPeriodSync(false, keeping: .one)
+        layout.setPeriod(.week, in: .one)
+        layout.setPeriod(.year, in: .three)
+        #expect(layout.period(in: .one) == .week)
+        #expect(layout.period(in: .three) == .year)
+    }
+
+    @Test("同期を ON に戻すと、表示中のページの期間に全ページがそろう")
+    func turningOnKeepsCurrentPage() {
+        var layout = makeLayout()
+        layout.setPeriodSync(false, keeping: .one)
+        layout.setPeriod(.week, in: .one)
+        layout.setPeriod(.sixMonths, in: .two)
+        layout.setPeriodSync(true, keeping: .two)
+        for page in AnalysisPage.allCases {
+            #expect(layout.period(in: page) == .sixMonths)
+        }
     }
 }
