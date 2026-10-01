@@ -2832,6 +2832,17 @@ struct SettingsBackupNormalizationTests {
         #expect(AppSettings.normalizedSubset([2, 2, 99, 0], allowed: [0, 1, 2]) == [2, 0])
     }
 
+    @Test("目標値は 0 か記録できる範囲の値だけ受け付ける")
+    func goalRange() {
+        #expect(AppSettings.isAcceptableGoal(0, spec: MeasureRange.bpHi))
+        #expect(AppSettings.isAcceptableGoal(125, spec: MeasureRange.bpHi))
+        #expect(!AppSettings.isAcceptableGoal(999_999, spec: MeasureRange.bpHi))
+        #expect(!AppSettings.isAcceptableGoal(-1, spec: MeasureRange.bpHi))
+        #expect(!AppSettings.isAcceptableGoal(10, spec: MeasureRange.bpHi))   // 下限 30 未満
+        #expect(AppSettings.isAcceptableGoal(365, spec: MeasureRange.temp))
+        #expect(!AppSettings.isAcceptableGoal(600, spec: MeasureRange.temp))
+    }
+
     @Test("図表の追加高さは対象の種別だけ残し、非有限値を捨て、範囲へ収める")
     func normalizedHeights() {
         let range = AppSettings.panelExtraHeightRange

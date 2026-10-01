@@ -1171,18 +1171,22 @@ extension AppSettings {
         if let v = b.analysisSymptomSelectionSync { analysisSymptomSelectionSync = v }
 
         if let v = b.goalEnabled { goalEnabled = v }
-        if let raw = b.goals {
-            // 目標値は 0（未設定）以上だけ受け付ける
-            let g = raw.filter { 0 <= $0.value }
-            if let v = g["bpHi"] { goalBpHi = v }
-            if let v = g["bpLo"] { goalBpLo = v }
-            if let v = g["pulse"] { goalPulse = v }
-            if let v = g["weight"] { goalWeight = v }
-            if let v = g["temp"] { goalTemp = v }
-            if let v = g["bodyFat"] { goalBodyFat = v }
-            if let v = g["skMuscle"] { goalSkMuscle = v }
-            if let v = g["bpPp"] { goalBpPp = v }
-            if let v = g["bmi"] { goalBMI = v }
+        if let g = b.goals {
+            // 目標値は 0（未設定）か、記録できる範囲（MeasureRange）の値だけ受け付ける。
+            // 極端な値を入れると、グラフの縦軸がその値まで伸びて通常の記録が見えなくなるため
+            func goal(_ key: String, _ spec: MeasureSpec) -> Int? {
+                guard let v = g[key], Self.isAcceptableGoal(v, spec: spec) else { return nil }
+                return v
+            }
+            if let v = goal("bpHi", MeasureRange.bpHi) { goalBpHi = v }
+            if let v = goal("bpLo", MeasureRange.bpLo) { goalBpLo = v }
+            if let v = goal("pulse", MeasureRange.pulse) { goalPulse = v }
+            if let v = goal("weight", MeasureRange.weight) { goalWeight = v }
+            if let v = goal("temp", MeasureRange.temp) { goalTemp = v }
+            if let v = goal("bodyFat", MeasureRange.bodyFat) { goalBodyFat = v }
+            if let v = goal("skMuscle", MeasureRange.skMuscle) { goalSkMuscle = v }
+            if let v = goal("bpPp", MeasureRange.bpPp) { goalBpPp = v }
+            if let v = goal("bmi", MeasureRange.bmi) { goalBMI = v }
         }
 
         if let raw = b.userLevel, let v = AppUserLevel(rawValue: raw) { userLevel = v }
@@ -1193,6 +1197,11 @@ extension AppSettings {
     /// 図表の追加高さとして受け付ける範囲。図表下端のハンドルで調整できる範囲（-60〜400pt）と同じ。
     /// 範囲外や非有限値を入れると frame が崩れるので、取り込み時にこの範囲へ収める
     static let panelExtraHeightRange: ClosedRange<Double> = -60...400
+
+    /// 取り込む目標値として受け付けるか。0（未設定）か、記録できる範囲の値だけ
+    static func isAcceptableGoal(_ value: Int, spec: MeasureSpec) -> Bool {
+        value == 0 || (spec.min...spec.max).contains(value)
+    }
 
     /// 記録をまとめる時間の選択肢（設定画面のプルダウンと同じ）
     static let mergeWindowChoices: Set<Int> = [0, 5, 10, 15, 30]
