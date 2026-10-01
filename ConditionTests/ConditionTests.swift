@@ -2814,3 +2814,31 @@ struct AnalysisPeriodSyncTests {
         }
     }
 }
+
+// MARK: - 取り込んだ設定値の正規化
+
+@Suite("Settings Backup Normalization Tests")
+@MainActor
+struct SettingsBackupNormalizationTests {
+
+    @Test("表示順は知らない値と重複を除き、足りない項目を末尾に補う")
+    func normalizedOrder() {
+        let result = AppSettings.normalizedOrder([3, 99, 1, 3, 1], allowed: [0, 1, 2, 3])
+        #expect(result == [3, 1, 0, 2])
+    }
+
+    @Test("非表示の集合は知らない値と重複を除くだけで補わない")
+    func normalizedSubset() {
+        #expect(AppSettings.normalizedSubset([2, 2, 99, 0], allowed: [0, 1, 2]) == [2, 0])
+    }
+
+    @Test("図表の追加高さは対象の種別だけ残し、非有限値を捨て、範囲へ収める")
+    func normalizedHeights() {
+        let range = AppSettings.panelExtraHeightRange
+        let result = AppSettings.normalizedHeights(
+            ["0": -500, "1": 9_999, "2": .nan, "3": .infinity, "4": 80, "x": 10, "99": 10],
+            allowed: [0, 1, 2, 3, 4]
+        )
+        #expect(result == [0: range.lowerBound, 1: range.upperBound, 4: 80])
+    }
+}

@@ -1104,43 +1104,59 @@ extension AppSettings {
 
         if let raw = b.launchAction, let v = LaunchAction(rawValue: raw) { launchAction = v }
         if let v = b.useDialRecordEntry { useDialRecordEntry = v }
-        if let v = b.mergeWindowMinutes, 0 <= v { mergeWindowMinutes = v }
+        if let v = b.mergeWindowMinutes, Self.mergeWindowChoices.contains(v) { mergeWindowMinutes = v }
         if let raw = b.mergeDefaultAction, ConflictAction(rawValue: raw) != nil { mergeDefaultAction = raw }
         if let v = b.estimateDateOpt { estimateDateOpt = v }
-        if let v = b.recordFieldOrder, !v.isEmpty { graphPanelOrder = Self.knownGraphKinds(v) }
-        if let v = b.hiddenFields { hiddenFields = Self.knownGraphKinds(v) }
-        // 24時間ぶん揃っていない割り当ては、区分の自動判定を壊すので使わない
-        if let v = b.dateOptHourMap, v.count == 24 { dateOptHourMap = v }
+        let recordFields = GraphKind.allCases.filter(\.isRecordField).map(\.rawValue)
+        if let v = b.recordFieldOrder, !v.isEmpty {
+            graphPanelOrder = Self.normalizedOrder(v, allowed: recordFields)
+        }
+        if let v = b.hiddenFields { hiddenFields = Self.normalizedSubset(v, allowed: recordFields) }
+        // 24時間ぶん揃っていない・知らない区分を指す割り当ては、区分の自動判定を壊すので使わない
+        if let v = b.dateOptHourMap, v.count == 24,
+           v.allSatisfy({ $0 == -1 || DateOpt(rawValue: $0) != nil }) {
+            dateOptHourMap = v
+        }
+        let dateOpts = DateOpt.allCases.map(\.rawValue)
         if let v = b.dateOptDisplayOrder, !v.isEmpty {
-            dateOptDisplayOrder = v.filter { DateOpt(rawValue: $0) != nil }
+            dateOptDisplayOrder = Self.normalizedOrder(v, allowed: dateOpts)
         }
 
-        if let v = b.graphDisplayOrder, !v.isEmpty { graphDisplayOrder = Self.knownGraphKinds(v) }
-        if let v = b.graphHiddenPanels { graphHiddenPanels = Self.knownGraphKinds(v) }
-        if let v = b.graphHeightOverrides { graphHeightOverrides = Self.intKeyed(v) }
+        let graphKinds = GraphKind.allCases.map(\.rawValue)
+        if let v = b.graphDisplayOrder, !v.isEmpty {
+            graphDisplayOrder = Self.normalizedOrder(v, allowed: graphKinds)
+        }
+        if let v = b.graphHiddenPanels { graphHiddenPanels = Self.normalizedSubset(v, allowed: graphKinds) }
+        if let v = b.graphHeightOverrides {
+            graphHeightOverrides = Self.normalizedHeights(v, allowed: graphKinds)
+        }
         if let v = b.graphOneWidth, 0 < v { graphOneWidth = v }
         if let v = b.graphBpMean { graphBpMean = v }
         if let v = b.graphBpPress { graphBpPress = v }
-        if let v = b.graphBMITall, 0 < v { graphBMITall = v }
+        // 身長は設定画面のダイアルと同じ範囲だけ受け付ける
+        if let v = b.graphBMITall, (100...250).contains(v) { graphBMITall = v }
         if let v = b.graphBMI { graphBMI = v }
         if let v = b.graphWeightMA { graphWeightMA = v }
         if let v = b.graphWeightChange { graphWeightChange = v }
         if let raw = b.graphBpLineMode, GraphBpLineMode(rawValue: raw) != nil { graphBpLineMode = raw }
-        if let v = b.graphBpHiddenDateOpts { graphBpHiddenDateOpts = v.filter { DateOpt(rawValue: $0) != nil } }
+        if let v = b.graphBpHiddenDateOpts { graphBpHiddenDateOpts = Self.normalizedSubset(v, allowed: dateOpts) }
 
-        if let v = b.statType { statType = v }
-        if let v = b.statDays, 0 < v { statDays = v }
+        if let v = b.statType, (0...1).contains(v) { statType = v }
+        if let v = b.statDays, GraphPeriod(rawValue: v) != nil { statDays = v }
         if let v = b.statShowAvg { statShowAvg = v }
         if let v = b.statShowTimeLine { statShowTimeLine = v }
         if let v = b.statShow24HLine { statShow24HLine = v }
+        let statSections = StatSection.allCases.map(\.rawValue)
         if let v = b.statSectionOrder, !v.isEmpty {
-            statSectionOrder = v.filter { StatSection(rawValue: $0) != nil }
+            statSectionOrder = Self.normalizedOrder(v, allowed: statSections)
         }
-        if let v = b.statHiddenSections { statHiddenSections = v.filter { StatSection(rawValue: $0) != nil } }
+        if let v = b.statHiddenSections { statHiddenSections = Self.normalizedSubset(v, allowed: statSections) }
         if let v = b.statBpDistributionHiddenDateOpts {
-            statBpDistributionHiddenDateOpts = v.filter { DateOpt(rawValue: $0) != nil }
+            statBpDistributionHiddenDateOpts = Self.normalizedSubset(v, allowed: dateOpts)
         }
-        if let v = b.statHeightOverrides { statHeightOverrides = Self.intKeyed(v) }
+        if let v = b.statHeightOverrides {
+            statHeightOverrides = Self.normalizedHeights(v, allowed: statSections)
+        }
 
         if var layout = b.analysisLayout {
             // 版の違いで増減した図表を、この版の図表一覧に合わせて整える
@@ -1151,7 +1167,9 @@ extension AppSettings {
         if let v = b.analysisSymptomSelectionSync { analysisSymptomSelectionSync = v }
 
         if let v = b.goalEnabled { goalEnabled = v }
-        if let g = b.goals {
+        if let raw = b.goals {
+            // 目標値は 0（未設定）以上だけ受け付ける
+            let g = raw.filter { 0 <= $0.value }
             if let v = g["bpHi"] { goalBpHi = v }
             if let v = g["bpLo"] { goalBpLo = v }
             if let v = g["pulse"] { goalPulse = v }
@@ -1166,15 +1184,39 @@ extension AppSettings {
         if let raw = b.userLevel, let v = AppUserLevel(rawValue: raw) { userLevel = v }
     }
 
-    /// この版に存在するグラフ種別だけを残す
-    private static func knownGraphKinds(_ values: [Int]) -> [Int] {
-        values.filter { GraphKind(rawValue: $0) != nil }
+    // MARK: 取り込み値の正規化
+
+    /// 図表の追加高さとして受け付ける範囲。図表下端のハンドルで調整できる範囲（-60〜400pt）と同じ。
+    /// 範囲外や非有限値を入れると frame が崩れるので、取り込み時にこの範囲へ収める
+    static let panelExtraHeightRange: ClosedRange<Double> = -60...400
+
+    /// 記録をまとめる時間の選択肢（設定画面のプルダウンと同じ）
+    static let mergeWindowChoices: Set<Int> = [0, 5, 10, 15, 30]
+
+    /// 表示順を正規化する。この版に無い値と重複を除き（先に出た方を残す）、
+    /// 足りない項目は allowed の順で末尾に補う
+    static func normalizedOrder(_ values: [Int], allowed: [Int]) -> [Int] {
+        let allowedSet = Set(allowed)
+        var seen: Set<Int> = []
+        var result = values.filter { allowedSet.contains($0) && seen.insert($0).inserted }
+        result += allowed.filter { !seen.contains($0) }
+        return result
     }
 
-    private static func intKeyed(_ values: [String: Double]) -> [Int: Double] {
+    /// 非表示などの集合を正規化する。この版に無い値と重複を除く（補完はしない）
+    static func normalizedSubset(_ values: [Int], allowed: [Int]) -> [Int] {
+        let allowedSet = Set(allowed)
+        var seen: Set<Int> = []
+        return values.filter { allowedSet.contains($0) && seen.insert($0).inserted }
+    }
+
+    /// 図表の追加高さを正規化する。対象の種別だけを残し、非有限値は捨て、許容範囲へ収める
+    static func normalizedHeights(_ values: [String: Double], allowed: [Int]) -> [Int: Double] {
+        let allowedSet = Set(allowed)
         var result: [Int: Double] = [:]
         for (key, value) in values {
-            if let intKey = Int(key) { result[intKey] = value }
+            guard let intKey = Int(key), allowedSet.contains(intKey), value.isFinite else { continue }
+            result[intKey] = min(max(value, panelExtraHeightRange.lowerBound), panelExtraHeightRange.upperBound)
         }
         return result
     }
