@@ -236,7 +236,18 @@ struct EnvironmentEditView: View {
                 }
             }
         } header: {
-            Text("environment.section.outdoor")
+            // 日本の設定のまま海外にいる人は端末の情報では見分けられないので、
+            // 自動取得が国内だけであることをヘルプで読めるようにする
+            HStack(spacing: 6) {
+                Text("environment.section.outdoor")
+                BeginnerHelpBanner(
+                    "environment.help.outdoor",
+                    storageKey: "helpDismissed.environment.outdoor",
+                    compact: true,
+                    tight: true
+                )
+                Spacer(minLength: 0)
+            }
         } footer: {
             outdoorFooter
         }

@@ -211,6 +211,35 @@
         }
       }
     },
+    "environment.help.outdoor" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weather data can be fetched automatically only in Japan, from the Japan Meteorological Agency (AMeDAS). It is available when the record time is within 3 hours of now; about 9 days of past data are published.\n\nOutside Japan, enter outdoor values manually. On devices with a barometer, you can still measure the local pressure."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "気象データを自動で取得できるのは日本国内だけです（気象庁アメダス）。記録日時が現在から3時間以内のときに取得でき、公開されている過去のデータは約9日分です。\n\n日本国外では、屋外の値を手入力してください。気圧計のある端末なら、その場の気圧は測れます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "기상 데이터를 자동으로 가져올 수 있는 것은 일본 국내뿐입니다(일본 기상청 AMeDAS). 기록 일시가 현재로부터 3시간 이내일 때 가져올 수 있으며, 공개된 과거 데이터는 약 9일분입니다.\n\n일본 국외에서는 실외 값을 직접 입력해 주세요. 기압계가 있는 기기라면 현재 위치의 기압은 측정할 수 있습니다."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "僅限日本國內可自動取得氣象資料（日本氣象廳 AMeDAS）。記錄時間須在現在的 3 小時以內才能取得，公開的過去資料約 9 天份。\n\n在日本國外，請手動輸入室外數值。若裝置具備氣壓計，仍可測量所在地的氣壓。"
+          }
+        }
+      }
+    },
     "export.filterCondition" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -18276,25 +18305,25 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "You can record the conditions at onset. Recording them lets the analysis look for patterns. It is optional — try it if you notice that temperature or air pressure affects you."
+            "value" : "You can record the conditions at onset. Recording them lets the analysis look for patterns. It is optional — try it if you notice that temperature or air pressure affects you.\n\nAutomatic weather data is available only in Japan."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "発症時の環境情報を記録できます。記録すれば分析に使用して何らかの傾向が掴めるかも知れません。記録は任意ですが気温や気圧などの変化に自覚があるならばお試しください。"
+            "value" : "発症時の環境情報を記録できます。記録すれば分析に使用して何らかの傾向が掴めるかも知れません。記録は任意ですが気温や気圧などの変化に自覚があるならばお試しください。\n\n気象データの自動取得は日本国内だけです。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "발병 시의 환경 정보를 기록할 수 있습니다. 기록하면 분석에 활용하여 어떤 경향을 파악할 수 있을지도 모릅니다. 기록은 선택 사항이지만 기온이나 기압 변화를 느낀다면 시도해 보세요."
+            "value" : "발병 시의 환경 정보를 기록할 수 있습니다. 기록하면 분석에 활용하여 어떤 경향을 파악할 수 있을지도 모릅니다. 기록은 선택 사항이지만 기온이나 기압 변화를 느낀다면 시도해 보세요.\n\n기상 데이터 자동 가져오기는 일본 국내에서만 가능합니다."
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "可記錄發作當時的環境資訊。記錄後便可用於分析，或許能找出某些傾向。記錄並非必填，但若您覺得氣溫或氣壓變化有影響，不妨試試。"
+            "value" : "可記錄發作當時的環境資訊。記錄後便可用於分析，或許能找出某些傾向。記錄並非必填，但若您覺得氣溫或氣壓變化有影響，不妨試試。\n\n氣象資料自動取得僅限日本國內。"
           }
         }
       }
