@@ -62,8 +62,13 @@ struct RecordListView: View {
         width += CGFloat(gaps) * (1 + 8)
         // 先頭の余白と List の行インセット（左右16pt）
         width += 4 + 32
-        return width
+        // 測定項目が少ないと一覧ごと細くなり、症状の行（症状名・程度・経過）まで窮屈になるので、
+        // 下限を設ける。iPhone の最大幅に合わせ、iPhone では常に画面幅いっぱいに広がる
+        return max(width, Self.minimumRecordTableWidth)
     }
+
+    /// 一覧の最小幅。iPhone の最大の画面幅（Pro Max の 440pt）。iPad ではこの幅で中央に置く
+    private static let minimumRecordTableWidth: CGFloat = 440
 
     // MARK: - 可視フィールドにデータがあるレコードのみ抽出
     /// 区分フィルターのみ適用した記録（可視フィールド有無では絞らない）。
