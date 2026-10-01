@@ -201,10 +201,13 @@ struct AnalysisLayout: Codable, Equatable {
     pageNames?[String(page.rawValue)] ?? page.presetTitle
   }
 
+  /// ページ名の最大文字数。タブの見出しに収まる長さ
+  static let pageNameMaxLength = 6
+
   /// ページ名を6文字まで保存し、空欄も利用者の選択として残す
   mutating func setPageName(_ name: String, in page: AnalysisPage) {
     var names = pageNames ?? [:]
-    let limitedName = String(name.prefix(6))
+    let limitedName = String(name.prefix(Self.pageNameMaxLength))
     names[String(page.rawValue)] = limitedName
     pageNames = names
   }
@@ -304,6 +307,14 @@ struct AnalysisLayout: Codable, Equatable {
       seen.insert(panel)
     }
     hidden = hidden.intersection(seen)
+    // バックアップから取り込んだ名称は setPageName を通らないので、ここでも有効なページだけ残し、
+    // 長さを制限する（長い名称はタブ表示を崩す）
+    if let names = pageNames {
+      let validKeys = Set(AnalysisPage.allCases.map { String($0.rawValue) })
+      pageNames = names
+        .filter { validKeys.contains($0.key) }
+        .mapValues { String($0.prefix(Self.pageNameMaxLength)) }
+    }
   }
 
   static func migrated(

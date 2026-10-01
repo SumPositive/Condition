@@ -2874,3 +2874,17 @@ struct RecordFieldVisibilityTests {
         #expect(AppSettings.keepingOneRecordFieldVisible(hidden, order: fields) == hidden)
     }
 }
+
+@Suite("Analysis Page Name Normalization Tests")
+struct AnalysisPageNameNormalizationTests {
+
+    @Test("取り込んだページ名は有効なページだけ残し、6文字に制限する")
+    func normalizesImportedPageNames() {
+        var layout = AnalysisLayout.migrated(
+            graphOrder: [], hiddenGraphs: [], statOrder: [], hiddenStats: [], statDays: 90
+        )
+        layout.pageNames = ["1": "とても長いページの名前", "2": "", "9": "存在しない"]
+        layout.normalize()
+        #expect(layout.pageNames == ["1": "とても長いペ", "2": ""])
+    }
+}
