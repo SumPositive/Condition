@@ -759,8 +759,9 @@ struct RecordEditView: View {
             HStack(spacing: 6) {
                 Image(systemName: opt.icon)
                     .foregroundStyle(opt.color)
+                // 色はアイコンだけに付け、名前は読みやすい通常の文字色にする
                 Text(opt.isDefined ? opt.displayName : opt.placeholderName)
-                    .foregroundStyle(opt.color)
+                    .foregroundStyle(.primary)
             }
         }
     }

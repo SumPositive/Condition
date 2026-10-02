@@ -1167,15 +1167,18 @@ struct BpChartView: View {
                 Button {
                     toggleBpDistributionDateOpt(opt)
                 } label: {
+                    // 区分の色はアイコンだけに付け、チェックと文字は読みやすい通常の文字色にする
+                    // （黄色などの淡い区分色だと、文字ごと塗ると読みにくいため）
                     HStack(spacing: 4) {
                         Image(systemName: isOn ? "checkmark.square.fill" : "square")
                             .font(.caption2)
                         Image(systemName: opt.icon)
                             .font(.caption2)
+                            .foregroundStyle(opt.color.opacity(isOn ? 1 : 0.4))
                         Text(opt.displayName)
                             .font(.caption)
                     }
-                    .foregroundStyle(isOn ? opt.color : Color.secondary)
+                    .foregroundStyle(isOn ? Color.primary : Color.secondary)
                     .padding(.vertical, 4)
                     .contentShape(Rectangle())
                 }

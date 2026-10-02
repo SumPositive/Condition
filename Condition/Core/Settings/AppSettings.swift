@@ -506,6 +506,30 @@ final class AppSettings {
         3, 3,          // 22-23: 就寝時
     ]
 
+    /// 区分の既定色を見直した版（起床時＝オレンジ、就寝前＝黄色）へ切り替えたか
+    private static let dateOptColorsVersionKey = "UDEF_DateOptColorsVersion"
+
+    /// 起床時・就寝前の色が旧既定（緑・オレンジ）のままなら、一度だけ新しい既定色にする。
+    /// 既定色も保存されているので、既定を変えただけでは既存の利用者に届かないため。
+    /// アイコンも旧既定のままの区分だけを対象にし、自分で選び直した色はなるべく残す
+    static func updatingLegacyDateOptColors(_ appearances: [DateOptAppearance]) -> [DateOptAppearance] {
+        let ud = UserDefaults.standard
+        guard ud.integer(forKey: dateOptColorsVersionKey) < 1 else { return appearances }
+        ud.set(1, forKey: dateOptColorsVersionKey)
+        return appearances.map { appearance in
+            var updated = appearance
+            switch DateOpt(rawValue: appearance.dateOptRawValue) {
+            case .cat01 where appearance.colorKey == "green" && appearance.iconName == "sun.horizon.fill":
+                updated.colorKey = DateOpt.cat01.defaultColorKey
+            case .cat03 where appearance.colorKey == "orange" && appearance.iconName == "moon.fill":
+                updated.colorKey = DateOpt.cat03.defaultColorKey
+            default:
+                break
+            }
+            return updated
+        }
+    }
+
     /// 起動時の読み込み前に、区分の名称・時刻の割り当てが保存済みだったか。
     /// 読み込みは既定値も保存するので、読み込み後の UserDefaults では判定できない
     @ObservationIgnored private var hadSavedDateOptAppearances = true
@@ -871,7 +895,7 @@ final class AppSettings {
         } else {
             dateOptHourMap = AppSettings.factoryDefaultHourMap
         }
-        dateOptAppearances = DateOptAppearanceStore.appearances()
+        dateOptAppearances = Self.updatingLegacyDateOptColors(DateOptAppearanceStore.appearances())
         // 区分の表示順序（保存済みを優先。欠落・新規区分は orderedDateOpts 側で末尾補完）
         if let arr = ud.array(forKey: SettingsKeys.settDateOptDisplayOrder) as? [Int], !arr.isEmpty {
             dateOptDisplayOrder = arr

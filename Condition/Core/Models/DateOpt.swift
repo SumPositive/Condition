@@ -52,9 +52,10 @@ enum DateOpt: Int, CaseIterable, Codable, Identifiable {
 
     var defaultColorKey: String {
         switch self {
-        case .cat01: return "green"
+        // 起床時は朝日のオレンジ、就寝前は夜の月の黄色（2.9.0 で見直し）
+        case .cat01: return "orange"
         case .cat02: return "blue"
-        case .cat03: return "orange"
+        case .cat03: return "yellow"
         case .cat04: return "pink"
         case .cat05: return "teal"
         case .cat06: return "gray"
@@ -354,6 +355,8 @@ struct DateOptColorOption: Identifiable {
         DateOptColorOption(id: "green", color: .green),
         DateOptColorOption(id: "blue", color: .blue),
         DateOptColorOption(id: "orange", color: .orange),
+        // 就寝前（月）の既定色
+        DateOptColorOption(id: "yellow", color: .yellow),
         DateOptColorOption(id: "purple", color: .purple),
         DateOptColorOption(id: "teal", color: .teal),
         DateOptColorOption(id: "red", color: .red),

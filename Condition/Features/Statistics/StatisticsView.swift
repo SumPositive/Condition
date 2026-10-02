@@ -611,15 +611,18 @@ struct BpJshView: View {
                         Button {
                             toggleBpDistributionDateOpt(opt)
                         } label: {
+                            // 区分の色はアイコンだけに付け、チェックと文字は読みやすい通常の文字色にする
+                            // （黄色などの淡い区分色だと、文字ごと塗ると読みにくいため）
                             HStack(spacing: 4) {
                                 Image(systemName: isOn ? "checkmark.square.fill" : "square")
                                     .font(.caption2)
                                 Image(systemName: opt.icon)
                                     .font(.caption2)
+                                    .foregroundStyle(opt.color.opacity(isOn ? 1 : 0.4))
                                 Text(opt.displayName)
                                     .font(.caption)
                             }
-                            .foregroundStyle(isOn ? opt.color : Color.secondary)
+                            .foregroundStyle(isOn ? Color.primary : Color.secondary)
                             .padding(.vertical, 4)
                             .contentShape(Rectangle())
                         }
@@ -1001,6 +1004,14 @@ struct BpDateOptCorrView: View {
         return 72 <= chartWidth / CGFloat(count)
     }
 
+    /// 区分名1つに使える幅。図の左右の余白（各16pt）と右側の目盛り（約44pt）を除いた
+    /// 描画域を区分の数で割り、隣との隙間を少し残す
+    private var categoryLabelWidth: CGFloat {
+        let count = max(categoryOrder.count, 1)
+        let plotWidth = chartWidth - 32 - 44
+        return max(plotWidth / CGFloat(count) - 4, 20)
+    }
+
     private var yDomain: ClosedRange<Int> {
         guard !points.isEmpty else { return 50...180 }
         let vals = points.map { $0.value }
@@ -1125,10 +1136,16 @@ struct BpDateOptCorrView: View {
                                 .font(.caption)
                                 .foregroundStyle(opt.color)
                             if showsCategoryAxisText {
+                                // 色はアイコンだけに付け、名前は読みやすい通常の文字色にする。
+                                // 1区分ぶんの幅に収め、長い名前は2行まで折り返して隣と重ならないようにする
                                 Text(s)
                                     .font(.caption)
-                                    .foregroundStyle(opt.color)
+                                    .foregroundStyle(.primary)
                                     .multilineTextAlignment(.center)
+                                    .lineLimit(2)
+                                    .minimumScaleFactor(0.7)
+                                    .frame(width: categoryLabelWidth)
+                                    .fixedSize(horizontal: false, vertical: true)
                             }
                         }
                         // 区分軸は読みやすくしつつ、特大文字サイズまでで上限を止める
