@@ -93,12 +93,29 @@ enum LaunchAction: Int, CaseIterable, Identifiable {
     case graph      = 3   // 旧グラフ。rawValueを保ったまま分析ページ1へ移行
     case statistics = 4   // 旧統計。rawValueを保ったまま分析ページ2へ移行
     case analysis3  = 6   // 分析ページ3
+    case newSymptom = 7   // 症状を追加
 
     var id: Int { rawValue }
 
-    // rawValue は永続化互換のため飛び番だが、UIでは記録の後に分析ページ1〜3を並べる
+    // rawValue は永続化互換のため飛び番
     static var allCases: [LaunchAction] {
-        [.none, .newMulti, .newSingle, .records, .graph, .statistics, .analysis3]
+        [.none, .newMulti, .newSymptom, .records, .newSingle, .graph, .statistics, .analysis3]
+    }
+
+    /// 設定画面で選べる選択肢。ダイアル式と分析ページは選択肢から外した
+    static let selectableCases: [LaunchAction] = [.none, .newMulti, .newSymptom, .records]
+
+    /// 起動時にシートを開く選択肢か（開くまでの間、画面の操作を止めるブロック層を出す）
+    var opensSheet: Bool {
+        switch self {
+        case .newSingle, .newMulti, .newSymptom: return true
+        case .none, .records, .graph, .statistics, .analysis3: return false
+        }
+    }
+
+    /// 選択肢から外した値（以前に選んだダイアル式・分析ページ）は「何もしない」に戻す
+    var selectableOrNone: LaunchAction {
+        Self.selectableCases.contains(self) ? self : .none
     }
 
     var titleKey: String {
@@ -110,6 +127,7 @@ enum LaunchAction: Int, CaseIterable, Identifiable {
         case .graph:      return "settings.launchAction.analysis1"
         case .statistics: return "settings.launchAction.analysis2"
         case .analysis3:  return "settings.launchAction.analysis3"
+        case .newSymptom: return "settings.launchAction.newSymptom"
         }
     }
 
@@ -119,7 +137,7 @@ enum LaunchAction: Int, CaseIterable, Identifiable {
         case .graph: return .one
         case .statistics: return .two
         case .analysis3: return .three
-        case .none, .newSingle, .newMulti, .records: return nil
+        case .none, .newSingle, .newMulti, .newSymptom, .records: return nil
         }
     }
 }
@@ -702,6 +720,8 @@ final class AppSettings {
             launchAction = ud.bool(forKey: UDefKeys.openNewRecordOnForeground) ? .newSingle : .none
             ud.set(launchAction.rawValue, forKey: UDefKeys.launchAction)
         }
+        // 選択肢から外した値（ダイアル式・分析ページ）は「何もしない」に戻す
+        launchAction = launchAction.selectableOrNone
         if ud.object(forKey: UDefKeys.mergeWindowMinutes) != nil {
             mergeWindowMinutes = ud.integer(forKey: UDefKeys.mergeWindowMinutes)
         }
@@ -1102,7 +1122,7 @@ extension AppSettings {
         if let v = b.dialStyle, DialStyle.builtin(id: v) != nil { dialStyle = v }
         if let v = b.dialTuning { dialTuning = v }
 
-        if let raw = b.launchAction, let v = LaunchAction(rawValue: raw) { launchAction = v }
+        if let raw = b.launchAction, let v = LaunchAction(rawValue: raw) { launchAction = v.selectableOrNone }
         if let v = b.useDialRecordEntry { useDialRecordEntry = v }
         if let v = b.mergeWindowMinutes, Self.mergeWindowChoices.contains(v) { mergeWindowMinutes = v }
         if let raw = b.mergeDefaultAction, ConflictAction(rawValue: raw) != nil { mergeDefaultAction = raw }

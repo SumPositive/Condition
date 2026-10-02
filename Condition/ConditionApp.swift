@@ -54,6 +54,20 @@ private struct RootSceneView: View {
         return settings.fontScale.followsSystem ? systemDynamicTypeSize : settings.fontScale.dynamicTypeSize
     }
 
+    /// 起動時に開くシートが表示されるまで待つ（最長3秒）。シートを開かない設定なら待たない
+    private func waitForLaunchSheetIfNeeded() async {
+        guard settings.launchAction.opensSheet else { return }
+        let deadline = Date().addingTimeInterval(3)
+        while Date() < deadline {
+            if settings.showMeasurementAvgSheet || settings.showSymptomSheet || settings.showNewRecordSheet {
+                // シートのスライドインが終わるまで少し置く
+                try? await Task.sleep(for: .milliseconds(500))
+                return
+            }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+    }
+
     var body: some View {
         Group {
             switch migrationService.phase {
@@ -98,6 +112,10 @@ private struct RootSceneView: View {
                 "Simulator",
             ]
             #endif
+            // 起動時にシートを開く設定なら、シートが開くまで広告の準備を待つ。
+            // 同意の確認・SDK の初期化・バナー用 WebView の起動がメインスレッドを数秒ふさぎ、
+            // 起動時のシートが大きく遅れていたため（計測で 0.35 秒の予定が 4 秒超）
+            await waitForLaunchSheetIfNeeded()
             // 広告リクエスト前に UMP 同意情報を解決する（未解決だと全ユニット No fill になり得る）
             await AdConsentManager.gatherConsent()
             // Google公式の推奨どおりアプリ起動時にSDKを一度だけ初期化する

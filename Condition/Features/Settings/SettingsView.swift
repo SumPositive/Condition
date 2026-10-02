@@ -36,12 +36,12 @@ struct SettingsView: View {
     @Environment(\.openURL) private var openURL
     @AppStorage("settings.shareExportFormat") private var exportFormatRaw = RecordJSONExportStyle.compact.rawValue
     @State private var settings = AppSettings.shared
-    // 廃止に向かう設定（文字サイズ・起動時に開く・ダイアル式）は、既定のまま使っている人には選択肢を出さない
-    // （文字サイズは行を残して「設定アプリで変更できます」と示し、他の2つは行ごと隠す）。
+    // 廃止に向かう設定（文字サイズ・ダイアル式）は、既定のまま使っている人には選択肢を出さない
+    // （文字サイズは行を残して「設定アプリで変更できます」と示し、ダイアル式は行ごと隠す）。
     // 新規インストールでは表示されず、既定から変えている既存の利用者だけが見て戻せる。
-    // 画面を作った時点で決めるので、既定へ戻しても開いている間は消えず、次に開いたときから隠れる
+    // 画面を作った時点で決めるので、既定へ戻しても開いている間は消えず、次に開いたときから隠れる。
+    // 「起動時に開く」は常に表示する（いったん隠したが、使い続ける設定として戻した）
     @State private var showsFontScale = AppSettings.shared.fontScale != .system
-    @State private var showsLaunchAction = AppSettings.shared.launchAction != .none
     @State private var showsDialRecordEntry = AppSettings.shared.useDialRecordEntry
     @State private var healthKit = HealthKitService.shared
     @State private var showHKSettings = false
@@ -64,10 +64,8 @@ struct SettingsView: View {
     /// 起動時アクションの選択肢。ダイアル式が無効なら「新しい記録（単発）」は選ばせない。
     /// 選択済みのまま無効にした場合も、その項目だけは残して選択が消えないようにする
     private var availableLaunchActions: [LaunchAction] {
-        guard !settings.useDialRecordEntry else { return LaunchAction.allCases }
-        return LaunchAction.allCases.filter {
-            $0 != .newSingle || settings.launchAction == .newSingle
-        }
+        // 選択肢から外した値は、読み込み時に「何もしない」へ戻している
+        LaunchAction.selectableCases
     }
 
     /// 分析ページは利用者が設定したページ名で表示する
@@ -273,28 +271,26 @@ struct SettingsView: View {
 
                 // MARK: - 記録
                 Section("tab.records") {
-                    if showsLaunchAction {
-                        VStack(alignment: .leading, spacing: 8) {
-                            AZAdaptiveControlRow {
-                                SettingsHelpTitle(
-                                    titleKey: "settings.launchAction",
-                                    helpKey: "settings.help.launchAction",
-                                    storageKey: "helpDismissed.settings.launchAction"
-                                )
-                                    .font(.subheadline)
-                            } control: {
-                                // 起動時に開く画面も共通のドロップダウンPickerで選ぶ
-                                AZDropdownPicker(
-                                    options: availableLaunchActions,
-                                    selection: $settings.launchAction,
-                                    isExpanded: $isLaunchActionExpanded,
-                                    minWidth: 170
-                                ) { action in
-                                    launchActionLabel(action)
-                                }
+                    VStack(alignment: .leading, spacing: 8) {
+                        AZAdaptiveControlRow {
+                            SettingsHelpTitle(
+                                titleKey: "settings.launchAction",
+                                helpKey: "settings.help.launchAction",
+                                storageKey: "helpDismissed.settings.launchAction"
+                            )
+                                .font(.subheadline)
+                        } control: {
+                            // 起動時に開く画面も共通のドロップダウンPickerで選ぶ
+                            AZDropdownPicker(
+                                options: availableLaunchActions,
+                                selection: $settings.launchAction,
+                                isExpanded: $isLaunchActionExpanded,
+                                minWidth: 170
+                            ) { action in
+                                launchActionLabel(action)
                             }
-                            .zIndex(isLaunchActionExpanded ? 62 : 0)
                         }
+                        .zIndex(isLaunchActionExpanded ? 62 : 0)
                     }
                     NavigationLink("settings.fieldOrder") {
                         FieldOrderSettingsView()

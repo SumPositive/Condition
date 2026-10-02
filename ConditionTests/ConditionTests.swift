@@ -2888,3 +2888,17 @@ struct AnalysisPageNameNormalizationTests {
         #expect(layout.pageNames == ["1": "とても長いペ", "2": ""])
     }
 }
+
+@Suite("Launch Action Tests")
+struct LaunchActionTests {
+
+    @Test("起動時に開くの選択肢から外した値は「何もしない」に戻す")
+    func fallsBackToNone() {
+        for action in LaunchAction.selectableCases {
+            #expect(action.selectableOrNone == action)
+        }
+        for action in [LaunchAction.newSingle, .graph, .statistics, .analysis3] {
+            #expect(action.selectableOrNone == .none)
+        }
+    }
+}

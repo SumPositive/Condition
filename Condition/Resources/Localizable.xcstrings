@@ -443,6 +443,35 @@
         }
       }
     },
+    "settings.launchAction.newSymptom" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Symptom"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "症状を追加"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "증상 추가"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新增症狀"
+          }
+        }
+      }
+    },
     "settings.share.pruneDoneMessageBoth" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1961,25 +1990,25 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "(Period filter off)"
+            "value" : "(All time)"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "（期間フィルター無効）"
+            "value" : "（全期間）"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "(기간 필터 미적용)"
+            "value" : "(전체 기간)"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "（期間篩選無效）"
+            "value" : "（全部期間）"
           }
         }
       }
@@ -15636,25 +15665,25 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New Record (Table)"
+            "value" : "Add Measurement"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "新しい記録（表形式）"
+            "value" : "測定を追加"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "새 기록(표)"
+            "value" : "측정 추가"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "新記錄（表格）"
+            "value" : "新增測量"
           }
         }
       }
@@ -15723,25 +15752,25 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Records (List)"
+            "value" : "Record List"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "記録（一覧）"
+            "value" : "記録一覧"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "기록(목록)"
+            "value" : "기록 목록"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "記錄（列表）"
+            "value" : "記錄列表"
           }
         }
       }

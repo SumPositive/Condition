@@ -8,8 +8,10 @@ struct ContentView: View {
 
     @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab: RootTab = .records
-    /// 起動時アクションのシートが開くまで前画面のタップを防ぐブロック層の表示状態
-    @State private var isPreparingLaunchSheet = false
+    /// 起動時アクションのシートが開くまで前画面のタップを防ぐブロック層の表示状態。
+    /// cold launch でシートを開く設定なら、最初の描画からブロック層を出しておく
+    /// （onAppear で立てると、一覧が先に一瞬見えてからプログレスが出る）
+    @State private var isPreparingLaunchSheet = AppSettings.shared.launchAction.opensSheet
     /// 一度でもバックグラウンドへ入ったか（cold launch と復帰を区別して遅延を最小化する）
     @State private var hasEnteredBackground = false
     /// cold launch 時の起動アクションを onAppear と onChange で二重実行しないためのフラグ
@@ -131,7 +133,7 @@ struct ContentView: View {
             if !didRunInitialLaunchAction {
                 didRunInitialLaunchAction = true
                 // シート系アクションはこの時点で即ブロック層を立ててチラつき・誤タップを防ぐ
-                if isSheetAction(settings.launchAction) {
+                if settings.launchAction.opensSheet {
                     isPreparingLaunchSheet = true
                 }
                 performLaunchAction(settings.launchAction)
@@ -154,7 +156,7 @@ struct ContentView: View {
             // 復帰と同時にブロック層を立て、前画面を触らせない。
             // ただし新規記録シートが開いているときは起動アクションを実行しない
             // （performLaunchAction 内で拒否される）ため、暗幕も先出ししない。
-            if isSheetAction(settings.launchAction),
+            if settings.launchAction.opensSheet,
                !settings.showNewRecordSheet,
                !settings.showMeasurementAvgSheet,
                !settings.showSymptomSheet {
@@ -353,6 +355,8 @@ struct ContentView: View {
             presentSheet(kind: settings.useDialRecordEntry ? .single : .multi)
         case .newMulti:
             presentSheet(kind: .multi)
+        case .newSymptom:
+            presentSheet(kind: .symptom)
         case .records:
             switchTab(to: .records)
         case .graph:
@@ -364,15 +368,8 @@ struct ContentView: View {
         }
     }
 
-    /// シートを開くアクションか（ブロック層を先出しすべきか）
-    private func isSheetAction(_ action: LaunchAction) -> Bool {
-        switch action {
-        case .newSingle, .newMulti: return true
-        case .none, .records, .graph, .statistics, .analysis3: return false
-        }
-    }
 
-    private enum LaunchSheetKind { case single, multi }
+    private enum LaunchSheetKind { case single, multi, symptom }
 
     private func presentSheet(kind: LaunchSheetKind) {
         // 新規記録シート（単体・表形式）が開いているなら何もしない。
@@ -402,6 +399,9 @@ struct ContentView: View {
             case .multi:
                 AppAnalytics.shared.logOperation("launch_action_new_multi")
                 settings.showMeasurementAvgSheet = true
+            case .symptom:
+                AppAnalytics.shared.logOperation("launch_action_new_symptom")
+                settings.showSymptomSheet = true
             }
             // シートのスライドイン（約0.35s）で画面が覆われてからブロック層を外す。
             // 万一シートが開かなかった場合の保険も兼ねる。
