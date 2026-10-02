@@ -20,10 +20,12 @@ Data you record is synced automatically to the Health app. You can also import d
 
 ■ Main Features
 ・Dial input: intuitive, just spin to set a value
-・Categories: auto-selected by time of day — waking, before bed, before/after exercise, and more
-・Analysis: place graph, statistics, and symptom charts freely on three tabs
+・Categories: auto-selected by time of day, such as waking or before bed (Unwell and before exercise are chosen when you record)
+・Analysis: place graph, statistics, and symptom charts freely on three tabs (rename tabs and share one period across them)
+・Weather for measurements: record temperature and pressure too (fetched automatically in Japan)
 ・Graphs: view trends visually from weekly to yearly
 ・Statistics: detailed analysis such as BP distribution (JSH criteria) and weight summary
+・Export: PDF, CSV, and JSON. JSON also backs up your records and settings, handy when switching devices
 ・Appearance: choose Light, Dark, or system Auto
 ・Dial design: change to the style you like
 

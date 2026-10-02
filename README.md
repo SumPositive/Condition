@@ -7,7 +7,7 @@
 **User Guide**  
 [English](https://docs.azukid.com/en/sumpo/Condition/condition.html) / [日本語](https://docs.azukid.com/jp/sumpo/Condition/condition.html) / [한국어](https://docs.azukid.com/ko/sumpo/Condition/condition.html) / [繁體中文](https://docs.azukid.com/zh-Hant/sumpo/Condition/condition.html)
 
-![Platform](https://img.shields.io/badge/platform-iOS%2017%2B-blue)
+![Platform](https://img.shields.io/badge/platform-iOS%2018%2B-blue)
 ![Swift](https://img.shields.io/badge/Swift-6-orange)
 [![App Store](https://img.shields.io/badge/App%20Store-Download-blue)](https://apps.apple.com/app/id472914799)
 
@@ -101,6 +101,7 @@ Condition/
 | 2.8.1 | 2026-07-28 | 統計「左右差」を左右ペアの測定値だけで集計するよう修正、新しい記録シートを開いたまま終了した場合の日時・区分更新、Apple ヘルスケア双方向連携の削除同期を改善、潜在的な不具合を修正 |
 | 2.8.2 | 2026-08-11 | 新しい記録（表形式）にメモセクション（測定場所・機器／メモ1／メモ2／注意フラグ）を追加、ばらつき（±SD）が赤いときの主因となる測定値を赤字表示、保存時に全列が空の行を詰める、`AZMemoEditor` のフォーカス解除を修正 |
 | 2.8.3 | 2026-09-13 | 測定場所・機器の入力に候補一覧（プリセット＋入力履歴）を追加、記録タブの再タップで新しい記録の追加シートを表示、設定の選択肢を `AZPicker` のプルダウンリストに統一、iPad レイアウトを調整、広告をヘッダー部バナーのみに整理、`AZMemoEditor` 入力中のキーボード閉じを修正 |
+| 2.9.0 | 準備中 | 症状メモ（発症〜終息の日時、気温・気圧などの環境、直前の状況・対処を記録して分析）、測定にも環境を記録（国内は自動取得）、グラフと統計を3つの分析タブに統合（図表の自由配置・タブ名変更・期間の同期 ON/OFF、既存利用者は OFF で開始）、区分の既定を 起床時・安静時・就寝前・不調時・運動前 に見直し（既存利用者は旧既定を固定）、起動時に開く を 何もしない／測定を追加／症状を追加／記録一覧 に整理、起動の高速化（広告の初期化を起動シート表示後へ）、バックアップにアプリ設定を追加、起動画面にアイコン、iOS 18 以降に変更、メモ入力で改行すると確定してしまう不具合を修正 |
 
 ## ライセンス
 

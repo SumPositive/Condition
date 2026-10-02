@@ -1,1 +1,1 @@
-Log blood pressure, heart rate, temperature and weight with a quick dial. Syncs with Apple Health; graphs and stats show your changes at a glance. A simple health diary.
+New symptom notes: log headaches or dizziness with temperature, pressure and what came before, and spot patterns. Dial in BP, heart rate, weight; syncs with Apple Health.

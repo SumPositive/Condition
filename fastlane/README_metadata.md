@@ -2,11 +2,11 @@
 
 説明文（description）・キーワード（keywords）・アプリ名（name）・サブタイトル（subtitle）・
 リリースノート（release_notes）を **4言語** まとめて App Store Connect に反映するための
-fastlane 設定です。プロモーションテキスト（promotional_text）は「なし」として空にしています。
+fastlane 設定です。プロモーションテキスト（promotional_text）も各言語で記入しています。
 
 - 対象アプリ: `com.azukid.AzBodyNote`（App ID `472914799`）
 - 更新される項目: `description` / `keywords` / `name` / `subtitle` / `release_notes` /
-  `promotional_text`（空＝クリア）
+  `promotional_text`
   （スクショ・価格・バイナリは触りません）
 
 対応ロケール（App Store Connect のコード）:
@@ -77,5 +77,5 @@ fastlane upload_metadata
 - **keywords は上限 100 字**（カンマ区切り、スペースは字数節約のため原則省略）。
   現状の各言語は 100 字以内に収めてある。
 - name は上限 30 字、subtitle も上限 30 字。
-- promotional_text は空（＝クリア）。プロモーションを付けたくなったら各 `promotional_text.txt`
-  に記入する（上限 170 字）。
+- **promotional_text は上限 170 字**。審査なしでいつでも差し替えられる。
+  2.9.0 では症状メモを前面に出した文面にしてある（en-US はちょうど 170 字）。
