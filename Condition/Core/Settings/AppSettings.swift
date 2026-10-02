@@ -485,7 +485,7 @@ final class AppSettings {
 
     /// 出荷時初期値（画像定義）
     /// 家庭血圧の基本（朝の起床後・夜の就寝前）に合わせ、それ以外の時間は安静時にする。
-    /// 体調不良時・運動前は時刻で決まらないので割り当てない
+    /// 不調時・運動前は時刻で決まらないので割り当てない
     static let factoryDefaultHourMap: [Int] = [
         2, 2, 2,       // 0-2:   就寝前（夜更かしの就寝前）
         0, 0, 0, 0, 0, // 3-7:   起床時
@@ -558,6 +558,19 @@ final class AppSettings {
         if !hadSavedDateOptHourMap, dateOptHourMap == Self.factoryDefaultHourMap {
             dateOptHourMap = Self.legacyFactoryDefaultHourMap
         }
+    }
+
+    /// 期間の同期を足した版（2.9.0）への切り替えを済ませたか
+    private static let analysisPeriodSyncDefaultKey = "UDEF_AnalysisPeriodSyncDefault"
+
+    /// 既存の利用者は期間の同期を OFF で始め、各ページの期間をこれまでどおり別々に保つ。
+    /// 同期 ON（既定）だと分析2・3が分析1の期間に変わってしまうため。
+    /// 記録の無い新規インストールは既定の ON のまま。利用者が選び済みなら触らない。一度だけ判定する
+    func applyAnalysisPeriodSyncDefaultIfNeeded(hasRecords: Bool) {
+        guard !ud.bool(forKey: Self.analysisPeriodSyncDefaultKey) else { return }
+        defer { ud.set(true, forKey: Self.analysisPeriodSyncDefaultKey) }
+        guard hasRecords, analysisLayout.periodSync == nil else { return }
+        analysisLayout.periodSync = false
     }
 
     /// 旧設定（wakeHour/downHour/sleepHour）からのマイグレーション用

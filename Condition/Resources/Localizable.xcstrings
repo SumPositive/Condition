@@ -4965,19 +4965,19 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "体調不良時"
+            "value" : "不調時"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "컨디션 불량 시"
+            "value" : "몸 불편"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "身體不適時"
+            "value" : "身體不適"
           }
         }
       }

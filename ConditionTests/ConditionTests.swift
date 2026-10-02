@@ -127,7 +127,9 @@ struct AnalysisLayoutTests {
         #expect(Array(layout.page2.prefix(2)) == [.statWeightSummary, .statBloodPressureSummary])
         #expect(layout.hidden.contains(.graphBloodPressure))
         #expect(layout.hidden.contains(.statBloodPressureSummary))
-        #expect(layout.period(in: .two) == .sixMonths)
+        // 期間は既定で同期（分析1の値を使う）なので、旧統計の期間は分析2の保存値に引き継がれていることを見る
+        #expect(layout.period2 == GraphPeriod.sixMonths.rawValue)
+        #expect(layout.period(in: .one) == .month)
         // 分析3は症状の概要を先頭に、症状の図表を初期順で並べる
         #expect(layout.page3 == [
             .symptomOverview, .symptomCalendar, .symptomFrequency, .symptomSummary, .symptomTriggers,
@@ -2739,12 +2741,12 @@ struct SettingsBackupTests {
 @Suite("DateOpt Defaults Tests")
 struct DateOptDefaultsTests {
 
-    @Test("新規インストールの既定は 起床時・安静時・就寝前・体調不良時・運動前 で、6〜8 は未使用")
+    @Test("新規インストールの既定は 起床時・安静時・就寝前・不調時・運動前 で、6〜8 は未使用")
     func newDefaults() {
         #expect(DateOpt.cat01.defaultNameJa == "起床時")
         #expect(DateOpt.cat02.defaultNameJa == "安静時")
         #expect(DateOpt.cat03.defaultNameJa == "就寝前")
-        #expect(DateOpt.cat04.defaultNameJa == "体調不良時")
+        #expect(DateOpt.cat04.defaultNameJa == "不調時")
         #expect(DateOpt.cat05.defaultNameJa == "運動前")
         for opt in [DateOpt.cat06, .cat07, .cat08] {
             #expect(opt.defaultNameJa.isEmpty)

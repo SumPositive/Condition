@@ -10,7 +10,7 @@ enum DateOpt: Int, CaseIterable, Codable, Identifiable {
     case cat01 = 0  // 既定: 起床時
     case cat02 = 1  // 既定: 安静時
     case cat03 = 2  // 既定: 就寝前
-    case cat04 = 3  // 既定: 体調不良時（旧既定: 就寝時）
+    case cat04 = 3  // 既定: 不調時（旧既定: 就寝時）
     case cat05 = 4  // 既定: 運動前
     case cat06 = 5  // 既定: 未定義（旧既定: 運動後）
     case cat07 = 6  // 既定: 未定義
@@ -199,7 +199,7 @@ extension DateOpt {
         case .cat01: return "起床時"
         case .cat02: return "安静時"
         case .cat03: return "就寝前"
-        case .cat04: return "体調不良時"
+        case .cat04: return "不調時"
         case .cat05: return "運動前"
         case .cat06: return ""
         case .cat07: return ""
@@ -225,7 +225,7 @@ extension DateOpt {
         case .cat01: return "기상"
         case .cat02: return "안정"
         case .cat03: return "취침전"
-        case .cat04: return "컨디션 불량"
+        case .cat04: return "몸 불편"
         case .cat05: return "운동전"
         case .cat06: return ""
         case .cat07: return ""

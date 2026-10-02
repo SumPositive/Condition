@@ -218,6 +218,8 @@ struct RecordListView: View {
                 SymptomTagMigration.runIfNeeded(context: context)
                 // 区分の既定を見直した版で、既存の利用者の区分名が変わらないよう旧既定を固定する（初回のみ）
                 settings.freezeLegacyDateOptDefaultsIfNeeded(hasRecords: !hasNoRecords)
+                // 期間の同期を足した版で、既存の利用者の各ページの期間が変わらないよう同期 OFF で始める（初回のみ）
+                settings.applyAnalysisPeriodSyncDefaultIfNeeded(hasRecords: !hasNoRecords)
                 if hkService.needsAutoImport {
                     hkService.needsAutoImport = false
                     Task { await autoImportFromHealthKitIfNeeded() }
