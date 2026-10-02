@@ -12,6 +12,8 @@ struct SymptomRowView: View {
     @ScaledMetric(relativeTo: .caption2) private var scaledMarkSz: CGFloat = 10
     /// 測定セルの区分アイコン列と同じ幅。日付の右にマークを縦積みする場所
     @ScaledMetric(relativeTo: .title3) private var catW: CGFloat = 24
+    /// 曜日の幅。測定セルと同じ値にして、日付の位置を縦にそろえる
+    @ScaledMetric(relativeTo: .footnote) private var weekdayW: CGFloat = 20
     /// 状態を選ぶアラートを出しているか
     @State private var showProgressDialog = false
 
@@ -79,30 +81,38 @@ struct SymptomRowView: View {
     // MARK: - 日付列
 
     private var dateColumn: some View {
-        // 測定セルと同じく dateColW を「日付」と「マーク列(catW)」に分ける。
-        // 継続バッジをここへ入れると、症状名の行を圧迫せずに済む
+        // 測定セル（RecordRowView）と同じく dateColW を「日付」と「マーク列(catW)」に分け、
+        // 文字の大きさ・曜日の幅・列幅も同じにして、混ざって並んでも日時の位置がそろうようにする。
+        // 継続バッジをマーク列へ入れると、症状名の行を圧迫せずに済む
         HStack(alignment: .center, spacing: 0) {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .firstTextBaseline, spacing: 2) {
                     Text(dayString)
-                        .font(.title3.weight(.medium))
-                        .monospacedDigit()
+                        .font(.title2.bold().monospacedDigit())
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
                     Text(Self.weekdayFormatter.string(from: record.startAt))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .frame(width: weekdayW, alignment: .leading)
                 }
                 Text(Self.timeFormatter.string(from: record.startAt))
-                    .font(.footnote)
+                    .font(.subheadline.monospacedDigit())
                     .foregroundStyle(.secondary)
-                    .monospacedDigit()
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity)
 
             progressMark
                 .frame(width: catW, alignment: .center)
         }
-        .frame(width: dateColW - 8, alignment: .leading)
-        .padding(.trailing, 8)
+        .frame(width: dateColW, alignment: .leading)
+        .clipped()
+        .padding(.trailing, 4)
     }
 
     /// 症状の状態を示す目印。タップで3状態から選び直せる
