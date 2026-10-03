@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 90;
+	objectVersion = 100;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -510,7 +510,7 @@
 				C394AF022F7FF8D000F9C557 /* XCRemoteSwiftPackageReference "AZDial" */,
 				FBA000000000000000000005 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 			);
-			preferredProjectObjectVersion = 90;
+			preferredProjectObjectVersion = 100;
 			productRefGroup = 758C2EFE3946876AA265CABE /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
