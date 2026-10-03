@@ -3236,6 +3236,42 @@ struct SymptomTriggerTests {
         #expect(list.tag(for: "lackOfSleep")?.isHidden == true)
     }
 
+    @Test("Int.max の使用回数を取り込んでも、使用時にオーバーフローせず上限で止まる")
+    @MainActor
+    func importedHugeUseCountDoesNotOverflow() throws {
+        let json = """
+        {
+          "schemaVersion": 2,
+          "records": [],
+          "triggerTags": { "tags": [ { "id": "stress", "useCount": \(Int.max) } ] }
+        }
+        """
+        let result = try RecordsJSONIO.importJSON(
+            Data(json.utf8), into: ModelContext(try makeSymptomInMemoryContainer())
+        )
+        var list = SymptomTagList()
+        list.merge(imported: try #require(result.triggerTags))
+        #expect(list.tag(for: "stress")?.useCount == SymptomLimits.tagUseCountMax)
+
+        // 上限に達したタグを使っても増えず、クラッシュしない
+        list.markUsed(id: "stress")
+        #expect(list.tag(for: "stress")?.useCount == SymptomLimits.tagUseCountMax)
+
+        // 修正前に保存された極端な値でも、使用時の加算で上限へ収まる
+        var stored = SymptomTag(id: "cold")
+        stored.useCount = Int.max
+        var storedList = SymptomTagList(tags: [stored])
+        storedList.markUsed(id: "cold")
+        #expect(storedList.tag(for: "cold")?.useCount == SymptomLimits.tagUseCountMax)
+
+        // 辞書へ寄せるときの使用回数の引き継ぎもオーバーフローしない
+        var duplicate = SymptomTag(id: SymptomTag.newUserDefinedID(), customName: "stress-dup")
+        duplicate.useCount = Int.max
+        var mergeList = SymptomTagList(tags: [stored, duplicate])
+        mergeList.mergeDuplicatesIntoCatalog { $0 == "stress-dup" ? "cold" : nil }
+        #expect(mergeList.tag(for: "cold")?.useCount == SymptomLimits.tagUseCountMax)
+    }
+
     @Test("上限調整では記録から参照中のタグを優先して残す")
     func trimToLimitPreservesUsedTags() {
         var list = SymptomTagList(tags: (0..<(SymptomLimits.maxTagsPerList + 1)).map { index in

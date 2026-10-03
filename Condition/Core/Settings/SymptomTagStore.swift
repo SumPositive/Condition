@@ -57,8 +57,18 @@ struct SymptomTag: Codable, Equatable, Identifiable {
         var tag = self
         tag.customName = SymptomTagList.limitedName(customName)
         if !DateOptColorOption.all.contains(where: { $0.id == colorKey }) { tag.colorKey = "" }
-        tag.useCount = max(useCount, 0)
+        tag.useCount = Self.clampedUseCount(useCount)
         return tag
+    }
+
+    /// 使用回数を 0〜上限へ収める
+    static func clampedUseCount(_ count: Int) -> Int {
+        min(max(count, 0), SymptomLimits.tagUseCountMax)
+    }
+
+    /// 使用回数を足す。先に両方を上限へ収めるので、保存済みの値が極端でもオーバーフローしない
+    static func addedUseCount(_ count: Int, _ delta: Int) -> Int {
+        clampedUseCount(clampedUseCount(count) + clampedUseCount(delta))
     }
 
 }
@@ -247,7 +257,7 @@ struct SymptomTagList: Codable, Equatable {
         guard !id.isEmpty else { return }
         if let index = tags.firstIndex(where: { $0.id == id }) {
             tags[index].lastUsedAt = date
-            tags[index].useCount += 1
+            tags[index].useCount = SymptomTag.addedUseCount(tags[index].useCount, 1)
             tags[index].isHidden = false
         } else {
             var tag = SymptomTag(id: id)
@@ -306,7 +316,7 @@ struct SymptomTagList: Codable, Equatable {
             tags.remove(at: oldIndex)
             if let newIndex = tags.firstIndex(where: { $0.id == newID }) {
                 // 既に辞書側のタグがあるなら使用実績だけ引き継ぐ
-                tags[newIndex].useCount += old.useCount
+                tags[newIndex].useCount = SymptomTag.addedUseCount(tags[newIndex].useCount, old.useCount)
                 tags[newIndex].isHidden = false
                 if let lastUsed = old.lastUsedAt,
                    tags[newIndex].lastUsedAt.map({ $0 < lastUsed }) ?? true {

@@ -320,6 +320,9 @@ enum SymptomLimits {
     /// タグ ID の最大文字数。辞書の slug やユーザー追加の "u:<UUID>"（38文字）に余裕を持たせる。
     /// 取り込みで極端に長い ID を UserDefaults へ溜め込まないための上限
     static let tagIDMaxLength = 64
+    /// タグの使用回数の上限。並び順の参考にしか使わないので、毎日何回使っても届かない値で止める。
+    /// 取り込んだ Int.max に足し算して整数オーバーフローでクラッシュしないための上限
+    static let tagUseCountMax = 1_000_000
     /// 1件に付けられる薬の最大数
     static let maxMedicinesPerRecord = 10
     /// 1件に付けられる直前の状況の最大数
