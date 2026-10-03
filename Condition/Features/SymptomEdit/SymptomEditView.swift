@@ -260,19 +260,14 @@ struct SymptomEditView: View {
     /// アイコンの幅を日時へ譲り、発症・終息日時を読みやすく表示する
     private func dateButton(date: Date, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(Self.dateTimeFormatter.string(from: date))
+            // 日時は測定シートと同じ共通の並びと強弱で表示する
+            DateTimeDisplayText(date: date)
                 .font(.body)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
         }
     }
 
-    /// 測定シートと同じ書式（曜日つきの年月日＋時刻）
-    private static let dateTimeFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.setLocalizedDateFormatFromTemplate("yMdEjmm")
-        return f
-    }()
 
     // MARK: - 症状・程度・対処
 

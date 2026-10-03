@@ -74,12 +74,6 @@ struct RecordEditView: View {
     private let note2AnchorID = "record-note2-anchor"
     private let equipmentAnchorID = "record-equipment-anchor"
 
-    private static let dateTimeFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.setLocalizedDateFormatFromTemplate("yMdEjmm")
-        return f
-    }()
-
     private var settings: AppSettings { AppSettings.shared }
     private var hkService: HealthKitService { HealthKitService.shared }
 
@@ -722,8 +716,9 @@ struct RecordEditView: View {
                 Text("record.datetime")
                     .foregroundStyle(.primary)
                 Spacer()
-                Text(Self.dateTimeFormatter.string(from: vm.dateTime))
-                    .foregroundStyle(.secondary)
+                // 日時は共通の並びと強弱で表示する
+                DateTimeDisplayText(date: vm.dateTime)
+                    .foregroundStyle(.primary)
             }
         }
     }

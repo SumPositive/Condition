@@ -271,12 +271,6 @@ struct MeasurementAverageView: View {
     /// 「次へ」ボタンを左右どちらに置くか（trueで左、falseで右、デフォルト右）
     @AppStorage("measurementAvg.nextOnLeft") private var nextOnLeft: Bool = false
 
-    private static let dateTimeFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.setLocalizedDateFormatFromTemplate("yMdEjmm")
-        return f
-    }()
-
     private let maxTrials = MeasurementSampleSet.maxTrials
 
     init(record: BodyRecord? = nil) {
@@ -542,7 +536,8 @@ struct MeasurementAverageView: View {
                 showDatePicker = true
             } label: {
                 // アイコンの幅を日時へ譲り、症状入力と同じ大きさで表示する
-                Text(Self.dateTimeFormatter.string(from: dateTime))
+                // 日時は共通の並びと強弱で表示する
+                DateTimeDisplayText(date: dateTime)
                     .font(.body)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)

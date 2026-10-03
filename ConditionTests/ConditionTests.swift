@@ -24,6 +24,66 @@ struct ValueFormatterTests {
         #expect(ValueFormatter.format(365, decimals: 1) == "36.5")
         #expect(ValueFormatter.format(235, decimals: 1) == "23.5")
     }
+
+    /// 2026/10/3（土）16:25（端末のタイムゾーン）
+    private static let sampleDate: Date = {
+        var components = DateComponents(year: 2026, month: 10, day: 3, hour: 16, minute: 25)
+        components.calendar = Calendar(identifier: .gregorian)
+        return components.date!
+    }()
+
+    /// 強弱を付ける範囲の文字列（空白は狭い空白なども普通の空白へ揃える）
+    private static func fieldTexts(_ localeID: String) -> (all: String, minor: [String], monthDay: String?, time: String?) {
+        let text = DateTimeDisplay.attributedString(for: sampleDate, locale: Locale(identifier: localeID))
+        let ranges = DateTimeDisplay.fieldRanges(in: text)
+        func plain(_ value: AttributedSubstring) -> String {
+            String(String(value.characters).map { $0.isWhitespace ? " " : $0 })
+        }
+        return (
+            plain(text[text.startIndex..<text.endIndex]),
+            ranges.minor.map { plain(text[$0]) },
+            ranges.monthDay.map { plain(text[$0]) },
+            ranges.time.map { plain(text[$0]) }
+        )
+    }
+
+    @Test("日時の共通表示：並び順は iOS の言語・地域の設定に従い、曜日の前後は半角スペース、年の前後の / は残す")
+    func dateTimeDisplayFollowsSystemOrder() {
+        #expect(Self.fieldTexts("ja_JP").all == "2026/10/3 土 16:25")
+        #expect(Self.fieldTexts("en_US").all == "Sat 10/3/2026 4:25 PM")
+        // 日が先の地域では日/月の順になる
+        #expect(Self.fieldTexts("en_GB").all == "Sat 03/10/2026 16:25")
+        // 年の後ろの「. 」は残し、月/日の間の区切りは iOS の書式のまま残す
+        #expect(Self.fieldTexts("ko_KR").all == "2026. 10. 3 토 오후 4:25")
+        #expect(Self.fieldTexts("ko_KR").minor == ["2026", ". ", "토"])
+    }
+
+    @Test("日時の共通表示：続いた空白は半角スペース1つにまとめる")
+    func dateTimeDisplayCollapsesSpaces() {
+        let collapsed = DateTimeDisplay.collapsedSpaces(AttributedString("a  b \u{202F}c d"))
+        #expect(String(collapsed.characters) == "a b c d")
+    }
+
+    @Test("日時の共通表示：年・曜日（年の前後の / 込み）、月/日（区切り込み）、時刻（午前午後込み）を分けて強調する")
+    func dateTimeDisplayFieldRanges() {
+        let ja = Self.fieldTexts("ja_JP")
+        #expect(ja.minor == ["2026", "/", "土"])
+        #expect(ja.monthDay == "10/3")
+        #expect(ja.time == "16:25")
+
+        let en = Self.fieldTexts("en_US")
+        #expect(en.minor == ["Sat", "/", "2026"])
+        #expect(en.monthDay == "10/3")
+        #expect(en.time == "4:25 PM")
+
+        let gb = Self.fieldTexts("en_GB")
+        #expect(gb.monthDay == "03/10")
+    }
+
+    @Test("日時の共通表示：和暦の設定でも年は西暦で出す")
+    func dateTimeDisplayUsesGregorianYear() {
+        #expect(Self.fieldTexts("ja_JP@calendar=japanese").minor.first == "2026")
+    }
 }
 
 // AppSettings.shared.dateOptHourMap（UserDefaults 共有）を退避・復元するため直列化する
