@@ -199,6 +199,9 @@ final class HealthKitService {
     var needsAutoImport: Bool = false
     /// タイムアウトが発生したときに true になるフラグ（アラート表示用）
     var importTimedOut: Bool = false
+    /// 直近の readSamples で、いずれかの項目の読み取りが失敗したら true。
+    /// 失敗した項目は空として扱われるので、正常な0件と区別するために使う
+    var importReadFailed: Bool = false
     /// 自動インポート済み時刻画面表示にも使うため、変更時に UserDefaults へ保存する
     var lastAutoImportAt: Date? = UserDefaults.standard.object(forKey: UDefKeys.hkLastAutoImportAt) as? Date {
         didSet {
@@ -639,6 +642,7 @@ final class HealthKitService {
         let unresolvedDeletionMinutes = await flushPendingDeletions()
         logger.info("readSamples 開始: \(startDate, privacy: .public) 〜 \(endDate, privacy: .public)")
         importTimedOut = false
+        importReadFailed = false
         let startTime = Date()
 
         let result = await withCheckedContinuation { (cont: CheckedContinuation<[HealthKitValues], Never>) in
@@ -657,12 +661,14 @@ final class HealthKitService {
 
             // 実際の取得
             Task { @MainActor [self] in
-                let values = await _runImport(
+                let (values, readFailed) = await _runImport(
                     from: startDate, to: endDate,
                     hiddenFields: hiddenFields,
                     excludingMinuteKeys: unresolvedDeletionMinutes
                 )
                 guard done.claim() else { return }
+                // タイムアウト後に遅れて終わった回の結果では上書きしない（claim 後だけ反映）
+                importReadFailed = readFailed
                 let elapsed = Int(Date().timeIntervalSince(startTime) * 1000)
                 logger.debug("readSamples 所要時間: \(elapsed) ms（\(values.count) 件）")
                 cont.resume(returning: values)
@@ -677,14 +683,21 @@ final class HealthKitService {
         from startDate: Date, to endDate: Date,
         hiddenFields: Set<Int>,
         excludingMinuteKeys: Set<Double> = []
-    ) async -> [HealthKitValues] {
+    ) async -> (values: [HealthKitValues], readFailed: Bool) {
+        // 1項目でも読み取りに失敗したら true。呼び出し側で同期時刻を進めない判断に使う
+        var readFailed = false
+        /// 読み取り失敗（nil）を記録し、統合処理には空として渡す
+        func orReadFailed<T>(_ samples: [T]?) -> [T] {
+            if samples == nil { readFailed = true }
+            return samples ?? []
+        }
         // キーは分単位に丸めた timeIntervalSinceReferenceDate（minuteKey）。同じ分の測定を1件に統合する。
         var byMinute: [Double: HealthKitValues] = [:]
 
         // 血圧
         if !hiddenFields.contains(GraphKind.bp.rawValue) {
             importProgress = "health.progress.bloodPressure"
-            let bpSamples = await allBPSamples(from: startDate, to: endDate)
+            let bpSamples = orReadFailed(await allBPSamples(from: startDate, to: endDate))
             logger.info("血圧サンプル数: \(bpSamples.count)")
             for (date, hi, lo) in bpSamples {
                 let k = Self.minuteKey(date); var v = byMinute[k] ?? HealthKitValues(date: date)
@@ -696,7 +709,7 @@ final class HealthKitService {
         // 心拍数
         if !hiddenFields.contains(GraphKind.pulse.rawValue) {
             importProgress = "health.progress.heartRate"
-            let hrSamples = await allQtySamples(.heartRate, from: startDate, to: endDate, unit: HKUnit(from: "count/min"))
+            let hrSamples = orReadFailed(await allQtySamples(.heartRate, from: startDate, to: endDate, unit: HKUnit(from: "count/min")))
             logger.info("心拍数サンプル数: \(hrSamples.count)")
             for (date, val) in hrSamples {
                 let k = Self.minuteKey(date); var v = byMinute[k] ?? HealthKitValues(date: date)
@@ -708,7 +721,7 @@ final class HealthKitService {
         // 体温
         if !hiddenFields.contains(GraphKind.temp.rawValue) {
             importProgress = "health.progress.bodyTemp"
-            let tempSamples = await allQtySamples(.bodyTemperature, from: startDate, to: endDate, unit: .degreeCelsius())
+            let tempSamples = orReadFailed(await allQtySamples(.bodyTemperature, from: startDate, to: endDate, unit: .degreeCelsius()))
             logger.info("体温サンプル数: \(tempSamples.count)")
             for (date, val) in tempSamples {
                 let k = Self.minuteKey(date); var v = byMinute[k] ?? HealthKitValues(date: date)
@@ -720,7 +733,7 @@ final class HealthKitService {
         // 体重
         if !hiddenFields.contains(GraphKind.weight.rawValue) {
             importProgress = "health.progress.weight"
-            let weightSamples = await allQtySamples(.bodyMass, from: startDate, to: endDate, unit: .gramUnit(with: .kilo))
+            let weightSamples = orReadFailed(await allQtySamples(.bodyMass, from: startDate, to: endDate, unit: .gramUnit(with: .kilo)))
             logger.info("体重サンプル数: \(weightSamples.count)")
             for (date, val) in weightSamples {
                 let k = Self.minuteKey(date); var v = byMinute[k] ?? HealthKitValues(date: date)
@@ -732,7 +745,7 @@ final class HealthKitService {
         // 体脂肪率
         if !hiddenFields.contains(GraphKind.bodyFat.rawValue) {
             importProgress = "health.progress.bodyFat"
-            let fatSamples = await allQtySamples(.bodyFatPercentage, from: startDate, to: endDate, unit: .percent())
+            let fatSamples = orReadFailed(await allQtySamples(.bodyFatPercentage, from: startDate, to: endDate, unit: .percent()))
             logger.info("体脂肪率サンプル数: \(fatSamples.count)")
             for (date, val) in fatSamples {
                 let k = Self.minuteKey(date); var v = byMinute[k] ?? HealthKitValues(date: date)
@@ -750,8 +763,8 @@ final class HealthKitService {
             hiddenFields: hiddenFields,
             excludingMinuteKeys: excludingMinuteKeys
         )
-        logger.info("readSamples 完了: \(result.count) 件")
-        return result
+        logger.info("readSamples 完了: \(result.count) 件\(readFailed ? "（読み取り失敗あり）" : "")")
+        return (result, readFailed)
     }
 
     /// 同じ分の測定を1レコードに統合するためのキー（分単位に丸めた timeIntervalSinceReferenceDate）。
@@ -805,18 +818,18 @@ final class HealthKitService {
             .sorted { $0.date < $1.date }
     }
 
-    private func allBPSamples(from start: Date, to end: Date) async -> [(Date, Int, Int)] {
+    /// - Returns: 読み取りに失敗したら nil（正常な0件と区別する）
+    private func allBPSamples(from start: Date, to end: Date) async -> [(Date, Int, Int)]? {
         logger.info("allBPSamples 開始: \(start, privacy: .public) 〜 \(end, privacy: .public)")
         let predicate = HKQuery.predicateForSamples(withStart: start, end: end)
-        return await withCheckedContinuation { continuation in
+        let result = await withCheckedContinuation { (continuation: CheckedContinuation<Result<[(Date, Int, Int)], Error>, Never>) in
             let query = HKCorrelationQuery(
                 type: HKCorrelationType(.bloodPressure),
                 predicate: predicate,
                 samplePredicates: nil
             ) { _, results, error in
                 if let error {
-                    logger.error("allBPSamples エラー: \(error.localizedDescription, privacy: .public)")
-                    continuation.resume(returning: [])
+                    continuation.resume(returning: .failure(error))
                     return
                 }
                 let pairs = (results ?? [])
@@ -831,9 +844,22 @@ final class HealthKitService {
                                 Int(dia.quantity.doubleValue(for: .millimeterOfMercury())))
                     }
                 logger.info("allBPSamples 完了: \(pairs.count) 件")
-                continuation.resume(returning: pairs)
+                continuation.resume(returning: .success(pairs))
             }
             self.store.execute(query)
+        }
+        switch result {
+        case .success(let pairs):
+            return pairs
+        case .failure(let error):
+            // Analytics は MainActor なので、クエリのコールバックではなくここで記録する
+            logger.error("allBPSamples エラー: \(error.localizedDescription, privacy: .public)")
+            AppAnalytics.shared.record(
+                error: error,
+                name: "healthkit_read_failed",
+                parameters: ["sample_type": HKCorrelationTypeIdentifier.bloodPressure.rawValue]
+            )
+            return nil
         }
     }
 
@@ -841,7 +867,7 @@ final class HealthKitService {
         _ id: HKQuantityTypeIdentifier,
         from start: Date, to end: Date,
         unit: HKUnit
-    ) async -> [(Date, Double)] {
+    ) async -> [(Date, Double)]? {
         logger.info("allQtySamples[\(id.rawValue, privacy: .public)] 開始")
         let predicate = HKQuery.predicateForSamples(withStart: start, end: end)
         let descriptor = HKSampleQueryDescriptor(
@@ -858,7 +884,8 @@ final class HealthKitService {
                 name: "healthkit_read_failed",
                 parameters: ["sample_type": id.rawValue]
             )
-            return []
+            // 正常な0件と区別するため nil を返す
+            return nil
         }
     }
 

@@ -633,6 +633,9 @@ struct RecordListView: View {
         // タイムアウトや HealthKit 利用不可の空配列は「正常な0件」ではない。
         // 同期時刻を進めず、次回もう一度同じ範囲を確認する
         guard hkService.isAvailable, !hkService.importTimedOut else { return }
+        // 一部の項目だけ読み取りに失敗したときも、取れた分を保存しない。
+        // 同じ分の記録が先にできると、次回その分の失敗項目が重複判定で取り込まれなくなるため
+        guard !hkService.importReadFailed else { return }
         guard !hkValues.isEmpty else {
             hkService.lastAutoImportAt = now
             return
