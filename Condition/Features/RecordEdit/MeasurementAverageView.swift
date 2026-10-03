@@ -563,7 +563,9 @@ struct MeasurementAverageView: View {
             selection: $dateOpt,
             isExpanded: $isDateOptExpanded,
             minWidth: 150,
-            style: style
+            style: style,
+            // UI テストで区分ポップオーバーの開閉と選択を確かめるため
+            accessibilityID: "measurement.dateOptPicker"
         ) { opt in
             HStack(spacing: 6) {
                 Image(systemName: opt.icon)

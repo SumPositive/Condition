@@ -169,6 +169,8 @@ struct AZDropdownPicker<Option: Hashable & Identifiable, Label: View>: View {
     /// 選択ボタンを親の横幅いっぱいに広げる
     var fillsWidth: Bool = false
     var style: AZPickerStyle = .form
+    /// UI テスト用の識別子。選択ボタンはこの値、候補は "<値>.option.<id>" になる
+    var accessibilityID: String = ""
     @ViewBuilder let label: (Option) -> Label
 
     var body: some View {
@@ -235,6 +237,7 @@ struct AZDropdownPicker<Option: Hashable & Identifiable, Label: View>: View {
             .shadow(color: Color.black.opacity(style.shadowOpacity), radius: style.shadowRadius, x: 0, y: style.shadowY)
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier(accessibilityID)
     }
 
     @ViewBuilder
@@ -313,6 +316,7 @@ struct AZDropdownPicker<Option: Hashable & Identifiable, Label: View>: View {
             }
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier(accessibilityID.isEmpty ? "" : "\(accessibilityID).option.\(option.id)")
     }
 }
 

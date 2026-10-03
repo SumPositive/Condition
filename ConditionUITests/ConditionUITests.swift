@@ -69,6 +69,49 @@ final class ConditionUITests: XCTestCase {
         snapshot("05SymptomFactors")
     }
 
+    /// 測定シートの区分ポップオーバーを開閉し、別の区分を選べるか確かめる。
+    /// iOS 18 ではポップオーバーの終了後に親シートの描画が崩れたことがあるので、
+    /// 最低 OS のシミュレータでも回帰確認できるようにしておく
+    @MainActor
+    func testMeasurementDateOptPopoverOpenCloseAndSelect() throws {
+        let app = XCUIApplication()
+        // サンプルデータの in-memory 投入で実データに触れず、起動時に測定シート（複数回平均）を開く
+        app.launchArguments += ["-FASTLANE_SNAPSHOT", "YES", "-UDEF_LaunchAction", "1"]
+        app.launch()
+
+        let picker = app.buttons["measurement.dateOptPicker"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 20), "測定シートの区分ボタンが表示されない")
+        let options = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "measurement.dateOptPicker.option.")
+        )
+
+        // 開く
+        picker.tap()
+        XCTAssertTrue(options.firstMatch.waitForExistence(timeout: 5), "区分の候補が表示されない")
+        XCTAssertLessThan(1, options.count, "区分の候補が2つ以上ない")
+
+        // 外側のタップで閉じる。閉じたあとも測定シートはそのまま操作できる
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.08)).tap()
+        XCTAssertTrue(options.firstMatch.waitForNonExistence(timeout: 5), "外側のタップで候補が閉じない")
+        XCTAssertTrue(picker.isHittable, "候補を閉じたあと区分ボタンが押せない")
+
+        // もう一度開いて、今と違う区分を選ぶ
+        let before = picker.label
+        picker.tap()
+        XCTAssertTrue(options.firstMatch.waitForExistence(timeout: 5), "2回目に区分の候補が表示されない")
+        let target = try XCTUnwrap(
+            options.allElementsBoundByIndex.first { !before.contains($0.label) },
+            "今と違う区分の候補が見つからない"
+        )
+        let targetLabel = target.label
+        target.tap()
+
+        // 選ぶと候補が閉じ、ボタンの表示が選んだ区分になる
+        XCTAssertTrue(options.firstMatch.waitForNonExistence(timeout: 5), "選択後に候補が閉じない")
+        XCTAssertTrue(picker.label.contains(targetLabel), "選んだ区分がボタンに反映されない")
+        XCTAssertTrue(picker.isHittable, "選択後に区分ボタンが押せない")
+    }
+
     /// タブを多段フォールバックで叩く。
     /// 識別子で hittable な要素があればそれを、無ければ index（記録0/分析1=1/分析2=2/分析3=3/設定4）で叩く。
     @MainActor
