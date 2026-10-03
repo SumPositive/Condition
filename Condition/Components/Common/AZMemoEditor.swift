@@ -286,6 +286,102 @@ extension View {
     }
 }
 
+// MARK: - 画面のどこかがタップされたことの監視
+
+/// 有効な間だけ、所属ウィンドウのタップを横取りせずに監視する。
+///
+/// SwiftUI の画面全体に付けたタップ検知は、iOS 18 では中のボタン（日時など）の
+/// タップを横取りして反応しなくなる。メモ欄の外側タップ監視と同じく、
+/// ウィンドウに cancelsTouchesInView = false の認識器を足して、元の操作はそのまま通す
+struct AZWindowTapObserver: UIViewRepresentable {
+    var isActive: Bool
+    var onTap: () -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView(frame: .zero)
+        view.isUserInteractionEnabled = false
+        return view
+    }
+
+    func updateUIView(_ view: UIView, context: Context) {
+        context.coordinator.onTap = onTap
+        // 表示直後はウィンドウが未確定のことがあるので、次の周回で付け外しする
+        DispatchQueue.main.async {
+            if isActive, let window = view.window {
+                context.coordinator.install(on: window)
+            } else {
+                context.coordinator.remove()
+            }
+        }
+    }
+
+    static func dismantleUIView(_ view: UIView, coordinator: Coordinator) {
+        coordinator.remove()
+    }
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        var onTap: () -> Void = {}
+        private var recognizer: UITapGestureRecognizer?
+
+        func install(on window: UIWindow) {
+            guard recognizer?.view !== window else { return }
+            remove()
+            let recognizer = UITapGestureRecognizer(target: self, action: #selector(handleTap))
+            // タップを横取りせず、ボタンなど本来の操作へそのまま渡す
+            recognizer.cancelsTouchesInView = false
+            recognizer.delaysTouchesBegan = false
+            recognizer.delaysTouchesEnded = false
+            recognizer.delegate = self
+            window.addGestureRecognizer(recognizer)
+            self.recognizer = recognizer
+        }
+
+        func remove() {
+            if let recognizer {
+                recognizer.view?.removeGestureRecognizer(recognizer)
+            }
+            recognizer = nil
+        }
+
+        @objc private func handleTap() {
+            // ボタンの処理が先に終わるよう次の周回で知らせる。
+            // 同じタップで押されたボタンが、解除後の状態を見て動くことを防ぐ
+            DispatchQueue.main.async { [onTap] in onTap() }
+        }
+
+        func gestureRecognizer(
+            _ gestureRecognizer: UIGestureRecognizer,
+            shouldReceive touch: UITouch
+        ) -> Bool {
+            // ナビゲーションバー（キャンセル・保存ボタン）のタップは対象外。
+            // 確認中のボタン自身を押したときに解除してしまわないようにする
+            var touchedView = touch.view
+            while let currentView = touchedView {
+                if currentView is UINavigationBar || currentView is UIToolbar { return false }
+                touchedView = currentView.superview
+            }
+            return true
+        }
+
+        func gestureRecognizer(
+            _ gestureRecognizer: UIGestureRecognizer,
+            shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+        ) -> Bool {
+            // 画面本来のタップ操作を妨げない
+            true
+        }
+    }
+}
+
+extension View {
+    /// 有効な間、画面のどこかがタップされたら知らせる（中のボタンの操作は妨げない）
+    func azOnWindowTap(isActive: Bool, perform action: @escaping () -> Void) -> some View {
+        background { AZWindowTapObserver(isActive: isActive, onTap: action) }
+    }
+}
+
 private final class AZLayoutReportingTextView: UITextView {
     /// 横幅が変わったときだけ呼ばれる
     var onWidthChange: (() -> Void)?

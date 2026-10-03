@@ -373,9 +373,10 @@ struct MeasurementAverageView: View {
             }
             // iOS 18でポップオーバー終了後に親シート背景が透明化しても背後を透かさない
             .background(Color(.systemBackground))
-            // 確認中の破棄ボタンは2秒で通常のキャンセル表示へ戻る。
-            // 以前は画面全体のタップでも戻していたが、iOS 18 では全体に付けたタップ検知が
-            // 中のボタン（日時など）のタップを横取りして反応しなくなるので付けない
+            // 確認中の破棄ボタンは2秒、またはボタン外のタップで通常のキャンセル表示へ戻る。
+            // 画面全体の SwiftUI タップ検知は iOS 18 で中のボタン（日時など）を横取りするので、
+            // ウィンドウで横取りせずに監視する
+            .azOnWindowTap(isActive: isDiscardArmed) { disarmDiscardConfirmation() }
             // ソフトキーボードの表示／非表示を実測して、テンキーの出し分けに使う
             .onReceive(
                 NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)
@@ -1893,6 +1894,13 @@ struct MeasurementAverageView: View {
             guard !Task.isCancelled else { return }
             withAnimation(.easeInOut(duration: 0.15)) { isDiscardArmed = false }
         }
+    }
+
+    /// 確認中にボタン外がタップされたら、待たずに通常のキャンセル表示へ戻す
+    private func disarmDiscardConfirmation() {
+        guard isDiscardArmed else { return }
+        discardResetTask?.cancel()
+        withAnimation(.easeInOut(duration: 0.15)) { isDiscardArmed = false }
     }
 
 
