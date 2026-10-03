@@ -630,39 +630,55 @@ struct RecordListView: View {
             from: importStart, to: now,
             hiddenFields: Set(settings.hiddenFields)
         )
-        hkService.lastAutoImportAt = now
-        guard !hkValues.isEmpty else { return }
+        // タイムアウトや HealthKit 利用不可の空配列は「正常な0件」ではない。
+        // 同期時刻を進めず、次回もう一度同じ範囲を確認する
+        guard hkService.isAvailable, !hkService.importTimedOut else { return }
+        guard !hkValues.isEmpty else {
+            hkService.lastAutoImportAt = now
+            return
+        }
 
         let descriptor = FetchDescriptor<BodyRecord>(
             predicate: #Predicate { importStart <= $0.dateTime && $0.dateTime < now }
         )
-        let existing = (try? context.fetch(descriptor)) ?? []
         func roundToMinute(_ d: Date) -> Date {
             let secs = d.timeIntervalSinceReferenceDate
             return Date(timeIntervalSinceReferenceDate: (secs / 60).rounded(.down) * 60)
         }
-        let existingTimes = Set(existing.map { roundToMinute($0.dateTime) })
 
         var addedCount = 0
-        for v in hkValues {
-            guard !existingTimes.contains(roundToMinute(v.date)) else { continue }
-            let record = BodyRecord(dateTime: v.date, dateOpt: settings.autoDateOpt(for: v.date))
-            record.dataSource   = .hkImport
-            record.nBpHi_mmHg   = v.bpHi
-            record.nBpLo_mmHg   = v.bpLo
-            record.nPulse_bpm   = v.pulse
-            record.nTemp_10c    = v.temp
-            record.nWeight_10Kg = v.weight
-            record.nBodyFat_10p = v.bodyFat
-            context.insert(record)
-            addedCount += 1
-        }
-        if addedCount > 0 {
-            try? context.save()
-            // 直近15日の最小インポート時はトースト不要
-            if !isMinimalImport {
-                showImportToast(count: addedCount)
+        do {
+            // 既存記録を読めないまま進むと、全件を新規とみなして重複記録を作ってしまう
+            let existing = try context.fetch(descriptor)
+            let existingTimes = Set(existing.map { roundToMinute($0.dateTime) })
+
+            for v in hkValues {
+                guard !existingTimes.contains(roundToMinute(v.date)) else { continue }
+                let record = BodyRecord(dateTime: v.date, dateOpt: settings.autoDateOpt(for: v.date))
+                record.dataSource   = .hkImport
+                record.nBpHi_mmHg   = v.bpHi
+                record.nBpLo_mmHg   = v.bpLo
+                record.nPulse_bpm   = v.pulse
+                record.nTemp_10c    = v.temp
+                record.nWeight_10Kg = v.weight
+                record.nBodyFat_10p = v.bodyFat
+                context.insert(record)
+                addedCount += 1
             }
+            if 0 < addedCount {
+                try context.save()
+            }
+        } catch {
+            // 途中まで挿入した記録を取り消し、同期時刻は進めない（次回同じ範囲を取り込み直す）
+            context.rollback()
+            AppAnalytics.shared.record(error: error, name: "healthkit_auto_import_failed")
+            return
+        }
+        // 保存まで成功したときだけ同期時刻を進める
+        hkService.lastAutoImportAt = now
+        // 直近15日の最小インポート時はトースト不要
+        if 0 < addedCount, !isMinimalImport {
+            showImportToast(count: addedCount)
         }
     }
 
