@@ -108,17 +108,26 @@ struct MeasurementSampleSet: Codable, Equatable {
             .contains { $0.contains { $0 != nil } }
     }
 
-    /// 不正に長い配列を保存しないよう最大5回に揃える
+    /// 不正に長い配列を保存しないよう最大5回に揃え、各値を項目の範囲へ収める。
+    /// 取り込んだ極端な値（Int.max 付近など）が残ると、編集画面の合計でオーバーフローする
     func limited() -> MeasurementSampleSet {
         MeasurementSampleSet(
-            bpHi: Array(bpHi.prefix(Self.maxTrials)),
-            bpLo: Array(bpLo.prefix(Self.maxTrials)),
-            pulse: Array(pulse.prefix(Self.maxTrials)),
-            weight: Array(weight.prefix(Self.maxTrials)),
-            temp: Array(temp.prefix(Self.maxTrials)),
-            bodyFat: Array(bodyFat.prefix(Self.maxTrials)),
-            skMuscle: Array(skMuscle.prefix(Self.maxTrials))
+            bpHi: Self.limited(bpHi, spec: MeasureRange.bpHi),
+            bpLo: Self.limited(bpLo, spec: MeasureRange.bpLo),
+            pulse: Self.limited(pulse, spec: MeasureRange.pulse),
+            weight: Self.limited(weight, spec: MeasureRange.weight),
+            temp: Self.limited(temp, spec: MeasureRange.temp),
+            bodyFat: Self.limited(bodyFat, spec: MeasureRange.bodyFat),
+            skMuscle: Self.limited(skMuscle, spec: MeasureRange.skMuscle)
         )
+    }
+
+    /// 平均値の取り込みと同じく、0 以下は未入力、それ以外は範囲内へ clamp する
+    private static func limited(_ values: [Int?], spec: MeasureSpec) -> [Int?] {
+        values.prefix(maxTrials).map { value in
+            guard let value, value > 0 else { return nil }
+            return min(max(value, spec.min), spec.max)
+        }
     }
 }
 

@@ -34,6 +34,33 @@ enum RecordJSONExportStyle: Int, CaseIterable, Identifiable {
 
 // MARK: - インポート JSON 形
 
+/// あとから足した項目の「キーが無い」と「null で空にする」を区別する。
+///
+/// 旧バックアップには項目そのものが無いので、同じ日時の既存記録へ重ねたとき
+/// 端末内の値を消してはいけない。エクスポートは値が無ければ明示的に null を書くので、
+/// 新しいバックアップでは null を「空にする」指示として扱える
+enum ImportField<Value: Decodable>: Decodable {
+    /// キーが無い（旧形式）。既存値を保持する
+    case absent
+    /// 明示的な null。値を空にする
+    case null
+    case value(Value)
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        self = container.decodeNil() ? .null : .value(try container.decode(Value.self))
+    }
+}
+
+extension KeyedDecodingContainer {
+    /// 合成された init(from:) は ImportField のプロパティをこの多重定義で読む。
+    /// キーが無いときに throw せず `.absent` を返す
+    func decode<Value>(_ type: ImportField<Value>.Type, forKey key: Key) throws -> ImportField<Value> {
+        guard contains(key) else { return .absent }
+        return try decodeIfPresent(type, forKey: key) ?? .null
+    }
+}
+
 struct RecordImportEnvelope: Decodable {
     let schemaVersion: Int?
     let categoryAppearances: [DateOptAppearance]?
@@ -60,9 +87,11 @@ struct SymptomImportRecord: Decodable {
     let medicines: [String]?    // 表示名
     let medicineIds: [String]?
     let triggers: [String]?     // 表示名
-    let triggerIds: [String]?
+    /// 直前の状況は追加前のバックアップには無い。無ければ既存の選択を保持する
+    let triggerIds: ImportField<[String]>
     let dataSourceRaw: Int?
-    let weather: SymptomWeatherImport?
+    /// 無ければ既存の環境を保持し、null なら環境を空にする
+    let weather: ImportField<SymptomWeatherImport>
 
     /// ISO8601DateFormatter は Sendable ではないので static では持たず、
     /// RecordImportRecord.parsedDate と同じくその場で作る
@@ -76,15 +105,60 @@ struct SymptomImportRecord: Decodable {
     var parsedStartAt: Date? { Self.makeISOFormatter().date(from: startAt) }
     var parsedEndAt: Date? { endAt.flatMap { Self.makeISOFormatter().date(from: $0) } }
 
-    /// 症状ID。旧い書き出しや他アプリ由来で ID が無い場合は表示名から辞書を引く
-    var resolvedSymptomID: String? {
+    /// 症状ID。旧い書き出しや他アプリ由来で ID が無い場合は、薬・直前の状況と同じく
+    /// 同梱のタグリストと辞書（全対応言語）から表示名を引く
+    func resolvedSymptomID(tags: SymptomTagList?) -> String? {
         if let symptomId, !symptomId.isEmpty { return symptomId }
-        guard let symptom, !symptom.isEmpty else { return nil }
-        return SymptomCatalog.all.first { $0.localizedName == symptom }?.id
+        return Self.resolveID(name: symptom ?? "", tags: tags, matchingID: SymptomCatalog.matchingID(forName:))
     }
 
     var parsedSeverity: SymptomSeverity {
         SymptomSeverity(rawValue: severity ?? 0) ?? .unspecified
+    }
+
+    /// 終了日時。開始より前なら編集画面と同じく成立しないので、日時不明として扱う
+    func validEndAt(startAt: Date) -> Date? {
+        guard let parsedEndAt, startAt <= parsedEndAt else { return nil }
+        return parsedEndAt
+    }
+
+    /// 薬の ID。ID の無い旧形式や外部作成の JSON では表示名から引く
+    func resolvedMedicineIDs(tags: SymptomTagList?) -> [String] {
+        if let medicineIds { return medicineIds }
+        return Self.resolveIDs(names: medicines ?? [], tags: tags, matchingID: MedicineCatalog.matchingID(forName:))
+    }
+
+    /// 直前の状況の ID。ID が無く表示名だけあるときは表示名から引く
+    func resolvedTriggerIDs(tags: SymptomTagList?) -> ImportField<[String]> {
+        guard case .absent = triggerIds, let triggers else { return triggerIds }
+        return .value(Self.resolveIDs(names: triggers, tags: tags, matchingID: TriggerCatalog.matchingID(forName:)))
+    }
+
+    /// 表示名を ID へ。名前を付け替えたタグやユーザー追加タグは同梱のタグリストから、
+    /// それ以外は辞書から引く。引けない名前は取り込まない
+    private static func resolveIDs(
+        names: [String],
+        tags: SymptomTagList?,
+        matchingID: (String) -> String?
+    ) -> [String] {
+        var ids: [String] = []
+        for name in names {
+            let id = resolveID(name: name, tags: tags, matchingID: matchingID)
+            if let id, !ids.contains(id) { ids.append(id) }
+        }
+        return ids
+    }
+
+    /// 表示名1つを ID へ。同梱タグリストの付けた名前を先に見て、無ければ辞書を引く
+    private static func resolveID(
+        name rawName: String,
+        tags: SymptomTagList?,
+        matchingID: (String) -> String?
+    ) -> String? {
+        let name = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return nil }
+        return tags?.tags.first { !$0.customName.isEmpty && $0.customName == name }?.id
+            ?? matchingID(name)
     }
 }
 
@@ -149,9 +223,10 @@ struct RecordImportRecord: Decodable {
     let weight: Double?
     let bodyFat: Double?
     let skeletalMuscle: Double?
-    let measurementSamples: MeasurementSampleSet?
-    /// 測定に付けた環境。旧バックアップには無い
-    let environment: EnvironmentSnapshot?
+    /// 複数回測定の元の値。旧バックアップには無い。無ければ既存値を保持し、null なら空にする
+    let measurementSamples: ImportField<MeasurementSampleSet>
+    /// 測定に付けた環境。旧バックアップには無い。無ければ既存値を保持し、null なら空にする
+    let environment: ImportField<EnvironmentSnapshot>
 
     var parsedDate: Date? {
         let iso = ISO8601DateFormatter()
@@ -249,6 +324,7 @@ enum RecordsJSONIO {
     ///   - style: 整形スタイル
     ///   - categoryAppearances: 含める区分表示マスタ（nil の場合は省略）
     ///   - exportDate: メタデータ用の出力時刻（テスト容易性のため引数化、本番は `Date()`）
+    /// - Throws: 一部の項目でも変換できない場合。欠けたバックアップを正常扱いで共有しないため
     static func export(
         records: [BodyRecord],
         symptoms: [SymptomRecord] = [],
@@ -259,7 +335,7 @@ enum RecordsJSONIO {
         triggerTags: SymptomTagList? = nil,
         settings: AppSettingsBackup? = nil,
         exportDate: Date = Date()
-    ) -> Data {
+    ) throws -> Data {
         let iso = ISO8601DateFormatter()
         iso.formatOptions = [.withInternetDateTime, .withDashSeparatorInDate, .withColonSeparatorInTime, .withTimeZone]
 
@@ -286,14 +362,17 @@ enum RecordsJSONIO {
             if 0 < record.nBodyFat_10p  { object["bodyFat"]         = decimalNumber(record.nBodyFat_10p,  scale: 1) }
             if 0 < record.nSkMuscle_10p { object["skeletalMuscle"]  = decimalNumber(record.nSkMuscle_10p, scale: 1) }
             // 平均値を再編集できるよう元の測定値もバックアップする
-            if let sampleSet = record.measurementSampleSet,
-               let sampleObject = jsonObject(sampleSet) {
-                object["measurementSamples"] = sampleObject
+            // 無いときは null を書き、旧形式（キー無し＝既存値を保持）と区別する
+            if let sampleSet = record.measurementSampleSet {
+                object["measurementSamples"] = try jsonObject(sampleSet)
+            } else {
+                object["measurementSamples"] = NSNull()
             }
             // 環境の取得元・室内値・端末気圧もバックアップに含める
-            if record.environmentSnapshot.hasAnyValue,
-               let environmentObject = jsonObject(record.environmentSnapshot) {
-                object["environment"] = environmentObject
+            if record.environmentSnapshot.hasAnyValue {
+                object["environment"] = try jsonObject(record.environmentSnapshot)
+            } else {
+                object["environment"] = NSNull()
             }
             recordObjects.append(object)
         }
@@ -315,21 +394,21 @@ enum RecordsJSONIO {
             }
         }
         // 表示名と並び順を復元できるようタグリストも同梱する
-        if let symptomTags, let object = jsonObject(symptomTags) {
-            envelope["symptomTags"] = object
+        if let symptomTags {
+            envelope["symptomTags"] = try jsonObject(symptomTags)
         }
-        if let medicineTags, let object = jsonObject(medicineTags) {
-            envelope["medicineTags"] = object
+        if let medicineTags {
+            envelope["medicineTags"] = try jsonObject(medicineTags)
         }
-        if let triggerTags, let object = jsonObject(triggerTags) {
-            envelope["triggerTags"] = object
+        if let triggerTags {
+            envelope["triggerTags"] = try jsonObject(triggerTags)
         }
         // 設定は任意項目の追加なので schemaVersion は上げない（古いアプリでも記録は取り込める）
-        if let settings, let object = jsonObject(settings) {
-            envelope["settings"] = object
+        if let settings {
+            envelope["settings"] = try jsonObject(settings)
         }
 
-        return (try? JSONSerialization.data(withJSONObject: envelope, options: style.jsonOptions)) ?? Data()
+        return try JSONSerialization.data(withJSONObject: envelope, options: style.jsonOptions)
     }
 
     /// 症状1件の JSON オブジェクト。既存の "condition"/"conditionRaw" と同じく、
@@ -364,15 +443,16 @@ enum RecordsJSONIO {
             }
         }
         let triggerIDs = record.triggerIDs
+        // 空でも書き、旧形式（キー無し＝既存の選択を保持）と区別する
+        object["triggerIds"] = triggerIDs
         if !triggerIDs.isEmpty {
-            object["triggerIds"] = triggerIDs
             object["triggers"] = triggerIDs.map { id in
                 (triggerTags?.tag(for: id) ?? SymptomTag(id: id)).triggerDisplayName
             }
         }
         // 屋外の取得元が無くても、室温・室内湿度・端末気圧だけの記録はある。
         // 取得元ではなく、環境のどれかに値があるかで出力を決める
-        if record.environmentSnapshot.hasAnyValue || record.bPressureDelta24hSet {
+        if record.environmentSnapshot.hasAnyValue {
             var weather: [String: Any] = [
                 "source": Self.weatherSourceName(record.weatherSource),
             ]
@@ -418,6 +498,9 @@ enum RecordsJSONIO {
             if record.bHumidityEdited { weather["humidityEdited"] = true }
             if record.bPressureEdited { weather["pressureEdited"] = true }
             object["weather"] = weather
+        } else {
+            // 無いときは null を書き、旧形式（キー無し＝既存の環境を保持）と区別する
+            object["weather"] = NSNull()
         }
         return object
     }
@@ -448,18 +531,35 @@ enum RecordsJSONIO {
         guard 0 <= schemaVersion, schemaVersion <= currentSchemaVersion else {
             throw IOError.unsupportedSchemaVersion(schemaVersion)
         }
-        var result = try merge(
-            envelope.records,
-            into: context,
-            categoryAppearances: envelope.categoryAppearances,
-            saveChanges: saveChanges
-        )
-        // 症状メモは schemaVersion 2 以降にしか無い。旧バックアップでは何もしない
-        if let symptoms = envelope.symptoms, !symptoms.isEmpty {
-            let symptomResult = try mergeSymptoms(symptoms, into: context, saveChanges: saveChanges)
-            result.symptomsInserted = symptomResult.inserted
-            result.symptomsUpdated = symptomResult.updated
-            result.symptomsSkipped = symptomResult.skipped
+        // 測定記録と症状メモは途中で保存せず、両方を統合してから1回だけ保存する。
+        // 片方だけ保存された状態で失敗を報告すると、再実行時に利用者が混乱するため
+        var result: ImportResult
+        do {
+            result = try merge(
+                envelope.records,
+                into: context,
+                categoryAppearances: envelope.categoryAppearances,
+                saveChanges: { _ in }
+            )
+            // 症状メモは schemaVersion 2 以降にしか無い。旧バックアップでは何もしない
+            if let symptoms = envelope.symptoms, !symptoms.isEmpty {
+                let symptomResult = try mergeSymptoms(
+                    symptoms,
+                    into: context,
+                    symptomTags: envelope.symptomTags,
+                    medicineTags: envelope.medicineTags,
+                    triggerTags: envelope.triggerTags,
+                    saveChanges: { _ in }
+                )
+                result.symptomsInserted = symptomResult.inserted
+                result.symptomsUpdated = symptomResult.updated
+                result.symptomsSkipped = symptomResult.skipped
+            }
+            try saveChanges(context)
+        } catch {
+            // 統合途中・保存時のどちらで失敗しても、測定記録と症状メモをまとめて取り消す
+            context.rollback()
+            throw error
         }
         result.symptomTags = envelope.symptomTags
         result.medicineTags = envelope.medicineTags
@@ -474,6 +574,9 @@ enum RecordsJSONIO {
     static func mergeSymptoms(
         _ importedSymptoms: [SymptomImportRecord],
         into context: ModelContext,
+        symptomTags: SymptomTagList? = nil,
+        medicineTags: SymptomTagList? = nil,
+        triggerTags: SymptomTagList? = nil,
         saveChanges: (ModelContext) throws -> Void = { try $0.save() }
     ) throws -> (inserted: Int, updated: Int, skipped: Int) {
         let existingRecords = try context.fetch(FetchDescriptor<SymptomRecord>())
@@ -492,7 +595,7 @@ enum RecordsJSONIO {
         for imported in importedSymptoms {
             // 症状が特定できない、または日時が読めないものは取り込まない
             guard let startAt = imported.parsedStartAt,
-                  let symptomID = imported.resolvedSymptomID,
+                  let symptomID = imported.resolvedSymptomID(tags: symptomTags),
                   !symptomID.isEmpty else {
                 skipped += 1
                 continue
@@ -513,17 +616,31 @@ enum RecordsJSONIO {
             record.sSymptomID = symptomID
             record.bOngoing = imported.ongoing ?? false
             // 継続中と終了時刻は同時に成立しない
-            record.endAt = record.bOngoing ? nil : imported.parsedEndAt
+            record.endAt = record.bOngoing ? nil : imported.validEndAt(startAt: startAt)
             record.severity = imported.parsedSeverity
             record.sNote = String((imported.note ?? "")
                 .trimmingCharacters(in: .whitespacesAndNewlines)
                 .prefix(SymptomLimits.noteImportMaxLength))
-            record.medicineIDs = Array((imported.medicineIds ?? [])
+            record.medicineIDs = Array(imported.resolvedMedicineIDs(tags: medicineTags)
                 .prefix(SymptomLimits.maxMedicinesPerRecord))
-            record.triggerIDs = TriggerCatalog.normalizedSelection(Array((imported.triggerIds ?? [])
-                .prefix(SymptomLimits.maxTriggersPerRecord)))
+            switch imported.resolvedTriggerIDs(tags: triggerTags) {
+            case .absent:
+                break   // 旧形式。既存の選択を保持する
+            case .null:
+                record.triggerIDs = []
+            case .value(let triggerIDs):
+                record.triggerIDs = TriggerCatalog.normalizedSelection(Array(triggerIDs
+                    .prefix(SymptomLimits.maxTriggersPerRecord)))
+            }
             record.dataSource = RecordDataSource(rawValue: imported.dataSourceRaw ?? 0) ?? .appInput
-            applyImportedWeather(imported.weather, to: record)
+            switch imported.weather {
+            case .absent:
+                break   // 旧形式。既存の環境を保持する
+            case .null:
+                applyImportedWeather(nil, to: record)
+            case .value(let weather):
+                applyImportedWeather(weather, to: record)
+            }
         }
 
         do {
@@ -536,7 +653,7 @@ enum RecordsJSONIO {
     }
 
     private static func applyImportedWeather(_ weather: SymptomWeatherImport?, to record: SymptomRecord) {
-        // weather が無い記録だけ環境を空にする。取得元が "none" でも、
+        // weather が null の記録だけ環境を空にする。取得元が "none" でも、
         // 室内値・端末気圧だけを持つ記録があるので値は取り込む
         guard let weather else {
             record.nTemp_10c = 0
@@ -573,17 +690,17 @@ enum RecordsJSONIO {
             weather.pressureDelta24h, SymptomLimits.pressureDeltaRange_10hpa
         )
         record.bPressureDelta24hSet = weather.pressureDelta24hSet ?? (weather.pressureDelta24h != nil)
-        record.sWeatherSourceURL = String((weather.sourceUrl ?? "").prefix(300))
+        record.sWeatherSourceURL = String((weather.sourceUrl ?? "").prefix(SymptomLimits.weatherSourceURLMaxLength))
         record.dWeatherObservedAt = weather.parsedObservedAt
         record.nDevicePressure_10hpa = clampedSignedDec(
             weather.devicePressure, SymptomLimits.pressureRange_10hpa
         )
-        record.sWeatherSymbol = String((weather.symbol ?? "").prefix(60))
-        record.sWeatherPlace = String((weather.place ?? "").prefix(60))
-        record.sWeatherStationID = String((weather.stationId ?? "").prefix(16))
-        record.sPressureStationID = String((weather.pressureStationId ?? "").prefix(16))
+        record.sWeatherSymbol = String((weather.symbol ?? "").prefix(SymptomLimits.weatherSymbolMaxLength))
+        record.sWeatherPlace = String((weather.place ?? "").prefix(SymptomLimits.weatherPlaceMaxLength))
+        record.sWeatherStationID = String((weather.stationId ?? "").prefix(SymptomLimits.stationIDMaxLength))
+        record.sPressureStationID = String((weather.pressureStationId ?? "").prefix(SymptomLimits.stationIDMaxLength))
         record.nPressureStationDistance_10km = weather.pressureStationDistanceKm
-            .map { max(0, Int(($0 * 10).rounded())) } ?? 0
+            .flatMap { clampedTenths($0, SymptomLimits.pressureStationDistanceRange_10km) } ?? 0
         record.bIndoorTempSet = weather.indoorTemp != nil
         record.nIndoorTemp_10c = weather.indoorTemp
             .map { clampedSignedDec($0, SymptomLimits.tempRange_10c) } ?? 0
@@ -599,8 +716,13 @@ enum RecordsJSONIO {
     /// 気温や気圧差は負の値も正しいので、測定値用の clamp（0=未入力）とは分ける
     static func clampedSignedDec(_ raw: Double?, _ range: (min: Int, max: Int)) -> Int {
         guard let raw else { return 0 }
-        let scaled = Int((raw * 10).rounded())
-        return min(max(scaled, range.min), range.max)
+        return clampedTenths(raw, range) ?? 0
+    }
+
+    /// 小数を ×10 の整数へ。変換の詳細は `SymptomLimits.clampedScaled` を参照
+    /// - Returns: 非有限値（NaN・無限大）は nil
+    static func clampedTenths(_ raw: Double, _ range: (min: Int, max: Int)) -> Int? {
+        SymptomLimits.clampedScaled(raw, scale: 1, range)
     }
 
     static func clampedSignedInt(_ raw: Int?, _ range: (min: Int, max: Int)) -> Int {
@@ -660,10 +782,24 @@ enum RecordsJSONIO {
             record.nWeight_10Kg  = clampedDecMeasure(imported.weight,        spec: MeasureRange.weight)
             record.nBodyFat_10p  = clampedDecMeasure(imported.bodyFat,       spec: MeasureRange.bodyFat)
             record.nSkMuscle_10p = clampedDecMeasure(imported.skeletalMuscle, spec: MeasureRange.skMuscle)
-            // 旧バックアップではnilとなるため従来記録との互換性を保てる
-            record.measurementSampleSet = imported.measurementSamples
-            // 旧形式に環境が無い場合は既存の環境を保持する
-            if let environment = imported.environment { record.environmentSnapshot = environment }
+            // 旧形式で項目が無い場合は既存値を保持し、null なら空にする
+            switch imported.measurementSamples {
+            case .absent:
+                break
+            case .null:
+                record.measurementSampleSet = nil
+            case .value(let sampleSet):
+                record.measurementSampleSet = sampleSet
+            }
+            switch imported.environment {
+            case .absent:
+                break
+            case .null:
+                record.environmentSnapshot = EnvironmentSnapshot()
+            case .value(let environment):
+                // 症状の weather と同じ範囲・文字列長へ収めてから保存する
+                record.environmentSnapshot = environment.normalized()
+            }
         }
 
         do {
@@ -699,8 +835,7 @@ enum RecordsJSONIO {
     /// インポート測定値（小数）を ×10 整数化のうえ、許容範囲内に clamp
     static func clampedDecMeasure(_ raw: Double?, spec: MeasureSpec) -> Int {
         guard let v = raw, v > 0 else { return 0 }
-        let scaled = Int((v * 10).rounded())
-        return min(max(scaled, spec.min), spec.max)
+        return clampedTenths(v, (min: spec.min, max: spec.max)) ?? 0
     }
 
     /// 区分表示マスタを完全な配列に正規化する。未指定区分は既定値で補完。
@@ -721,9 +856,9 @@ enum RecordsJSONIO {
     }
 
     /// Codable値をJSONSerializationへ渡せるオブジェクトに変換する
-    private static func jsonObject<T: Encodable>(_ value: T) -> Any? {
-        guard let data = try? JSONEncoder().encode(value) else { return nil }
-        return try? JSONSerialization.jsonObject(with: data)
+    private static func jsonObject<T: Encodable>(_ value: T) throws -> Any {
+        let data = try JSONEncoder().encode(value)
+        return try JSONSerialization.jsonObject(with: data)
     }
 
     private static func normalizedAppearance(

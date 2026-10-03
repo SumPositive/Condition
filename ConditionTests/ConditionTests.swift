@@ -583,7 +583,7 @@ struct JSONRoundTripTests {
         srcCtx.insert(r)
         try srcCtx.save()
 
-        let data = RecordsJSONIO.export(records: [r], style: .pretty)
+        let data = try RecordsJSONIO.export(records: [r], style: .pretty)
         #expect(!data.isEmpty)
 
         let destContainer = try makeInMemoryContainer()
@@ -629,7 +629,7 @@ struct JSONRoundTripTests {
         sourceContext.insert(record)
         try sourceContext.save()
 
-        let data = RecordsJSONIO.export(records: [record])
+        let data = try RecordsJSONIO.export(records: [record])
         let destinationContainer = try makeInMemoryContainer()
         let destinationContext = ModelContext(destinationContainer)
         try RecordsJSONIO.importJSON(data, into: destinationContext)
@@ -654,7 +654,7 @@ struct JSONRoundTripTests {
             inputs.append(r)
         }
 
-        let data = RecordsJSONIO.export(records: inputs)
+        let data = try RecordsJSONIO.export(records: inputs)
 
         let destContainer = try makeInMemoryContainer()
         let destCtx = ModelContext(destContainer)
@@ -683,8 +683,8 @@ struct JSONRoundTripTests {
         }
         let records = try ctx.fetch(FetchDescriptor<BodyRecord>())
 
-        let compact = RecordsJSONIO.export(records: records, style: .compact)
-        let pretty  = RecordsJSONIO.export(records: records, style: .pretty)
+        let compact = try RecordsJSONIO.export(records: records, style: .compact)
+        let pretty  = try RecordsJSONIO.export(records: records, style: .pretty)
         #expect(compact.count < pretty.count)
 
         let c1 = try makeInMemoryContainer(); let cx1 = ModelContext(c1)
@@ -704,7 +704,7 @@ struct JSONRoundTripTests {
         try seedRecord(ctx)
         let records = try ctx.fetch(FetchDescriptor<BodyRecord>())
 
-        let data = RecordsJSONIO.export(records: records)
+        let data = try RecordsJSONIO.export(records: records)
         let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         #expect(json?["schemaVersion"] as? Int == RecordsJSONIO.currentSchemaVersion)
         #expect(json?["exportDate"] is String)
@@ -720,7 +720,7 @@ struct JSONRoundTripTests {
         let records = try ctx.fetch(FetchDescriptor<BodyRecord>())
 
         let appearances = DateOpt.allCases.map { $0.defaultAppearance }
-        let data = RecordsJSONIO.export(records: records, categoryAppearances: appearances)
+        let data = try RecordsJSONIO.export(records: records, categoryAppearances: appearances)
         let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         let arr = json?["categoryAppearances"] as? [[String: Any]]
         #expect(arr?.count == DateOpt.allCases.count)
@@ -738,7 +738,7 @@ struct JSONRoundTripTests {
                 colorKey: dateOpt == .cat08 ? "gray" : "blue"
             )
         }
-        let data = RecordsJSONIO.export(records: [], categoryAppearances: appearances)
+        let data = try RecordsJSONIO.export(records: [], categoryAppearances: appearances)
         let container = try makeInMemoryContainer()
         let result = try RecordsJSONIO.importJSON(data, into: ModelContext(container))
 
@@ -751,7 +751,7 @@ struct JSONRoundTripTests {
         let valid = BodyRecord(dateTime: bodyRecordMaxDate)
         let overMax = BodyRecord(dateTime: bodyRecordMaxDate.addingTimeInterval(1))
         let goal = BodyRecord(dateTime: bodyRecordGoalDate)
-        let data = RecordsJSONIO.export(records: [valid, overMax, goal])
+        let data = try RecordsJSONIO.export(records: [valid, overMax, goal])
         let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         let records = json?["records"] as? [[String: Any]]
 
@@ -1026,6 +1026,121 @@ struct JSONImportRobustnessTests {
         }
     }
 
+    @Test("複数回測定値と環境が無い旧形式を重ねても既存の値を保持する")
+    @MainActor
+    func legacyImportKeepsSamplesAndEnvironment() throws {
+        let container = try makeInMemoryContainer()
+        let ctx = ModelContext(container)
+        let existing = try seedRecord(ctx, bpHi: 120)
+        existing.measurementSampleSet = MeasurementSampleSet(
+            bpHi: [120, 122], bpLo: [], pulse: [], weight: [], temp: [], bodyFat: [], skMuscle: []
+        )
+        var environment = EnvironmentSnapshot()
+        environment.devicePressure_10hpa = 10085
+        existing.environmentSnapshot = environment
+        try ctx.save()
+
+        let date = RecordsJSONIO.normalizedSecond(existing.dateTime)
+        let data = Self.envelopeJSON([["dateTime": Self.isoString(date), "bpSystolic": 121]])
+        try RecordsJSONIO.importJSON(data, into: ctx)
+
+        let restored = try #require(try ctx.fetch(FetchDescriptor<BodyRecord>()).first)
+        #expect(restored.nBpHi_mmHg == 121)
+        #expect(restored.measurementSampleSet?.bpHi == [120, 122])
+        #expect(restored.environmentSnapshot.devicePressure_10hpa == 10085)
+    }
+
+    @Test("複数回測定値と環境が null なら既存の値を空にする")
+    @MainActor
+    func explicitNullClearsSamplesAndEnvironment() throws {
+        let container = try makeInMemoryContainer()
+        let ctx = ModelContext(container)
+        let existing = try seedRecord(ctx, bpHi: 120)
+        existing.measurementSampleSet = MeasurementSampleSet(
+            bpHi: [120, 122], bpLo: [], pulse: [], weight: [], temp: [], bodyFat: [], skMuscle: []
+        )
+        var environment = EnvironmentSnapshot()
+        environment.devicePressure_10hpa = 10085
+        existing.environmentSnapshot = environment
+        try ctx.save()
+
+        // 値の無い記録の書き出しは null になる
+        let source = BodyRecord(dateTime: existing.dateTime, dateOpt: .cat02)
+        let data = try RecordsJSONIO.export(records: [source])
+        let text = String(data: data, encoding: .utf8) ?? ""
+        #expect(text.contains("\"measurementSamples\":null"))
+        #expect(text.contains("\"environment\":null"))
+
+        try RecordsJSONIO.importJSON(data, into: ctx)
+        let restored = try #require(try ctx.fetch(FetchDescriptor<BodyRecord>()).first)
+        #expect(restored.measurementSampleSet == nil)
+        #expect(!restored.environmentSnapshot.hasAnyValue)
+    }
+
+    @Test("×10で無限大になる極端な小数でもクラッシュせず範囲へ収める")
+    @MainActor
+    func extremeDecimalIsClamped() throws {
+        #expect(RecordsJSONIO.clampedDecMeasure(1e308, spec: MeasureRange.weight) == MeasureRange.weight.max)
+        #expect(RecordsJSONIO.clampedSignedDec(-1e308, SymptomLimits.tempRange_10c) == SymptomLimits.tempRange_10c.min)
+        #expect(RecordsJSONIO.clampedTenths(.nan, SymptomLimits.tempRange_10c) == nil)
+        #expect(RecordsJSONIO.clampedTenths(.infinity, SymptomLimits.tempRange_10c) == nil)
+
+        let ctx = ModelContext(try makeInMemoryContainer())
+        let data = Self.envelopeJSON([
+            ["dateTime": "2026-05-01T09:00:00+09:00", "weight": 1e308, "bodyTemp": 1e308],
+        ])
+        try RecordsJSONIO.importJSON(data, into: ctx)
+        let restored = try #require(try ctx.fetch(FetchDescriptor<BodyRecord>()).first)
+        #expect(restored.nWeight_10Kg == MeasureRange.weight.max)
+        #expect(restored.nTemp_10c == MeasureRange.temp.max)
+    }
+
+    @Test("複数回測定値は項目ごとの範囲へ収め、0以下は未入力にする")
+    @MainActor
+    func extremeMeasurementSamplesAreClamped() throws {
+        let ctx = ModelContext(try makeInMemoryContainer())
+        let data = Self.envelopeJSON([[
+            "dateTime": "2026-05-01T09:00:00+09:00",
+            "bpSystolic": 120,
+            "measurementSamples": [
+                "bpHi": [Int.max, 0, 120, -5],
+                "bpLo": [Int](),
+                "pulse": [Int](),
+                "weight": [Int.max],
+                "temp": [Int](),
+                "bodyFat": [Int](),
+                "skMuscle": [Int](),
+            ] as [String: Any],
+        ]])
+        try RecordsJSONIO.importJSON(data, into: ctx)
+        let restored = try #require(try ctx.fetch(FetchDescriptor<BodyRecord>()).first?.measurementSampleSet)
+        #expect(restored.bpHi == [MeasureRange.bpHi.max, nil, 120, nil])
+        #expect(restored.weight == [MeasureRange.weight.max])
+        // 編集画面と同じ合計でオーバーフローしない
+        #expect(restored.bpHi.compactMap { $0 }.reduce(0, +) == MeasureRange.bpHi.max + 120)
+    }
+
+    @Test("気圧変化量だけの環境もバックアップで往復する")
+    @MainActor
+    func pressureDeltaOnlyEnvironmentRoundTrip() throws {
+        let sourceContext = ModelContext(try makeInMemoryContainer())
+        let record = BodyRecord(dateTime: Date(), dateOpt: .cat02)
+        var environment = EnvironmentSnapshot()
+        environment.pressureDelta24h_10hpa = 0      // 変化量0も有効値
+        environment.isPressureDelta24hSet = true
+        record.environmentSnapshot = environment
+        sourceContext.insert(record)
+        try sourceContext.save()
+
+        let data = try RecordsJSONIO.export(records: [record])
+        let destinationContext = ModelContext(try makeInMemoryContainer())
+        try RecordsJSONIO.importJSON(data, into: destinationContext)
+
+        let restored = try #require(try destinationContext.fetch(FetchDescriptor<BodyRecord>()).first)
+        #expect(restored.environmentSnapshot.isPressureDelta24hSet)
+        #expect(restored.environmentSnapshot.pressureDelta24h_10hpa == 0)
+    }
+
     @Test("区分マスタの欠落・重複・範囲外値・不正表示値を正規化する")
     @MainActor
     func invalidCategoryAppearancesAreNormalized() throws {
@@ -1106,7 +1221,7 @@ struct JSONImportPerformanceTests {
         let records = try ctx.fetch(FetchDescriptor<BodyRecord>())
 
         let start = Date()
-        let data = RecordsJSONIO.export(records: records)
+        let data = try RecordsJSONIO.export(records: records)
         let exportElapsed = Date().timeIntervalSince(start)
         // 1000 件のエクスポートは 2 秒以内
         #expect(exportElapsed < 2.0)
@@ -1130,7 +1245,7 @@ struct JSONImportPerformanceTests {
             try seedRecord(ctx, daysAgo: i)
         }
         let records = try ctx.fetch(FetchDescriptor<BodyRecord>())
-        let data = RecordsJSONIO.export(records: records)
+        let data = try RecordsJSONIO.export(records: records)
 
         let destContainer = try makeInMemoryContainer()
         let destCtx = ModelContext(destContainer)
@@ -1210,7 +1325,7 @@ struct BpSideJSONTests {
         let srcCtx = ModelContext(container)
         let r = try seedRecord(srcCtx, daysAgo: 1, bpSide: side)
 
-        let data = RecordsJSONIO.export(records: [r], style: .pretty)
+        let data = try RecordsJSONIO.export(records: [r], style: .pretty)
         let destCtx = ModelContext(try makeInMemoryContainer())
         try RecordsJSONIO.importJSON(data, into: destCtx)
 
@@ -1225,7 +1340,7 @@ struct BpSideJSONTests {
         let ctx = ModelContext(container)
         let r = try seedRecord(ctx, bpSide: .unknown)
 
-        let data = RecordsJSONIO.export(records: [r])
+        let data = try RecordsJSONIO.export(records: [r])
         let text = String(decoding: data, as: UTF8.self)
         #expect(!text.contains("bpSide"))
     }
@@ -2317,6 +2432,8 @@ private func makeSymptomInMemoryContainer() throws -> ModelContainer {
 @Suite("Symptom Trigger Tests")
 struct SymptomTriggerTests {
 
+    private struct ForcedSaveError: Error {}
+
     @Test("続けて記録は同時発生に共通する項目だけを引き継ぐ")
     @MainActor
     func continuationCarriesSharedValuesOnly() {
@@ -2435,7 +2552,7 @@ struct SymptomTriggerTests {
         let added = triggerTags.add(id: userTagID, customName: "長電話")
         #expect(added)
 
-        let data = RecordsJSONIO.export(records: [], symptoms: [record], triggerTags: triggerTags)
+        let data = try RecordsJSONIO.export(records: [], symptoms: [record], triggerTags: triggerTags)
         // 人が読めるよう表示名も出ている
         let text = String(data: data, encoding: .utf8) ?? ""
         #expect(text.contains("\"triggerIds\""))
@@ -2466,7 +2583,7 @@ struct SymptomTriggerTests {
         sourceContext.insert(record)
         try sourceContext.save()
 
-        let data = RecordsJSONIO.export(records: [], symptoms: [record])
+        let data = try RecordsJSONIO.export(records: [], symptoms: [record])
         let destinationContainer = try makeSymptomInMemoryContainer()
         let destinationContext = ModelContext(destinationContainer)
         try RecordsJSONIO.importJSON(data, into: destinationContext)
@@ -2490,7 +2607,7 @@ struct SymptomTriggerTests {
         sourceContext.insert(record)
         try sourceContext.save()
 
-        let data = RecordsJSONIO.export(records: [], symptoms: [record])
+        let data = try RecordsJSONIO.export(records: [], symptoms: [record])
         let destinationContainer = try makeSymptomInMemoryContainer()
         let destinationContext = ModelContext(destinationContainer)
         try RecordsJSONIO.importJSON(data, into: destinationContext)
@@ -2568,6 +2685,141 @@ struct SymptomTriggerTests {
         #expect(restored.medicineIDs == ["rest"])
     }
 
+    @Test("ID が無く表示名だけの薬・直前の状況は辞書と同梱タグリストから復元する")
+    @MainActor
+    func importResolvesNamesWithoutIDs() throws {
+        let stressName = try #require(TriggerCatalog.entry(for: "stress")).localizedName
+        let userTagID = SymptomTag.newUserDefinedID()
+        let json = """
+        {
+          "schemaVersion": 2,
+          "records": [],
+          "triggerTags": { "tags": [ { "id": "\(userTagID)", "customName": "長電話" } ] },
+          "symptoms": [
+            { "startAt": "2026-05-01T09:00:00+09:00", "symptomId": "headache",
+              "medicines": ["誰も知らない薬"],
+              "triggers": ["\(stressName)", "長電話", "\(stressName)"] }
+          ]
+        }
+        """
+        let context = ModelContext(try makeSymptomInMemoryContainer())
+        try RecordsJSONIO.importJSON(Data(json.utf8), into: context)
+
+        let restored = try #require(try context.fetch(FetchDescriptor<SymptomRecord>()).first)
+        #expect(restored.triggerIDs == ["stress", userTagID])
+        // 引けない名前は取り込まない
+        #expect(restored.medicineIDs.isEmpty)
+    }
+
+    @Test("ID が無く表示名だけの症状は辞書と同梱タグリストから復元する")
+    @MainActor
+    func importResolvesSymptomNameWithoutID() throws {
+        let headacheName = try #require(SymptomCatalog.entry(for: "headache")).localizedName
+        let userSymptomID = SymptomTag.newUserDefinedID()
+        let json = """
+        {
+          "schemaVersion": 2,
+          "records": [],
+          "symptomTags": { "tags": [ { "id": "\(userSymptomID)", "customName": "独自の症状" } ] },
+          "symptoms": [
+            { "startAt": "2026-05-01T09:00:00+09:00", "symptom": "独自の症状" },
+            { "startAt": "2026-05-02T09:00:00+09:00", "symptom": " \(headacheName) " },
+            { "startAt": "2026-05-03T09:00:00+09:00", "symptom": "誰も知らない症状" }
+          ]
+        }
+        """
+        let context = ModelContext(try makeSymptomInMemoryContainer())
+        let result = try RecordsJSONIO.importJSON(Data(json.utf8), into: context)
+        #expect(result.symptomsInserted == 2)
+        #expect(result.symptomsSkipped == 1)
+
+        let restored = try context.fetch(
+            FetchDescriptor<SymptomRecord>(sortBy: [SortDescriptor(\.startAt)])
+        )
+        #expect(restored.map(\.sSymptomID) == [userSymptomID, "headache"])
+    }
+
+    @Test("終了が開始より前の症状は終了日時不明として取り込む")
+    @MainActor
+    func importDropsEndBeforeStart() throws {
+        let json = """
+        {
+          "schemaVersion": 2,
+          "records": [],
+          "symptoms": [
+            { "startAt": "2026-05-01T09:00:00+09:00", "endAt": "2026-05-01T08:00:00+09:00",
+              "symptomId": "headache" },
+            { "startAt": "2026-05-02T09:00:00+09:00", "endAt": "2026-05-02T10:00:00+09:00",
+              "symptomId": "headache" }
+          ]
+        }
+        """
+        let context = ModelContext(try makeSymptomInMemoryContainer())
+        try RecordsJSONIO.importJSON(Data(json.utf8), into: context)
+
+        let restored = try context.fetch(
+            FetchDescriptor<SymptomRecord>(sortBy: [SortDescriptor(\.startAt)])
+        )
+        #expect(restored.count == 2)
+        #expect(restored[0].endAt == nil)
+        #expect(!restored[0].bOngoing)
+        #expect(restored[1].endAt != nil)
+    }
+
+    @Test("環境と直前の状況が無い旧形式を重ねても既存の値を保持する")
+    @MainActor
+    func legacySymptomImportKeepsWeatherAndTriggers() throws {
+        let container = try makeSymptomInMemoryContainer()
+        let context = ModelContext(container)
+        let start = try #require(ISO8601DateFormatter().date(from: "2026-05-01T00:00:00Z"))
+        let existing = SymptomRecord(startAt: start, symptomID: "headache")
+        existing.triggerIDs = ["stress"]
+        existing.nDevicePressure_10hpa = 10085
+        context.insert(existing)
+        try context.save()
+
+        let json = """
+        {
+          "schemaVersion": 2,
+          "records": [],
+          "symptoms": [
+            { "startAt": "2026-05-01T09:00:00+09:00", "symptomId": "headache", "severity": 2 }
+          ]
+        }
+        """
+        let result = try RecordsJSONIO.importJSON(Data(json.utf8), into: context)
+        #expect(result.symptomsUpdated == 1)
+
+        let restored = try #require(try context.fetch(FetchDescriptor<SymptomRecord>()).first)
+        #expect(restored.triggerIDs == ["stress"])
+        #expect(restored.nDevicePressure_10hpa == 10085)
+    }
+
+    @Test("環境と直前の状況が null や空なら既存の値を空にする")
+    @MainActor
+    func explicitNullClearsWeatherAndTriggers() throws {
+        let container = try makeSymptomInMemoryContainer()
+        let context = ModelContext(container)
+        let start = try #require(ISO8601DateFormatter().date(from: "2026-05-01T00:00:00Z"))
+        let existing = SymptomRecord(startAt: start, symptomID: "headache")
+        existing.triggerIDs = ["stress"]
+        existing.nDevicePressure_10hpa = 10085
+        context.insert(existing)
+        try context.save()
+
+        // 値の無い記録の書き出しは weather が null、triggerIds が空配列になる
+        let source = SymptomRecord(startAt: start, symptomID: "headache")
+        let data = try RecordsJSONIO.export(records: [], symptoms: [source])
+        let text = String(data: data, encoding: .utf8) ?? ""
+        #expect(text.contains("\"weather\":null"))
+        #expect(text.contains("\"triggerIds\":[]"))
+
+        try RecordsJSONIO.importJSON(data, into: context)
+        let restored = try #require(try context.fetch(FetchDescriptor<SymptomRecord>()).first)
+        #expect(restored.triggerIDs.isEmpty)
+        #expect(restored.nDevicePressure_10hpa == 0)
+    }
+
     @Test("取り込み時に1件あたりの直前の状況は上限で切り詰める")
     @MainActor
     func importClampsTriggerCount() throws {
@@ -2587,6 +2839,228 @@ struct SymptomTriggerTests {
         try RecordsJSONIO.importJSON(Data(json.utf8), into: context)
         let restored = try #require(try context.fetch(FetchDescriptor<SymptomRecord>()).first)
         #expect(restored.triggerIDs.count == SymptomLimits.maxTriggersPerRecord)
+    }
+
+    @Test("保存失敗時は測定記録と症状メモをまとめてロールバックする")
+    @MainActor
+    func saveFailureRollsBackRecordsAndSymptoms() throws {
+        let json = """
+        {
+          "schemaVersion": 2,
+          "records": [
+            { "dateTime": "2026-05-01T08:00:00+09:00", "bpSystolic": 130 }
+          ],
+          "symptoms": [
+            { "startAt": "2026-05-01T09:00:00+09:00", "symptomId": "headache" }
+          ]
+        }
+        """
+        let container = try makeSymptomInMemoryContainer()
+        let context = ModelContext(container)
+        var saveCount = 0
+        do {
+            _ = try RecordsJSONIO.importJSON(Data(json.utf8), into: context) { _ in
+                saveCount += 1
+                throw ForcedSaveError()
+            }
+            Issue.record("保存失敗がスローされませんでした")
+        } catch is ForcedSaveError {
+            // 測定記録だけ先に保存されないよう、保存は1回にまとまっている
+            #expect(saveCount == 1)
+            #expect(try context.fetch(FetchDescriptor<BodyRecord>()).isEmpty)
+            #expect(try context.fetch(FetchDescriptor<SymptomRecord>()).isEmpty)
+        }
+    }
+
+    @Test("症状メモの保存だけが失敗しても、測定記録も既存の値へ戻る")
+    @MainActor
+    func symptomOnlySaveFailureRollsBackRecords() throws {
+        let container = try makeSymptomInMemoryContainer()
+        let context = ModelContext(container)
+        let existing = try seedRecord(context, bpHi: 120)
+        let date = RecordsJSONIO.normalizedSecond(existing.dateTime)
+        let iso = ISO8601DateFormatter()
+        let json = """
+        {
+          "schemaVersion": 2,
+          "records": [
+            { "dateTime": "\(iso.string(from: date))", "bpSystolic": 150 },
+            { "dateTime": "\(iso.string(from: date.addingTimeInterval(-3_600)))", "bpSystolic": 130 }
+          ],
+          "symptoms": [
+            { "startAt": "2026-05-01T09:00:00+09:00", "symptomId": "headache" }
+          ]
+        }
+        """
+        do {
+            // 症状メモを含む保存だけを失敗させる。測定記録だけなら実際に保存する
+            _ = try RecordsJSONIO.importJSON(Data(json.utf8), into: context) { ctx in
+                if ctx.insertedModelsArray.contains(where: { $0 is SymptomRecord }) {
+                    throw ForcedSaveError()
+                }
+                try ctx.save()
+            }
+            Issue.record("保存失敗がスローされませんでした")
+        } catch is ForcedSaveError {
+            let records = try context.fetch(FetchDescriptor<BodyRecord>())
+            #expect(records.count == 1)
+            #expect(records.first?.nBpHi_mmHg == 120)
+            #expect(try context.fetch(FetchDescriptor<SymptomRecord>()).isEmpty)
+        }
+    }
+
+    @Test("症状の環境に極端な小数を含む JSON でもクラッシュせず範囲へ収める")
+    @MainActor
+    func extremeWeatherValuesAreClamped() throws {
+        let json = """
+        {
+          "schemaVersion": 2,
+          "records": [],
+          "symptoms": [
+            { "startAt": "2026-05-01T09:00:00+09:00", "symptomId": "headache",
+              "weather": { "source": "jma", "temp": 1e308, "pressure": -1e308,
+                           "pressureDelta24h": 1e308, "devicePressure": 1e308,
+                           "pressureStationId": "x", "pressureStationDistanceKm": 1e308,
+                           "indoorTemp": -1e308, "humidity": \(Int.max) } }
+          ]
+        }
+        """
+        let context = ModelContext(try makeSymptomInMemoryContainer())
+        try RecordsJSONIO.importJSON(Data(json.utf8), into: context)
+
+        let restored = try #require(try context.fetch(FetchDescriptor<SymptomRecord>()).first)
+        #expect(restored.nTemp_10c == SymptomLimits.tempRange_10c.max)
+        #expect(restored.nPressure_10hpa == SymptomLimits.pressureRange_10hpa.min)
+        #expect(restored.nPressureDelta24h_10hpa == SymptomLimits.pressureDeltaRange_10hpa.max)
+        #expect(restored.nDevicePressure_10hpa == SymptomLimits.pressureRange_10hpa.max)
+        #expect(restored.nPressureStationDistance_10km == SymptomLimits.pressureStationDistanceRange_10km.max)
+        #expect(restored.nIndoorTemp_10c == SymptomLimits.tempRange_10c.min)
+        #expect(restored.nHumidity_p == SymptomLimits.humidityRange_p.max)
+    }
+
+    @Test("測定記録の環境も症状と同じ範囲・文字列長へ収めて取り込む")
+    @MainActor
+    func importedBodyEnvironmentIsNormalized() throws {
+        let longText = String(repeating: "あ", count: 500)
+        let environment: [String: Any] = [
+            "temp_10c": Int.max,
+            "humidity_p": -5,
+            "pressure_10hpa": 0,                // 未取得は下限へ引き上げない
+            "pressureDelta24h_10hpa": Int.min,
+            "devicePressure_10hpa": Int.max,
+            "pressureStationDistance_10km": Int.max,
+            "indoorTemp_10c": Int.min,
+            "indoorHumidity_p": Int.max,
+            "place": longText,
+            "weatherSymbol": longText,
+            "stationID": longText,
+            "pressureStationID": longText,
+            "sourceURL": longText,
+        ]
+        // EnvironmentSnapshot は合成 Codable なので、残りのキーは既定値の書き出しから補う
+        var object = try #require(
+            try JSONSerialization.jsonObject(with: JSONEncoder().encode(EnvironmentSnapshot())) as? [String: Any]
+        )
+        object.merge(environment) { _, new in new }
+        let json: [String: Any] = [
+            "schemaVersion": 2,
+            "records": [[
+                "dateTime": "2026-05-01T09:00:00+09:00",
+                "bpSystolic": 120,
+                "environment": object,
+            ] as [String: Any]],
+        ]
+        let context = ModelContext(try makeSymptomInMemoryContainer())
+        try RecordsJSONIO.importJSON(try JSONSerialization.data(withJSONObject: json), into: context)
+
+        let restored = try #require(try context.fetch(FetchDescriptor<BodyRecord>()).first).environmentSnapshot
+        #expect(restored.temp_10c == SymptomLimits.tempRange_10c.max)
+        #expect(restored.humidity_p == SymptomLimits.humidityRange_p.min)
+        #expect(restored.pressure_10hpa == 0)
+        #expect(restored.pressureDelta24h_10hpa == SymptomLimits.pressureDeltaRange_10hpa.min)
+        #expect(restored.devicePressure_10hpa == SymptomLimits.pressureRange_10hpa.max)
+        #expect(restored.pressureStationDistance_10km == SymptomLimits.pressureStationDistanceRange_10km.max)
+        #expect(restored.indoorTemp_10c == SymptomLimits.tempRange_10c.min)
+        #expect(restored.indoorHumidity_p == SymptomLimits.humidityRange_p.max)
+        #expect(restored.place.count == SymptomLimits.weatherPlaceMaxLength)
+        #expect(restored.weatherSymbol.count == SymptomLimits.weatherSymbolMaxLength)
+        #expect(restored.stationID.count == SymptomLimits.stationIDMaxLength)
+        #expect(restored.pressureStationID.count == SymptomLimits.stationIDMaxLength)
+        #expect(restored.sourceURL.count == SymptomLimits.weatherSourceURLMaxLength)
+    }
+
+    @Test("極端な観測所距離を持つ環境でも、環境シートの保存でクラッシュしない")
+    @MainActor
+    func extremeStationDistanceDoesNotCrashEnvironmentSheet() {
+        var snapshot = EnvironmentSnapshot()
+        snapshot.source = .jma
+        snapshot.pressure_10hpa = 10130
+        snapshot.pressureStationID = "x"
+        snapshot.pressureStationDistance_10km = Int.max
+        let vm = EnvironmentEditViewModel(snapshot: snapshot, recordDate: Date())
+        #expect(vm.snapshot().pressureStationDistance_10km == SymptomLimits.pressureStationDistanceRange_10km.max)
+    }
+
+    @Test("Int.max の観測所距離を取り込んでから環境シートで保存してもクラッシュしない")
+    @MainActor
+    func importedExtremeStationDistanceSurvivesEnvironmentSheet() throws {
+        var object = try #require(
+            try JSONSerialization.jsonObject(with: JSONEncoder().encode(EnvironmentSnapshot())) as? [String: Any]
+        )
+        object["source"] = SymptomWeatherSource.jma.rawValue
+        object["pressure_10hpa"] = 10130
+        object["pressureStationID"] = "x"
+        object["pressureStationDistance_10km"] = Int.max
+        let json: [String: Any] = [
+            "schemaVersion": 2,
+            "records": [[
+                "dateTime": "2026-05-01T09:00:00+09:00",
+                "bpSystolic": 120,
+                "environment": object,
+            ] as [String: Any]],
+        ]
+        let context = ModelContext(try makeSymptomInMemoryContainer())
+        try RecordsJSONIO.importJSON(try JSONSerialization.data(withJSONObject: json), into: context)
+
+        let record = try #require(try context.fetch(FetchDescriptor<BodyRecord>()).first)
+        // 取り込み時点で範囲へ収まっている
+        #expect(record.environmentSnapshot.pressureStationDistance_10km
+            == SymptomLimits.pressureStationDistanceRange_10km.max)
+
+        // 環境シートで開いて保存し、記録へ書き戻す
+        let vm = EnvironmentEditViewModel(snapshot: record.environmentSnapshot, recordDate: record.dateTime)
+        record.environmentSnapshot = vm.snapshot()
+        #expect(record.environmentSnapshot.pressureStationDistance_10km
+            == SymptomLimits.pressureStationDistanceRange_10km.max)
+    }
+
+    @Test("ユーザー追加タグを残したまま、別々のバックアップを続けて統合できる")
+    @MainActor
+    func mergeSeveralBackupsKeepsUserDefinedTags() throws {
+        let localID = SymptomTag.newUserDefinedID()
+        var local = SymptomTagList(tags: TriggerCatalog.defaultTagIDs.map { SymptomTag(id: $0) })
+        local.add(id: localID, customName: "端末だけ")
+
+        // 実際の書き出し→読み込みを通したタグリストを統合する
+        func importedTags(userID: String, name: String) throws -> SymptomTagList {
+            var tags = SymptomTagList(tags: [SymptomTag(id: "stress")])
+            tags.add(id: userID, customName: name)
+            let record = SymptomRecord(startAt: Date(timeIntervalSince1970: 1_780_000_000), symptomID: "headache")
+            record.triggerIDs = [userID]
+            let data = try RecordsJSONIO.export(records: [], symptoms: [record], triggerTags: tags)
+            let result = try RecordsJSONIO.importJSON(data, into: ModelContext(try makeSymptomInMemoryContainer()))
+            return try #require(result.triggerTags)
+        }
+        let firstID = SymptomTag.newUserDefinedID()
+        let secondID = SymptomTag.newUserDefinedID()
+        local.merge(imported: try importedTags(userID: firstID, name: "1つ目"))
+        local.merge(imported: try importedTags(userID: secondID, name: "2つ目"))
+
+        #expect(local.tag(for: localID)?.triggerDisplayName == "端末だけ")
+        #expect(local.tag(for: firstID)?.triggerDisplayName == "1つ目")
+        #expect(local.tag(for: secondID)?.triggerDisplayName == "2つ目")
+        // 両方のバックアップにある辞書タグは重複しない
+        #expect(local.tags.filter { $0.id == "stress" }.count == 1)
     }
 
     @Test("思い当たらないを含む取り込みは単独選択へ整える")
@@ -2669,6 +3143,124 @@ struct SymptomTriggerTests {
         #expect(list.contains("stress"))
     }
 
+    @Test("取り込んだタグリストは既存と ID 単位で統合し、バックアップに無いタグも残す")
+    func mergeImportedTagListKeepsLocalTags() {
+        let localID = SymptomTag.newUserDefinedID()
+        var local = SymptomTagList(tags: [SymptomTag(id: "stress")])
+        local.add(id: localID, customName: "local")
+        local.markUsed(id: "stress", at: Date(timeIntervalSince1970: 2_000))
+
+        let importedID = SymptomTag.newUserDefinedID()
+        var importedStress = SymptomTag(id: "stress", customName: "renamed")
+        importedStress.lastUsedAt = Date(timeIntervalSince1970: 1_000)
+        let imported = SymptomTagList(tags: [importedStress, SymptomTag(id: importedID, customName: "backup")])
+
+        local.merge(imported: imported)
+        #expect(local.tags.count == 3)
+        #expect(local.tag(for: localID)?.customName == "local")
+        #expect(local.tag(for: importedID)?.customName == "backup")
+        #expect(local.tag(for: "stress")?.customName == "renamed")
+        // 新しい方の最終使用日時が残る
+        #expect(local.tag(for: "stress")?.lastUsedAt == Date(timeIntervalSince1970: 2_000))
+    }
+
+    @Test("取り込んだタグは名前・色・使用回数を正規化し、使えない ID と重複を除く")
+    func mergeNormalizesImportedTags() {
+        var badColor = SymptomTag(id: "stress", customName: String(repeating: "長", count: 100))
+        badColor.colorKey = "notAColor"
+        badColor.useCount = -5
+        var goodColor = SymptomTag(id: "cold")
+        goodColor.colorKey = "blue"
+        let duplicate = SymptomTag(id: "stress", customName: "重複")
+        let imported = SymptomTagList(tags: [
+            badColor,
+            goodColor,
+            duplicate,
+            SymptomTag(id: ""),
+            SymptomTag(id: "   "),
+            SymptomTag(id: String(repeating: "x", count: SymptomLimits.tagIDMaxLength + 1)),
+        ])
+
+        var list = SymptomTagList()
+        list.merge(imported: imported)
+        #expect(list.tags.map(\.id) == ["stress", "cold"])
+        let stress = list.tag(for: "stress")
+        // 同じ ID の重複は1件にまとまり、名前は後のもので上書きされる
+        #expect(stress?.customName == "重複")
+        #expect(stress?.colorKey == "")
+        #expect(stress?.useCount == 0)
+        #expect(list.tag(for: "cold")?.colorKey == "blue")
+
+        var single = SymptomTagList()
+        single.merge(imported: SymptomTagList(tags: [badColor]))
+        #expect(single.tag(for: "stress")?.customName.count == SymptomLimits.tagNameMaxLength)
+    }
+
+    @Test("統合の仕様：名前は空でない側、非表示は両方で非表示のときだけ、使用回数は大きい方")
+    func mergePrefersDeviceStateForEmptyNameAndVisibility() {
+        // 端末側：名前を変えて表示中、よく使っている
+        var deviceTag = SymptomTag(id: "stress", customName: "端末の名前")
+        deviceTag.useCount = 10
+        // 端末側：非表示にしたタグ
+        var deviceHidden = SymptomTag(id: "cold", customName: "")
+        deviceHidden.isHidden = true
+        var device = SymptomTagList(tags: [deviceTag, deviceHidden])
+
+        // バックアップ側：名前は既定（空）で非表示、使用回数は少ない
+        var backupTag = SymptomTag(id: "stress", customName: "")
+        backupTag.isHidden = true
+        backupTag.useCount = 3
+        // バックアップ側：名前を付けて表示中
+        let backupVisible = SymptomTag(id: "cold", customName: "バックアップの名前")
+        device.merge(imported: SymptomTagList(tags: [backupTag, backupVisible]))
+
+        let stress = device.tag(for: "stress")
+        // バックアップの名前が空なら端末の名前を残す
+        #expect(stress?.customName == "端末の名前")
+        // どちらかで表示中なら表示
+        #expect(stress?.isHidden == false)
+        // 使用回数は置き換えずに大きい方
+        #expect(stress?.useCount == 10)
+
+        let cold = device.tag(for: "cold")
+        // バックアップに名前があればバックアップを優先
+        #expect(cold?.customName == "バックアップの名前")
+        // 端末で非表示でも、バックアップで表示中なら表示に戻る
+        #expect(cold?.isHidden == false)
+
+        // 両方で非表示のときだけ非表示のまま
+        var hiddenBoth = SymptomTag(id: "lackOfSleep")
+        hiddenBoth.isHidden = true
+        var list = SymptomTagList(tags: [hiddenBoth])
+        list.merge(imported: SymptomTagList(tags: [hiddenBoth]))
+        #expect(list.tag(for: "lackOfSleep")?.isHidden == true)
+    }
+
+    @Test("上限調整では記録から参照中のタグを優先して残す")
+    func trimToLimitPreservesUsedTags() {
+        var list = SymptomTagList(tags: (0..<(SymptomLimits.maxTagsPerList + 1)).map { index in
+            var tag = SymptomTag(id: "u:\(index)", customName: "tag\(index)")
+            tag.lastUsedAt = Date(timeIntervalSince1970: TimeInterval(10_000 - index))
+            return tag
+        })
+        // 最も古いタグだけが記録から参照されている
+        let usedID = "u:\(SymptomLimits.maxTagsPerList)"
+        list.trimToLimit(preserving: [usedID])
+        #expect(list.tags.count == SymptomLimits.maxTagsPerList)
+        #expect(list.contains(usedID))
+        #expect(!list.contains("u:\(SymptomLimits.maxTagsPerList - 1)"))
+    }
+
+    @Test("参照中のタグだけで上限を超えても、参照中のタグはすべて残す")
+    func trimToLimitKeepsAllUsedTagsBeyondLimit() {
+        let total = SymptomLimits.maxTagsPerList + 5
+        var list = SymptomTagList(tags: (0..<total).map { SymptomTag(id: "u:\($0)", customName: "tag\($0)") })
+        let usedIDs = Set((0..<(SymptomLimits.maxTagsPerList + 2)).map { "u:\($0)" })
+        list.trimToLimit(preserving: usedIDs)
+        #expect(list.tags.count == usedIDs.count)
+        #expect(Set(list.tags.map(\.id)) == usedIDs)
+    }
+
     @Test("分析の配置に発症と直前の状況の図表が補われる")
     func analysisLayoutIncludesTriggers() {
         let layout = AnalysisLayout.migrated(
@@ -2702,7 +3294,7 @@ struct SettingsBackupTests {
         backup.analysisLayout = layout
         backup.goals = ["bpHi": 125, "weight": 650]
 
-        let data = RecordsJSONIO.export(records: [], settings: backup)
+        let data = try RecordsJSONIO.export(records: [], settings: backup)
         let container = try makeSymptomInMemoryContainer()
         let result = try RecordsJSONIO.importJSON(data, into: ModelContext(container))
         #expect(result.settings == backup)

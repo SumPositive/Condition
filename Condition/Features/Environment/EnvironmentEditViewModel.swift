@@ -263,10 +263,10 @@ final class EnvironmentEditViewModel {
     /// 入力内容をスナップショットに戻す
     func snapshot() -> EnvironmentSnapshot {
         var result = EnvironmentSnapshot()
-        let temp = Self.scaledInt(tempText, scale: 1)
+        let temp = Self.scaledInt(tempText, scale: 1, SymptomLimits.tempRange_10c)
         let humidity = Int(humidityText.trimmingCharacters(in: .whitespaces))
-        let pressure = Self.scaledInt(pressureText, scale: 1)
-        let indoorTemp = Self.scaledInt(indoorTempText, scale: 1)
+        let pressure = Self.scaledInt(pressureText, scale: 1, SymptomLimits.pressureRange_10hpa)
+        let indoorTemp = Self.scaledInt(indoorTempText, scale: 1, SymptomLimits.tempRange_10c)
         let indoorHumidity = Int(indoorHumidityText.trimmingCharacters(in: .whitespaces))
         let trimmedPlace = place.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -275,7 +275,7 @@ final class EnvironmentEditViewModel {
         result.humidity_p = Self.clamped(humidity, SymptomLimits.humidityRange_p)
         result.isHumiditySet = humidity != nil
         result.pressure_10hpa = Self.clamped(pressure, SymptomLimits.pressureRange_10hpa)
-        result.place = String(trimmedPlace.prefix(60))
+        result.place = String(trimmedPlace.prefix(SymptomLimits.weatherPlaceMaxLength))
         result.weatherSymbol = weatherSymbol
         result.devicePressure_10hpa = devicePressure_10hpa
 
@@ -301,8 +301,9 @@ final class EnvironmentEditViewModel {
             )
             result.isPressureDelta24hSet = pressureDelta24h_10hpa != nil
             result.pressureStationID = pressureStationID
+            // 取り込んだ極端な距離でも Int 変換でクラッシュしないよう範囲へ収める
             result.pressureStationDistance_10km = pressureDistanceKm
-                .map { Int(($0 * 10).rounded()) } ?? 0
+                .flatMap { SymptomLimits.clampedScaled($0, scale: 1, SymptomLimits.pressureStationDistanceRange_10km) } ?? 0
             result.sourceURL = sourceURL
         }
         result.stationID = (tempEdited && humidityEdited) ? "" : stationID
@@ -328,10 +329,11 @@ final class EnvironmentEditViewModel {
         return String(format: "%.\(scale)f", Double(value) / pow(10, Double(scale)))
     }
 
-    private static func scaledInt(_ text: String, scale: Int) -> Int? {
+    /// 貼り付けで "1e308" のような値が入っても Int 変換でクラッシュしないよう、範囲へ収めて返す
+    private static func scaledInt(_ text: String, scale: Int, _ range: (min: Int, max: Int)) -> Int? {
         let trimmed = text.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty, let value = Double(trimmed) else { return nil }
-        return Int((value * pow(10, Double(scale))).rounded())
+        return SymptomLimits.clampedScaled(value, scale: scale, range)
     }
 
     private static func clamped(_ value: Int?, _ range: (min: Int, max: Int)) -> Int {

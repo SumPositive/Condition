@@ -628,20 +628,8 @@ struct SettingsView: View {
                 predicate: #Predicate { $0.dateTime < bodyRecordGoalDate },
                 sortBy: [SortDescriptor(\BodyRecord.dateTime)]
             )
-            let records = (try? context.fetch(descriptor)) ?? []
             let symptomDescriptor = FetchDescriptor<SymptomRecord>(
                 sortBy: [SortDescriptor(\SymptomRecord.startAt)]
-            )
-            let symptoms = (try? context.fetch(symptomDescriptor)) ?? []
-            let data = RecordsJSONIO.export(
-                records: records,
-                symptoms: symptoms,
-                style: exportFormat,
-                categoryAppearances: RecordsJSONIO.normalizedDateOptAppearances(settings.dateOptAppearances),
-                symptomTags: settings.symptomTags,
-                medicineTags: settings.medicineTags,
-                triggerTags: settings.triggerTags,
-                settings: settings.makeBackup()
             )
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyyMMdd_HHmmss"
@@ -649,6 +637,19 @@ struct SettingsView: View {
             let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
 
             do {
+                // 読み出しに失敗したら0件扱いで続けず中止する。欠けたバックアップを共有させないため
+                let records = try context.fetch(descriptor)
+                let symptoms = try context.fetch(symptomDescriptor)
+                let data = try RecordsJSONIO.export(
+                    records: records,
+                    symptoms: symptoms,
+                    style: exportFormat,
+                    categoryAppearances: RecordsJSONIO.normalizedDateOptAppearances(settings.dateOptAppearances),
+                    symptomTags: settings.symptomTags,
+                    medicineTags: settings.medicineTags,
+                    triggerTags: settings.triggerTags,
+                    settings: settings.makeBackup()
+                )
                 try data.write(to: url, options: Data.WritingOptions.atomic)
                 AppAnalytics.shared.logOperation("records_json_export", parameters: ["record_count": records.count])
                 progressMessage = String(localized: "settings.share.exportOpening")
@@ -689,20 +690,32 @@ struct SettingsView: View {
                     // バックアップに同梱された区分表示マスタを復元する
                     settings.dateOptAppearances = RecordsJSONIO.normalizedDateOptAppearances(categoryAppearances)
                 }
-                // 症状・薬のタグリスト（表示名と並び順）も復元する。
+                // 症状・薬・直前の状況のタグリスト（表示名と並び順）も復元する。
+                // 記録と同じく既存と ID 単位で統合し、端末内のタグは消さない。
                 // 取り込む側の数は決められないので、ここで上限に収める。
-                // 最終使用日時の新しい順に残るので、落ちるのは未使用のタグになる
-                if var symptomTags = result.symptomTags {
-                    symptomTags.trimToLimit()
-                    settings.symptomTags = symptomTags
-                }
-                if var medicineTags = result.medicineTags {
-                    medicineTags.trimToLimit()
-                    settings.medicineTags = medicineTags
-                }
-                if var triggerTags = result.triggerTags {
-                    triggerTags.trimToLimit()
-                    settings.triggerTags = triggerTags
+                // 記録から参照中のタグを優先して残し、落ちるのは未使用のタグになる
+                if result.symptomTags != nil || result.medicineTags != nil || result.triggerTags != nil {
+                    // 記録の保存は済んでいるので、ここで失敗しても取り込み全体は失敗にしない。
+                    // 参照中の ID が分からないときは最終使用日時の順だけで上限に収める
+                    let symptomRecords = (try? context.fetch(FetchDescriptor<SymptomRecord>())) ?? []
+                    if let imported = result.symptomTags {
+                        var symptomTags = settings.symptomTags
+                        symptomTags.merge(imported: imported)
+                        symptomTags.trimToLimit(preserving: Set(symptomRecords.map(\.sSymptomID)))
+                        settings.symptomTags = symptomTags
+                    }
+                    if let imported = result.medicineTags {
+                        var medicineTags = settings.medicineTags
+                        medicineTags.merge(imported: imported)
+                        medicineTags.trimToLimit(preserving: Set(symptomRecords.flatMap(\.medicineIDs)))
+                        settings.medicineTags = medicineTags
+                    }
+                    if let imported = result.triggerTags {
+                        var triggerTags = settings.triggerTags
+                        triggerTags.merge(imported: imported)
+                        triggerTags.trimToLimit(preserving: Set(symptomRecords.flatMap(\.triggerIDs)))
+                        settings.triggerTags = triggerTags
+                    }
                 }
                 AppAnalytics.shared.logOperation(
                     "records_json_import",

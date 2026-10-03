@@ -48,6 +48,19 @@ struct SymptomTag: Codable, Equatable, Identifiable {
         isHidden   = try c.decodeIfPresent(Bool.self, forKey: .isHidden) ?? false
     }
 
+    /// 取り込んだタグを画面操作で作れる形へ揃える。
+    /// 外部作成や破損した JSON で表示が崩れたり UserDefaults が肥大化したりしないようにする
+    /// - Returns: ID が空または長すぎて使えないときは nil
+    func normalized() -> SymptomTag? {
+        guard !id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              id.count <= SymptomLimits.tagIDMaxLength else { return nil }
+        var tag = self
+        tag.customName = SymptomTagList.limitedName(customName)
+        if !DateOptColorOption.all.contains(where: { $0.id == colorKey }) { tag.colorKey = "" }
+        tag.useCount = max(useCount, 0)
+        return tag
+    }
+
 }
 
 // MARK: - 表示名・アイコン・色の解決
@@ -160,11 +173,57 @@ struct SymptomTagList: Codable, Equatable {
     /// 機械的に先頭から切ると、実際に使っているタグが落ちて過去の記録が
     /// 名前を引けなくなる。最終使用日時の新しい順に残し、
     /// 消えるのを未使用のものに寄せる
-    mutating func trimToLimit() {
+    ///
+    ///
+    /// - Parameter usedIDs: 記録から参照中の ID。上限を超えても必ず残す
+    ///   （落とすと記録が名前を引けず「不明」表示になるため）。
+    ///   参照中だけで上限を超えたときは未使用のタグをすべて捨てる
+    mutating func trimToLimit(preserving usedIDs: Set<String> = []) {
         guard tags.count > SymptomLimits.maxTagsPerList else { return }
-        tags = Array(
-            tags.sorted(by: Self.isOrderedBefore).prefix(SymptomLimits.maxTagsPerList)
-        )
+        let sorted = tags.sorted(by: Self.isOrderedBefore)
+        let used = sorted.filter { usedIDs.contains($0.id) }
+        let unused = sorted.filter { !usedIDs.contains($0.id) }
+        let room = max(SymptomLimits.maxTagsPerList - used.count, 0)
+        tags = (used + unused.prefix(room)).sorted(by: Self.isOrderedBefore)
+    }
+
+    /// バックアップのタグリストを ID 単位で統合する
+    ///
+    /// 【仕様】バックアップ時点の完全な再現ではなく、現在の端末を残したまま足し合わせる統合とする。
+    /// 記録の取り込み（同じ日時は更新、無いものは追加、端末だけの記録は残す）と揃えるため。
+    /// 丸ごと置き換えると、端末内に残る記録が参照するタグ（特にユーザー追加タグ）が
+    /// 名前を失い「不明」表示になる
+    ///
+    /// 同じ ID のタグの扱い
+    /// - 名前・色：バックアップ側に値があればバックアップを優先。空なら端末側を残す
+    ///   （バックアップで既定名に戻していても、端末の変更名は消えない）
+    /// - 非表示：両方で非表示のときだけ非表示。どちらかで表示中なら表示
+    ///   （バックアップで非表示にしていても、端末で表示中なら表示のまま）
+    /// - 使用回数：大きい方。最終使用日時：新しい方。追加日時：古い方
+    /// - バックアップに無いタグ：端末側をそのまま残す
+    ///
+    /// 取り込み側は1件ずつ正規化し、使えない ID は捨てる
+    /// 取り込み側に同じ ID が重複していても、ここで1件にまとまる
+    mutating func merge(imported: SymptomTagList) {
+        for incoming in imported.tags.compactMap({ $0.normalized() }) {
+            guard let index = tags.firstIndex(where: { $0.id == incoming.id }) else {
+                tags.append(incoming)
+                continue
+            }
+            var tag = tags[index]
+            if !incoming.customName.isEmpty { tag.customName = incoming.customName }
+            if !incoming.colorKey.isEmpty { tag.colorKey = incoming.colorKey }
+            tag.addedAt = min(tag.addedAt, incoming.addedAt)
+            if let incomingLastUsed = incoming.lastUsedAt,
+               tag.lastUsedAt.map({ $0 < incomingLastUsed }) ?? true {
+                tag.lastUsedAt = incomingLastUsed
+            }
+            // 同じ端末のバックアップを戻すことが多いので、足すと二重に数えてしまう
+            tag.useCount = max(tag.useCount, incoming.useCount)
+            // どちらかで表示しているなら表示に戻す
+            tag.isHidden = tag.isHidden && incoming.isHidden
+            tags[index] = tag
+        }
     }
 
     /// 名前を変える。一覧に無いプリセットは先に登録してから書き込む。

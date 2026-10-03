@@ -47,8 +47,39 @@ struct EnvironmentSnapshot: Codable, Equatable, Sendable {
     var isPressureEdited: Bool = false
 
     var hasAnyValue: Bool {
-        source.isPresent || isTempSet || isHumiditySet || pressure_10hpa != 0 || devicePressure_10hpa != 0
-            || isIndoorTempSet || isIndoorHumiditySet
+        source.isPresent || isTempSet || isHumiditySet || pressure_10hpa != 0 || isPressureDelta24hSet
+            || devicePressure_10hpa != 0 || isIndoorTempSet || isIndoorHumiditySet
+    }
+
+    /// 取り込んだ値を症状の weather と同じ範囲・文字列長へ収める。
+    /// 外部作成や破損した JSON の極端な値をそのまま保存しないため
+    func normalized() -> EnvironmentSnapshot {
+        var result = self
+        result.temp_10c = Self.clamped(temp_10c, SymptomLimits.tempRange_10c)
+        result.humidity_p = Self.clamped(humidity_p, SymptomLimits.humidityRange_p)
+        // 気圧は 0 が未取得なので、範囲の下限へ引き上げない
+        result.pressure_10hpa = pressure_10hpa == 0
+            ? 0 : Self.clamped(pressure_10hpa, SymptomLimits.pressureRange_10hpa)
+        result.pressureDelta24h_10hpa = Self.clamped(
+            pressureDelta24h_10hpa, SymptomLimits.pressureDeltaRange_10hpa
+        )
+        result.devicePressure_10hpa = devicePressure_10hpa == 0
+            ? 0 : Self.clamped(devicePressure_10hpa, SymptomLimits.pressureRange_10hpa)
+        result.pressureStationDistance_10km = Self.clamped(
+            pressureStationDistance_10km, SymptomLimits.pressureStationDistanceRange_10km
+        )
+        result.indoorTemp_10c = Self.clamped(indoorTemp_10c, SymptomLimits.tempRange_10c)
+        result.indoorHumidity_p = Self.clamped(indoorHumidity_p, SymptomLimits.humidityRange_p)
+        result.place = String(place.prefix(SymptomLimits.weatherPlaceMaxLength))
+        result.weatherSymbol = String(weatherSymbol.prefix(SymptomLimits.weatherSymbolMaxLength))
+        result.stationID = String(stationID.prefix(SymptomLimits.stationIDMaxLength))
+        result.pressureStationID = String(pressureStationID.prefix(SymptomLimits.stationIDMaxLength))
+        result.sourceURL = String(sourceURL.prefix(SymptomLimits.weatherSourceURLMaxLength))
+        return result
+    }
+
+    private static func clamped(_ value: Int, _ range: (min: Int, max: Int)) -> Int {
+        min(max(value, range.min), range.max)
     }
 }
 

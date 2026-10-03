@@ -317,6 +317,9 @@ enum SymptomLimits {
     /// ユーザーが付けるタグ名の最大文字数。
     /// 長いとタグ行が横に伸びて折り返しが増え、一覧セルの連結も読みにくくなる
     static let tagNameMaxLength = 20
+    /// タグ ID の最大文字数。辞書の slug やユーザー追加の "u:<UUID>"（38文字）に余裕を持たせる。
+    /// 取り込みで極端に長い ID を UserDefaults へ溜め込まないための上限
+    static let tagIDMaxLength = 64
     /// 1件に付けられる薬の最大数
     static let maxMedicinesPerRecord = 10
     /// 1件に付けられる直前の状況の最大数
@@ -332,6 +335,23 @@ enum SymptomLimits {
     static let humidityRange_p      = (min: 0,    max: 100)      // 0 〜 100 %
     static let pressureRange_10hpa  = (min: 8000, max: 11000)    // 800.0 〜 1100.0 hPa
     static let pressureDeltaRange_10hpa = (min: -1000, max: 1000) // ±100.0 hPa
+    /// 気圧観測所までの距離。国内の観測所なら数十km以内だが、捨てずに広めに取る
+    static let pressureStationDistanceRange_10km = (min: 0, max: 100_000) // 0 〜 10,000.0 km
+    /// 環境の文字列の保存上限（地名・天気記号・観測所ID・出典URL）
+    static let weatherPlaceMaxLength = 60
+    static let weatherSymbolMaxLength = 60
+    static let stationIDMaxLength = 16
+    static let weatherSourceURLMaxLength = 300
+
+    /// 小数を 10^scale 倍した整数へ。Int へ変換する前に Double のまま範囲へ収める。
+    /// 1e308 のような値は倍にすると無限大になり、Int.max 付近も Double では
+    /// 2^63 に丸まるので、そのまま Int へ変換すると実行時にクラッシュするため
+    /// - Returns: 非有限値（NaN・無限大）は nil
+    static func clampedScaled(_ raw: Double, scale: Int = 1, _ range: (min: Int, max: Int)) -> Int? {
+        guard raw.isFinite else { return nil }
+        let scaled = (raw * pow(10, Double(scale))).rounded()
+        return Int(min(max(scaled, Double(range.min)), Double(range.max)))
+    }
 
     // MARK: - 画面で打てる範囲
     //
