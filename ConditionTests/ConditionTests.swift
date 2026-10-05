@@ -599,7 +599,7 @@ struct BodyRecordPersistenceTests {
         for i in 0..<10 {
             try seedRecord(ctx, daysAgo: i)
         }
-        let cutoff = Calendar.current.date(byAdding: .day, value: -3, to: Date())!
+        let cutoff = AppDateCalendar.gregorian.date(byAdding: .day, value: -3, to: Date())!
         let desc = FetchDescriptor<BodyRecord>(
             predicate: #Predicate { $0.dateTime >= cutoff }
         )
@@ -673,7 +673,7 @@ struct JSONRoundTripTests {
     func singleRecordRoundTrip() throws {
         let container = try makeInMemoryContainer()
         let srcCtx = ModelContext(container)
-        let cal = Calendar.current
+        let cal = AppDateCalendar.gregorian
         let date = cal.date(byAdding: .day, value: -1, to: Date())!
         let r = BodyRecord(dateTime: date, dateOpt: .cat04)
         r.nBpHi_mmHg = 132
@@ -1636,7 +1636,7 @@ struct DateOptEstimatorTests {
     private func date(_ y: Int, _ mo: Int, _ d: Int, _ h: Int = 12, _ mi: Int = 0) -> Date {
         var c = DateComponents()
         c.year = y; c.month = mo; c.day = d; c.hour = h; c.minute = mi
-        return Calendar.current.date(from: c) ?? Date()
+        return AppDateCalendar.gregorian.date(from: c) ?? Date()
     }
     private func rec(_ opt: DateOpt, _ date: Date) -> BodyRecord {
         BodyRecord(dateTime: date, dateOpt: opt)
@@ -1671,7 +1671,7 @@ struct DateOptEstimatorTests {
     @Test("90日より古い履歴は加点されない")
     func historyCutoffAt90Days() {
         let reference = date(2026, 6, 15, 12, 0)
-        let cal = Calendar.current
+        let cal = AppDateCalendar.gregorian
         let inside  = cal.date(byAdding: .day, value: -89, to: reference) ?? reference
         let outside = cal.date(byAdding: .day, value: -91, to: reference) ?? reference
         let result = DateOptEstimator.estimateResult(
@@ -1717,7 +1717,7 @@ struct DateOptEstimatorTests {
             #expect(!DateOpt.cat07.isDefined, "前提: cat07 は未定義に固定")
             let reference = date(2026, 6, 15, 9, 0)
             let t = date(2026, 6, 14, 9, 0)
-            let cal = Calendar.current
+            let cal = AppDateCalendar.gregorian
             // cat07 を大量に積んでも、未定義なので選ばれない
             let records = (0..<5).map { rec(.cat07, cal.date(byAdding: .minute, value: -$0, to: t) ?? t) }
             let result = DateOptEstimator.estimateResult(
@@ -1987,7 +1987,7 @@ struct HealthKitRetainTests {
 
     @Test("結果は日時昇順に並ぶ")
     func resultsSortedByDate() {
-        let cal = Calendar.current
+        let cal = AppDateCalendar.gregorian
         let base = Date()
         let later   = HealthKitValues(date: cal.date(byAdding: .minute, value: 10, to: base)!, pulse: 70)
         let earlier = HealthKitValues(date: base, pulse: 72)
