@@ -32,6 +32,10 @@ struct ConditionApp: App {
     var body: some Scene {
         WindowGroup {
             RootSceneView(migrationService: migrationService, settings: settings)
+                // 日付入力の暦も記録と同じ西暦に揃える
+                .environment(\.calendar, AppDateCalendar.gregorian)
+                // ロケールの暦も西暦にし、DatePicker などの見出しに元号や「西暦」を出さない
+                .environment(\.locale, AppDateCalendar.locale)
         }
         .modelContainer(ModelContainer.shared)
     }

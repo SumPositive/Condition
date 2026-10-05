@@ -63,7 +63,7 @@ enum DateTimeDisplay {
         // 和暦などの設定でも西暦で出す
         let style = Date.FormatStyle(
             date: .omitted, time: .omitted,
-            locale: locale, calendar: Calendar(identifier: .gregorian)
+            locale: AppDateCalendar.gregorianLocale(locale), calendar: Calendar(identifier: .gregorian)
         )
         .year()
         .month(.defaultDigits)
@@ -200,8 +200,8 @@ enum DateTimeDisplay {
 
     /// 読み上げ用。区切り記号を読ませないよう、iOS の完全な日付の書式にする
     static func accessibilityString(for date: Date, locale: Locale = .current) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = locale
+        let formatter = AppDateCalendar.formatter()
+        formatter.locale = AppDateCalendar.gregorianLocale(locale)
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.dateStyle = .full
         formatter.timeStyle = .short

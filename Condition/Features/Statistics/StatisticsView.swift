@@ -70,7 +70,7 @@ struct StatisticsView: View {
     }
 
     private static func makeCutoffDate(days: Int) -> Date {
-        Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
+        AppDateCalendar.gregorian.date(byAdding: .day, value: -days, to: Date()) ?? Date()
     }
 
     private func expandCutoffIfNeeded(days: Int) {
@@ -127,7 +127,7 @@ private struct StatisticsContentView: View {
     }
 
     private var targetRecords: [BodyRecord] {
-        let cutoff = Calendar.current.date(
+        let cutoff = AppDateCalendar.gregorian.date(
             byAdding: .day,
             value: -currentPeriod.rawValue,
             to: Date()
@@ -417,17 +417,17 @@ private struct StatisticsContentView: View {
             )
         }
 
-        let df = DateFormatter()
+        let df = AppDateCalendar.formatter()
         df.setLocalizedDateFormatFromTemplate("yMd")
         let now = Date()
-        let fromDate = Calendar.current.date(byAdding: .day, value: -currentPeriod.rawValue, to: now) ?? now
+        let fromDate = AppDateCalendar.gregorian.date(byAdding: .day, value: -currentPeriod.rawValue, to: now) ?? now
         let localizedPeriod = NSLocalizedString(currentPeriod.label, comment: "")
         let subtitle = localizedPeriod + "  " + df.string(from: fromDate) + String(localized: "format.range.separator") + df.string(from: now)
         let title = String(localized: "tab.statistics")
 
         let data = PDFPanelExporter.export(panels: panels, title: title, subtitle: subtitle)
         let tabName = String(localized: "tab.statistics")
-        let dateTag = { let f = DateFormatter(); f.dateFormat = "yyyyMMdd"; return f.string(from: Date()) }()
+        let dateTag = { let f = AppDateCalendar.formatter(); f.dateFormat = "yyyyMMdd"; return f.string(from: Date()) }()
         guard let url = PDFPanelExporter.writeTempFile(name: "\(tabName)_\(dateTag).pdf", data: data) else { return }
 
         guard let windowScene = UIApplication.shared.connectedScenes
@@ -1435,7 +1435,7 @@ struct BpLeftRightView: View {
     /// L の各記録に対し、30分以内で最も近い未使用の R を割り当ててペアを作る。
     /// 1つの R は1回だけ使う（重複割当を避ける貪欲マッチング）。
     private var lrPairs: [LRPair] {
-        let cal = Calendar.current
+        let cal = AppDateCalendar.gregorian
         let window = TimeInterval(Self.bpPairWindowMinutes * 60)
         let lefts = leftRecords.sorted { $0.dateTime < $1.dateTime }
         let rights = rightRecords.sorted { $0.dateTime < $1.dateTime }
@@ -1518,7 +1518,7 @@ struct BpLeftRightView: View {
     }
 
     private static let barDayFormatter: DateFormatter = {
-        let f = DateFormatter()
+        let f = AppDateCalendar.formatter()
         f.setLocalizedDateFormatFromTemplate("Md")
         return f
     }()

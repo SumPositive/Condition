@@ -659,7 +659,7 @@ struct RecordEditView: View {
         vm.isLoadingFromHK = true
         Task {
             defer { vm.isLoadingFromHK = false }
-            let cal = Calendar.current
+            let cal = AppDateCalendar.gregorian
             let now = Date()
             let oneYearAgo = cal.date(byAdding: .year, value: -1, to: now) ?? now.addingTimeInterval(-365 * 24 * 3600)
 

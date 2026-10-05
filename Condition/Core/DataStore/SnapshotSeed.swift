@@ -50,7 +50,7 @@ enum SnapshotSeed {
         let existing = (try? context.fetchCount(FetchDescriptor<BodyRecord>())) ?? 0
         guard existing == 0 else { return }
 
-        let cal = Calendar.current
+        let cal = AppDateCalendar.gregorian
         let today = cal.startOfDay(for: Date())
 
         // 直近 60 日分を 1〜2 日おきに投入し、グラフ・統計に十分な密度を持たせる

@@ -441,7 +441,7 @@ enum DateOptEstimator {
         hourMap: [Int],
         referenceDate: Date = Date()
     ) -> Result {
-        let calendar = Calendar.current
+        let calendar = AppDateCalendar.gregorian
         let targetHour = calendar.component(.hour, from: targetDate)
         let cutoff = calendar.date(byAdding: .day, value: -historyDays, to: referenceDate) ?? referenceDate
         let targetWeekday = calendar.component(.weekday, from: targetDate)

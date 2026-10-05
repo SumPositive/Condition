@@ -65,7 +65,7 @@ struct AnalysisPageView: View {
     // 測定グラフは横スクロール用として従来どおり1年分を共有する
     let graphRecords: [BodyRecord]
     if needsGraphs {
-      let cutoff = Calendar.current.date(byAdding: .day, value: -365, to: now) ?? now
+      let cutoff = AppDateCalendar.gregorian.date(byAdding: .day, value: -365, to: now) ?? now
       graphRecords = bodyRecords.filter { cutoff <= $0.dateTime }
     } else {
       graphRecords = []
@@ -74,7 +74,7 @@ struct AnalysisPageView: View {
     let statRecords: [BodyRecord]
     if needsStats {
       let cutoff =
-        Calendar.current.date(byAdding: .day, value: -period.rawValue, to: now) ?? now
+        AppDateCalendar.gregorian.date(byAdding: .day, value: -period.rawValue, to: now) ?? now
       statRecords = bodyRecords.filter { cutoff <= $0.dateTime }
     } else {
       statRecords = []
@@ -367,7 +367,7 @@ struct AnalysisPageView: View {
   }
 
   private var symptomRange: SymptomAnalysisRange {
-    let calendar = Calendar.current
+    let calendar = AppDateCalendar.gregorian
     let today = calendar.startOfDay(for: Date())
     return SymptomAnalysisRange(
       start: calendar.date(byAdding: .day, value: 1 - period.rawValue, to: today)!,
@@ -432,17 +432,17 @@ struct AnalysisPageView: View {
             .environment(\.chartAvailableWidth, width)
         )
       }
-      let formatter = DateFormatter()
+      let formatter = AppDateCalendar.formatter()
       formatter.setLocalizedDateFormatFromTemplate("yMd")
       let now = Date()
-      let from = Calendar.current.date(byAdding: .day, value: -period.rawValue, to: now) ?? now
+      let from = AppDateCalendar.gregorian.date(byAdding: .day, value: -period.rawValue, to: now) ?? now
       let subtitle =
         NSLocalizedString(period.label, comment: "") + "  "
         + formatter.string(from: from) + String(localized: "format.range.separator")
         + formatter.string(from: now)
       let data = PDFPanelExporter.export(panels: panels, title: pageTitle, subtitle: subtitle)
       let dateTag = {
-        let value = DateFormatter()
+        let value = AppDateCalendar.formatter()
         value.dateFormat = "yyyyMMdd"
         return value.string(from: now)
       }()
@@ -842,14 +842,14 @@ private struct AnalysisSymptomCalendarPanel: View {
   @Binding var selectedSymptom: AnalysisSymptomFilterOption
   let name: (String) -> String
   @State private var level = AnalysisCalendarLevel.years
-  @State private var selectedYear = Calendar.current.component(.year, from: Date())
-  @State private var month = Calendar.current.dateInterval(of: .month, for: Date())!.start
+  @State private var selectedYear = AppDateCalendar.gregorian.component(.year, from: Date())
+  @State private var month = AppDateCalendar.gregorian.dateInterval(of: .month, for: Date())!.start
   @State private var selectedDay: Date?
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @ScaledMetric(relativeTo: .body) private var periodCellMinimumWidth: CGFloat = 84
   @ScaledMetric(relativeTo: .body) private var calendarGridMinimumWidth: CGFloat = 300
   @ScaledMetric(relativeTo: .caption) private var legendPreferredFontSize: CGFloat = 12
-  private let calendar = Calendar.current
+  private var calendar: Calendar { AppDateCalendar.gregorian }
 
   private var currentYear: Int { calendar.component(.year, from: Date()) }
   private var monthStart: Date { calendar.dateInterval(of: .month, for: month)?.start ?? month }
@@ -956,7 +956,7 @@ private struct AnalysisSymptomCalendarPanel: View {
           let target = monthDate(year: selectedYear, month: number)
           let values = monthRecords(target)
           periodButton(
-            label: target.formatted(.dateTime.month(.abbreviated)),
+            label: target.formatted(AppDateCalendar.formatStyle.month(.abbreviated)),
             records: values
           ) {
             month = target
@@ -985,7 +985,7 @@ private struct AnalysisSymptomCalendarPanel: View {
           Image(systemName: "chevron.left")
         }
         .accessibilityLabel(Text("analysis.previousMonth"))
-        Text(monthStart.formatted(.dateTime.year().month(.wide)))
+        Text(monthStart.formatted(AppDateCalendar.formatStyle.year().month(.wide)))
           .frame(minWidth: 120)
         Button {
           moveMonth(1)
@@ -1146,15 +1146,13 @@ private struct AnalysisSymptomCalendarPanel: View {
   }
 
   private var calendarGridItems: [AnalysisCalendarGridItem] {
-    var items = (0..<7).map { offset in
-      let index = (calendar.firstWeekday - 1 + offset) % 7
+    var items = AppDateCalendar.weekdayIndices(in: calendar).enumerated().map { offset, index in
       return AnalysisCalendarGridItem.weekday(
         index: offset,
         title: calendar.shortStandaloneWeekdaySymbols[index]
       )
     }
-    let leadingDays =
-      (calendar.component(.weekday, from: monthStart) - calendar.firstWeekday + 7) % 7
+    let leadingDays = AppDateCalendar.leadingEmptyDays(for: monthStart, in: calendar)
     items += (0..<leadingDays).map { .placeholder(index: $0) }
     let days = calendar.range(of: .day, in: .month, for: monthStart) ?? 1..<1
     items += days.compactMap { number in
@@ -1252,7 +1250,7 @@ private struct AnalysisSymptomDayDetailView: View {
   let symptomName: (String) -> String
   let onClose: () -> Void
   @State private var settings = AppSettings.shared
-  private let calendar = Calendar.current
+  private let calendar = AppDateCalendar.gregorian
 
   private var sortedRecords: [SymptomRecord] {
     records.sorted { $0.startAt < $1.startAt }
@@ -1295,7 +1293,7 @@ private struct AnalysisSymptomDayDetailView: View {
       .toolbar {
         ToolbarItem(placement: .principal) {
           // 大きな文字でも日付が画面を占有しないようインライン表示に固定する
-          Text(date.formatted(.dateTime.year().month().day().weekday(.abbreviated)))
+          Text(date.formatted(AppDateCalendar.formatStyle.year().month().day().weekday(.abbreviated)))
             .font(.headline)
             .lineLimit(1)
             .minimumScaleFactor(0.7)
@@ -1494,7 +1492,11 @@ private struct AnalysisSymptomDayDetailView: View {
     if calendar.isDate(value, inSameDayAs: date) {
       return value.formatted(date: .omitted, time: .shortened)
     }
-    return value.formatted(date: .abbreviated, time: .shortened)
+    // 和暦の設定でも令和ではなく西暦で出す
+    return value.formatted(
+      Date.FormatStyle(date: .abbreviated, time: .shortened,
+                       locale: AppDateCalendar.locale, calendar: AppDateCalendar.gregorian)
+    )
   }
 
   private func durationText(_ duration: TimeInterval, ongoing: Bool) -> String {
@@ -1753,7 +1755,7 @@ private struct AnalysisSymptomFrequencyPanel: View {
         AxisValueLabel {
           if let date = value.as(Date.self) {
             // 年を省いた短い月日で全体を表示する
-            Text(date, format: .dateTime.month(.defaultDigits).day(.defaultDigits))
+            Text(date, format: AppDateCalendar.formatStyle.month(.defaultDigits).day(.defaultDigits))
               .font(.caption2)
           }
         }

@@ -85,7 +85,7 @@ struct GraphView: View {
     @State private var showSettings = false
     @State private var didPrefetchFullRange = false
     /// フェーズ1: デフォルト期間分だけ即クエリ（高速初期表示）
-    @State private var cutoffDate = Calendar.current.date(
+    @State private var cutoffDate = AppDateCalendar.gregorian.date(
         byAdding: .day, value: -GraphPeriod.month.rawValue, to: Date()
     ) ?? Date()
 
@@ -142,7 +142,7 @@ struct GraphView: View {
 
     /// target が現在の cutoffDate より古ければ cutoffDate を更新する
     private func expandCutoffIfNeeded(days: Int) {
-        let target = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
+        let target = AppDateCalendar.gregorian.date(byAdding: .day, value: -days, to: Date()) ?? Date()
         if target < cutoffDate {
             cutoffDate = target
         }
@@ -502,10 +502,10 @@ private struct GraphContentView: View {
             )
         }
 
-        let df = DateFormatter()
+        let df = AppDateCalendar.formatter()
         df.setLocalizedDateFormatFromTemplate("yMd")
         let now = Date()
-        let fromDate = Calendar.current.date(byAdding: .day, value: -period.rawValue, to: now) ?? now
+        let fromDate = AppDateCalendar.gregorian.date(byAdding: .day, value: -period.rawValue, to: now) ?? now
         let localizedPeriod = NSLocalizedString(period.label, comment: "")
         let subtitle = localizedPeriod + "  " + df.string(from: fromDate) + String(localized: "format.range.separator") + df.string(from: now)
         let title = String(localized: "tab.graph")
@@ -529,7 +529,7 @@ private struct GraphContentView: View {
     }
 
     private static func exportDateTag() -> String {
-        let f = DateFormatter()
+        let f = AppDateCalendar.formatter()
         f.dateFormat = "yyyyMMdd"
         return f.string(from: Date())
     }
@@ -576,7 +576,7 @@ private struct SelectionDetailRow: View {
     var showsBpSide: Bool = false
 
     private var dateText: String {
-        let c = Calendar.current
+        let c = AppDateCalendar.gregorian
         let m  = c.component(.month,  from: record.dateTime)
         let d  = c.component(.day,    from: record.dateTime)
         let h  = c.component(.hour,   from: record.dateTime)
@@ -766,7 +766,7 @@ private extension View {
                         return
                     }
                     if let sel = selectedDate.wrappedValue,
-                       Calendar.current.isDate(sel, inSameDayAs: day) {
+                       AppDateCalendar.gregorian.isDate(sel, inSameDayAs: day) {
                         selectedDate.wrappedValue = nil   // 同じ日を再タップ → 解除
                     } else {
                         selectedDate.wrappedValue = day
@@ -828,8 +828,8 @@ private struct StandardXAxisModifier: ViewModifier {
             AxisTick()
             AxisValueLabel {
                 if let date = value.as(Date.self) {
-                    let m = Calendar.current.component(.month, from: date)
-                    let d = Calendar.current.component(.day, from: date)
+                    let m = AppDateCalendar.gregorian.component(.month, from: date)
+                    let d = AppDateCalendar.gregorian.component(.day, from: date)
                     Text("\(m)/\(d)").font(.caption)
                 }
             }
@@ -882,7 +882,7 @@ struct BpChartView: View {
     let records: [BodyRecord]
     let period: GraphPeriod
 
-    private let cal = Calendar.current
+    private let cal = AppDateCalendar.gregorian
     private var settings: AppSettings { AppSettings.shared }
     @State private var selectedDate: Date?
     @State private var scrollPosition: Date = Date()
@@ -1233,7 +1233,7 @@ struct BpPpChartView: View {
     let period: GraphPeriod
     var goalValue: Int = 0
 
-    private let cal = Calendar.current
+    private let cal = AppDateCalendar.gregorian
     private var settings: AppSettings { AppSettings.shared }
     @State private var selectedDate: Date?
     @State private var scrollPosition: Date = Date()
@@ -1473,7 +1473,7 @@ struct LineChartView: View {
     var usesDateOptFilterAndLineMode: Bool = false
     var kind: GraphKind? = nil
 
-    private let cal = Calendar.current
+    private let cal = AppDateCalendar.gregorian
     private var settings: AppSettings { AppSettings.shared }
     @State private var selectedDate: Date?
     @State private var scrollPosition: Date = Date()
@@ -1734,7 +1734,7 @@ struct BMIChartView: View {
     let period: GraphPeriod
     var goalValue: Int = 0  // ×10 スケール（例: 220 = 22.0）
 
-    private let cal = Calendar.current
+    private let cal = AppDateCalendar.gregorian
     @State private var selectedDate: Date?
     @State private var scrollPosition: Date = Date()
     @State private var showBMIInfo = false
@@ -1953,7 +1953,7 @@ struct WeightChangeChartView: View {
     let records: [BodyRecord]
     let period: GraphPeriod
 
-    private let cal = Calendar.current
+    private let cal = AppDateCalendar.gregorian
     @State private var selectedDate: Date?
     @State private var scrollPosition: Date = Date()
     @Environment(\.chartAvailableWidth) private var chartWidth

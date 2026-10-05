@@ -618,7 +618,7 @@ struct RecordListView: View {
         hkService.isImporting = true
         defer { hkService.isImporting = false }
 
-        let cal = Calendar.current
+        let cal = AppDateCalendar.gregorian
         let now = Date()
         let recentStart = cal.date(byAdding: .day, value: -15, to: now) ?? now.addingTimeInterval(-15 * 24 * 3600)
         let oneYearAgo = cal.date(byAdding: .year, value: -1, to: now) ?? now.addingTimeInterval(-365 * 24 * 3600)
@@ -798,11 +798,12 @@ struct RecordSectionHeader: View {
         var comps = DateComponents()
         comps.year = year
         comps.month = month
-        guard let date = Calendar.current.date(from: comps) else {
+        guard let date = AppDateCalendar.gregorian.date(from: comps) else {
             return String(format: "%d/%02d", year, month)
         }
-        let fmt = DateFormatter()
-        fmt.dateFormat = DateFormatter.dateFormat(fromTemplate: "yMMMM", options: 0, locale: Locale.current)
+        let fmt = AppDateCalendar.formatter()
+        // 見出しの年も西暦の暦から地域別の書式を組み立てる
+        fmt.setLocalizedDateFormatFromTemplate("yMMMM")
         return fmt.string(from: date)
     }
 
@@ -879,7 +880,7 @@ private struct DemoDataGenerator {
 
         let isJa = Locale.preferredLanguages.first?.hasPrefix("ja") ?? true
         let profile = isJa ? jaProfile : enProfile
-        let cal = Calendar.current
+        let cal = AppDateCalendar.gregorian
         let today = cal.startOfDay(for: Date())
         var rng = SystemRandomNumberGenerator()
 
@@ -931,7 +932,7 @@ private struct DemoDataGenerator {
             predicate: #Predicate { $0.sWeatherSourceURL == "vitalin-demo://symptoms" }
         ))
         for record in previous { context.delete(record) }
-        let calendar = Calendar.current
+        let calendar = AppDateCalendar.gregorian
         let now = Date()
         let today = calendar.startOfDay(for: now)
         let ids = ["headache", "stiffShoulder", "fatigue", "dizziness"]
@@ -1067,18 +1068,17 @@ struct RecordRowView: View {
     private var hkIconSz:   CGFloat { min(scaledMarkSz, 14) }
 
     private static let dateFormatter: DateFormatter = {
-        let f = DateFormatter()
+        let f = AppDateCalendar.formatter()
         f.dateFormat = "d"
         return f
     }()
     private static let timeFormatter: DateFormatter = {
-        let f = DateFormatter()
+        let f = AppDateCalendar.formatter()
         f.dateFormat = "HH:mm"
         return f
     }()
     private static let weekdayFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.locale = Locale.current
+        let f = AppDateCalendar.formatter()
         f.dateFormat = "E"
         return f
     }()
@@ -1309,7 +1309,7 @@ private struct ExportSheetView: View {
     /// 一覧で絞り込んでいる症状名。nil は全症状
     let symptomName: String?
     @Environment(\.dismiss) private var dismiss
-    private let cal = Calendar.current
+    private let cal = AppDateCalendar.gregorian
     private var settings: AppSettings { AppSettings.shared }
     private static let sortOptions = [
         ExportSortOption(id: false, titleKey: "sort.descendingNewest"),
@@ -1338,7 +1338,7 @@ private struct ExportSheetView: View {
         self.domain = domain
         self.categoryName = categoryName
         self.symptomName = symptomName
-        _fromDate = State(initialValue: Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date())
+        _fromDate = State(initialValue: AppDateCalendar.gregorian.date(byAdding: .month, value: -1, to: Date()) ?? Date())
     }
 
     private var periodRange: Range<Date> {
@@ -1557,7 +1557,7 @@ private struct ExportSheetView: View {
     @MainActor
     private func buildShareItems() -> [Any] {
         let appName = String(localized: "app.name")
-        let f = DateFormatter(); f.dateFormat = "yyyyMMdd"
+        let f = AppDateCalendar.formatter(); f.dateFormat = "yyyyMMdd"
         let dateTag = f.string(from: Date())
         switch format {
         case .json:
@@ -1680,7 +1680,7 @@ private struct ExportSheetView: View {
             escape(L("record.device")),
         ]
 
-        let df = DateFormatter()
+        let df = AppDateCalendar.formatter()
         df.setLocalizedDateFormatFromTemplate("yMdEEEEEHmm")
 
         var rows: [String] = []
@@ -1894,12 +1894,12 @@ private struct ExportPDFPageView: View {
     let isFirstPage: Bool
 
     private static let dtdf: DateFormatter = {
-        let f = DateFormatter()
+        let f = AppDateCalendar.formatter()
         f.setLocalizedDateFormatFromTemplate("yMdEEEEEHmm")
         return f
     }()
     private static let datedf: DateFormatter = {
-        let f = DateFormatter()
+        let f = AppDateCalendar.formatter()
         f.dateStyle = .short
         f.timeStyle = .none
         return f

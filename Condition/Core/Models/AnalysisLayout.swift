@@ -362,7 +362,7 @@ struct AnalysisLayout: Codable, Equatable {
 struct SymptomAnalysisRange {
   let start: Date
   let end: Date
-  var calendar = Calendar.current
+  var calendar = AppDateCalendar.gregorian
 
   func containsStart(_ record: SymptomRecord) -> Bool {
     start <= record.startAt && record.startAt < end

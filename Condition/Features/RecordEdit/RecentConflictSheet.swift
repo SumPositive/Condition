@@ -121,7 +121,7 @@ struct RecentConflictSheet: View {
     }
 
     private static let timeFormatter: DateFormatter = {
-        let f = DateFormatter()
+        let f = AppDateCalendar.formatter()
         f.setLocalizedDateFormatFromTemplate("Hm")
         return f
     }()

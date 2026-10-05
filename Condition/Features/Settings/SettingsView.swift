@@ -631,7 +631,7 @@ struct SettingsView: View {
             let symptomDescriptor = FetchDescriptor<SymptomRecord>(
                 sortBy: [SortDescriptor(\SymptomRecord.startAt)]
             )
-            let formatter = DateFormatter()
+            let formatter = AppDateCalendar.formatter()
             formatter.dateFormat = "yyyyMMdd_HHmmss"
             let fileName = "Condition_\(formatter.string(from: Date())).json"
             let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
@@ -774,7 +774,7 @@ struct SettingsView: View {
             await Task.yield()
             defer { isWorking = false }
 
-            let cutoff = Calendar.current.date(byAdding: .year, value: -3, to: Date()) ?? Date()
+            let cutoff = AppDateCalendar.gregorian.date(byAdding: .year, value: -3, to: Date()) ?? Date()
             let descriptor = FetchDescriptor<BodyRecord>(
                 predicate: #Predicate { $0.dateTime < cutoff && $0.dateTime < bodyRecordGoalDate }
             )
@@ -1894,7 +1894,7 @@ private struct DateOptEstimateDistributionView: View {
     }
 
     private func targetDate(weekday: Int, hour: Int, referenceDate: Date) -> Date {
-        var calendar = Calendar.current
+        var calendar = AppDateCalendar.gregorian
         calendar.locale = Locale.current
         var components = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: referenceDate)
         components.weekday = weekday
@@ -1906,7 +1906,7 @@ private struct DateOptEstimateDistributionView: View {
     }
 
     private func weekdayLabel(_ weekday: Int) -> String {
-        let symbols = Calendar.current.veryShortWeekdaySymbols
+        let symbols = AppDateCalendar.gregorian.veryShortWeekdaySymbols
         guard 1 <= weekday, weekday <= symbols.count else {
             return ""
         }
@@ -2402,7 +2402,7 @@ struct HealthKitSettingsView: View {
 
     private var importStartDate: Date {
         let now = Date()
-        let cal = Calendar.current
+        let cal = AppDateCalendar.gregorian
         if hkService.lastAutoImportAt == nil {
             return cal.date(byAdding: .year, value: -1, to: now) ?? now.addingTimeInterval(-365 * 24 * 3600)
         }
@@ -2499,7 +2499,7 @@ struct HealthKitSettingsView: View {
                             storageKey: "helpDismissed.health.importStartDate"
                         )
                         Spacer()
-                        Text(importStartDate, format: .dateTime.year().month().day())
+                        Text(importStartDate, format: AppDateCalendar.formatStyle.year().month().day())
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
                         resetImportDateButton
@@ -2512,7 +2512,7 @@ struct HealthKitSettingsView: View {
                             storageKey: "helpDismissed.health.importStartDate"
                         )
                         HStack(alignment: .firstTextBaseline, spacing: 10) {
-                            Text(importStartDate, format: .dateTime.year().month().day())
+                            Text(importStartDate, format: AppDateCalendar.formatStyle.year().month().day())
                                 .foregroundStyle(.secondary)
                                 .monospacedDigit()
                             Spacer()

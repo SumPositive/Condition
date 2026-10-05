@@ -4,6 +4,52 @@
 import Foundation
 import SwiftUI
 
+/// 記録の日付計算と表示で使う西暦
+enum AppDateCalendar {
+    static var gregorian: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = locale
+        calendar.timeZone = .autoupdatingCurrent
+        // 暦は西暦に固定し、週の開始曜日だけ端末設定を反映する
+        calendar.firstWeekday = Calendar.autoupdatingCurrent.firstWeekday
+        calendar.minimumDaysInFirstWeek = Calendar.autoupdatingCurrent.minimumDaysInFirstWeek
+        return calendar
+    }
+
+    /// 端末の言語・地域のまま、暦だけ西暦にしたロケール
+    static var locale: Locale { gregorianLocale(.autoupdatingCurrent) }
+
+    /// ロケールの暦を西暦に差し替える。
+    /// 和暦のロケールのままテンプレートから書式を作ると元号（G）が入り、西暦で書くと「西暦2026年」になるため
+    static func gregorianLocale(_ base: Locale) -> Locale {
+        var components = Locale.Components(locale: base)
+        components.calendar = .gregorian
+        return Locale(components: components)
+    }
+
+    /// 端末の表示言語を保ったまま西暦で書式化する
+    static func formatter() -> DateFormatter {
+        let formatter = DateFormatter()
+        formatter.locale = locale
+        formatter.calendar = gregorian
+        return formatter
+    }
+
+    static var formatStyle: Date.FormatStyle {
+        Date.FormatStyle(date: .omitted, time: .omitted, locale: locale, calendar: gregorian)
+    }
+
+    /// 週開始曜日から日曜始まりの曜日配列を並べ替える
+    static func weekdayIndices(in calendar: Calendar) -> [Int] {
+        (0..<7).map { (calendar.firstWeekday - 1 + $0) % 7 }
+    }
+
+    /// 月初の曜日と週開始曜日から先頭の空欄数を求める
+    static func leadingEmptyDays(for monthStart: Date, in calendar: Calendar) -> Int {
+        (calendar.component(.weekday, from: monthStart) - calendar.firstWeekday + 7) % 7
+    }
+}
+
 // MARK: - #Predicate で参照可能なグローバル定数
 // SwiftData の #Predicate マクロは @Model クラスの static プロパティを参照できないため
 // ファイルスコープの let 定数として定義する

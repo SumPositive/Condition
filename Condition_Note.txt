@@ -1031,7 +1031,7 @@ $app-store-review-summary
 ・メモ入力で改行すると入力が確定してしまう不具合を修正しました
 -----
 fastlane メタデータを更新して
-2.9.0 準備中、README.mdの開発メモ、公開アプリパネル、取扱説明を更新して
+Vitalin 2.9.0 準備中、README.mdの開発メモ、公開アプリパネル、取扱説明を更新して
 -----
 cd /Users/sumpositive/GitLocal/Condition
 fastlane upload_metadata
@@ -1039,16 +1039,11 @@ fastlane upload_metadata
 fastlane screenshots
 fastlane upload_screenshots
 -----
-2.9.0 公開中、公開アプリパネル、取扱説明を更新して
+Vitalin 2.9.0 本日公開、公開アプリパネル、取扱説明を更新して
 ------------------------------------------------
 Codex: AppStore レビューを取得して集計分析する
 $app-store-review-summary
 -----
-
-
-
-
-測定時刻通知機能：区分設定で通知ONにすると開始時刻にローカル通知する、通知をタップすれば起動して測定シートを開く
 
 日時を次のような共通フォーマットで表示したい
 ・ja「2026 10/3 土 16:25」 en「Sat 10/3 2026 4:25PM」
@@ -1057,14 +1052,14 @@ $app-store-review-summary
 ・曜日 を小さく薄くする
 ・時刻 を太くする
 
-
-
 --------------------------------
-2.10.0 新機能・更新内容
-
+2.9.1 新機能・更新内容
+- システム設定：和暦に設定していると正しく表示されない不具合を修正しました
+- システム設定：カレンダー「週の始まりの曜日」に対応しました
+- 日付表示を見やすくしました
 -----
 fastlane メタデータを更新して
-2.10.0 準備中、README.mdの開発メモ、公開アプリパネル、取扱説明を更新して
+Vitalin 2.9.1 準備中、README.mdの開発メモ、公開アプリパネル、取扱説明を更新して
 -----
 cd /Users/sumpositive/GitLocal/Condition
 fastlane upload_metadata
@@ -1072,7 +1067,37 @@ fastlane upload_metadata
 fastlane screenshots
 fastlane upload_screenshots
 -----
-2.10.0 公開中、公開アプリパネル、取扱説明を更新して
+Vitalin 2.9.1 公開中、公開アプリパネル、取扱説明を更新して
+------------------------------------------------
+
+
+
+
+-----------
+
+測定時刻通知機能：区分設定で通知ONにすると開始時刻にローカル通知する、通知をタップすれば起動して測定シートを開く
+
+設定：文字サイズを「自動」に変更したとき、「次回から設定アプリで変更できます」を表示したい
+
+測定値が赤色になったまま次へ進むと短い音とバイブで知らせたい
+
+
+--------------------------------
+2.10.0 新機能・更新内容
+
+- 日付表示を見やすくしました
+
+-----
+fastlane メタデータを更新して
+Vitalin 2.10.0 準備中、README.mdの開発メモ、公開アプリパネル、取扱説明を更新して
+-----
+cd /Users/sumpositive/GitLocal/Condition
+fastlane upload_metadata
+---
+fastlane screenshots
+fastlane upload_screenshots
+-----
+Vitalin 2.10.0 公開中、公開アプリパネル、取扱説明を更新して
 ------------------------------------------------
 Codex: AppStore レビューを取得して集計分析する
 $app-store-review-summary

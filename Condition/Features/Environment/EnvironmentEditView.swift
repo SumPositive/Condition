@@ -102,7 +102,7 @@ struct EnvironmentEditView: View {
     /// 観測時刻の書式。日付列に添えるので最短にする（9/24 0:00）。
     /// 年は出さない（保持期間が短く、記録日時から明らかなため）
     private static let observedFormatter: DateFormatter = {
-        let f = DateFormatter()
+        let f = AppDateCalendar.formatter()
         f.setLocalizedDateFormatFromTemplate("Mdjm")
         return f
     }()

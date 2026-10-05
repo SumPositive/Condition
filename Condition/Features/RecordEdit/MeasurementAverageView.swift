@@ -1672,7 +1672,7 @@ struct MeasurementAverageView: View {
         guard !columns.isEmpty else { return }
 
         let now = dateTime
-        let cal = Calendar.current
+        let cal = AppDateCalendar.gregorian
         guard let oneMonthAgo = cal.date(byAdding: .month, value: -1, to: now) else { return }
 
         let records: [BodyRecord]

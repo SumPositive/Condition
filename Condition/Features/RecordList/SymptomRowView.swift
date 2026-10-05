@@ -20,18 +20,17 @@ struct SymptomRowView: View {
     private var settings: AppSettings { AppSettings.shared }
 
     private static let dateFormatter: DateFormatter = {
-        let f = DateFormatter()
+        let f = AppDateCalendar.formatter()
         f.dateFormat = "d"
         return f
     }()
     private static let timeFormatter: DateFormatter = {
-        let f = DateFormatter()
+        let f = AppDateCalendar.formatter()
         f.dateFormat = "HH:mm"
         return f
     }()
     private static let weekdayFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.locale = Locale.current
+        let f = AppDateCalendar.formatter()
         f.dateFormat = "E"
         return f
     }()

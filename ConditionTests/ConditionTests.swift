@@ -11,6 +11,40 @@ import HealthKit
 @Suite("ValueFormatter Tests")
 struct ValueFormatterTests {
 
+    @Test("週開始曜日を変えても曜日見出しと月初の空欄が揃う")
+    func calendarWeekStartLayout() {
+        var calendar = AppDateCalendar.gregorian
+        let monthStart = calendar.date(from: DateComponents(year: 2026, month: 10, day: 1))!
+        // 2026年10月1日は木曜日
+        calendar.firstWeekday = 1
+        #expect(AppDateCalendar.weekdayIndices(in: calendar) == [0, 1, 2, 3, 4, 5, 6])
+        #expect(AppDateCalendar.leadingEmptyDays(for: monthStart, in: calendar) == 4)
+        calendar.firstWeekday = 2
+        #expect(AppDateCalendar.weekdayIndices(in: calendar) == [1, 2, 3, 4, 5, 6, 0])
+        #expect(AppDateCalendar.leadingEmptyDays(for: monthStart, in: calendar) == 3)
+        calendar.firstWeekday = 7
+        #expect(AppDateCalendar.weekdayIndices(in: calendar) == [6, 0, 1, 2, 3, 4, 5])
+        #expect(AppDateCalendar.leadingEmptyDays(for: monthStart, in: calendar) == 5)
+    }
+
+    @Test("和暦設定でも日付計算と書き出しの年は西暦")
+    func gregorianCalendarAndFormatter() {
+        let date = AppDateCalendar.gregorian.date(
+            from: DateComponents(year: 2026, month: 10, day: 5)
+        )!
+        // 和暦8年の日付を記録と書き出しでは2026年として扱う
+        #expect(Calendar(identifier: .japanese).component(.year, from: date) == 8)
+        #expect(Calendar(identifier: .buddhist).component(.year, from: date) == 2569)
+        #expect(AppDateCalendar.gregorian.component(.year, from: date) == 2026)
+        for localeID in ["ja_JP", "en_US", "ko_KR", "zh_TW"] {
+            let formatter = AppDateCalendar.formatter()
+            formatter.locale = Locale(identifier: localeID)
+            formatter.calendar = AppDateCalendar.gregorian
+            formatter.dateFormat = "yyyyMMdd"
+            #expect(formatter.string(from: date) == "20261005")
+        }
+    }
+
     @Test("整数値の変換")
     func integerFormat() {
         #expect(ValueFormatter.format(120, decimals: 0) == "120")
@@ -83,6 +117,20 @@ struct ValueFormatterTests {
     @Test("日時の共通表示：和暦の設定でも年は西暦で出す")
     func dateTimeDisplayUsesGregorianYear() {
         #expect(Self.fieldTexts("ja_JP@calendar=japanese").minor.first == "2026")
+        // 元号の位置に「西暦」を出さない
+        #expect(Self.fieldTexts("ja_JP@calendar=japanese").all == "2026/10/3 土 16:25")
+    }
+
+    @Test("和暦の設定でも年月の見出しに「西暦」を付けない")
+    func monthHeaderOmitsEra() {
+        let formatter = DateFormatter()
+        formatter.locale = AppDateCalendar.gregorianLocale(Locale(identifier: "ja_JP@calendar=japanese"))
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
+        formatter.setLocalizedDateFormatFromTemplate("yMMMM")
+        let date = Calendar(identifier: .gregorian).date(from: DateComponents(
+            timeZone: TimeZone(identifier: "Asia/Tokyo"), year: 2026, month: 10, day: 5))!
+        #expect(formatter.string(from: date) == "2026年10月")
     }
 }
 
@@ -464,7 +512,7 @@ private func seedRecord(
     note2: String = "",
     device: String = ""
 ) throws -> BodyRecord {
-    let cal = Calendar.current
+    let cal = AppDateCalendar.gregorian
     let date = cal.date(byAdding: .day, value: -daysAgo, to: Date()) ?? Date()
     let r = BodyRecord(dateTime: date, dateOpt: dateOpt)
     r.nBpHi_mmHg = bpHi

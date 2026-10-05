@@ -153,7 +153,7 @@ actor JMAWeatherService {
 
     /// 保持期間内か（未来は当日扱いで許可し、応答が無ければ欠測になる）
     nonisolated static func isWithinAvailableRange(_ date: Date, now: Date = Date()) -> Bool {
-        let limit = Calendar.current.date(byAdding: .day, value: -availableDays, to: now) ?? now
+        let limit = AppDateCalendar.gregorian.date(byAdding: .day, value: -availableDays, to: now) ?? now
         return date >= limit
     }
 

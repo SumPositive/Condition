@@ -1,21 +1,3 @@
-■ New: Symptom notes
-・Record symptoms such as headaches or dizziness, separately from measurements
-・Record when a symptom started and when it ended
-・Also record the weather (temperature, pressure) and what happened just before, and see how they relate
-
-■ Weather for measurements
-・Measurements can now record temperature and pressure too (fetched automatically in Japan)
-
-■ Graphs and statistics are now three analysis tabs
-・Place any chart on any tab
-・Rename the tabs as you like
-・Choose whether all tabs share the same period or each tab has its own
-
-■ Other improvements
-・Updated the default categories (Wake, Rest, PreBed, Unwell, PreEx)
-・Choose a screen to open at launch: Add Measurement, Add Symptom, or Record List
-・Faster launch
-・Backups now include your app settings
-
-■ Bug fix
-・Fixed an issue where pressing Return in a note confirmed the input
+・System settings: Fixed dates not showing correctly when the calendar is set to Japanese
+・System settings: The calendar now follows your "First Day of Week" setting
+・Made dates easier to read
