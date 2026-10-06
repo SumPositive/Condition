@@ -13632,25 +13632,25 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "How the category shown when opening a new record is decided\n\nOn: Estimates the category by weighting records from the last 3 months by weekday, time proximity, recency, and the time-of-day map\n\nOff: Uses only the time-of-day map"
+            "value" : "How the category is chosen when you open a new record\n\nON: Uses the most frequent category among your records from the last 3 months on the same day of the week and the same hour\n\nIf there is a tie, the most recently used category is chosen\n\nIf there are no matching records, the time slot map is used\n\nOFF: Uses only the time slot map"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "新しい決済を開いた時に表示される区分の決め方\n\nON：過去3ヶ月の記録から曜日・時刻の近さ・新しさ・時間帯マップで重み付けして区分を推定します\n\nOFF：時間帯マップだけを使います"
+            "value" : "新しい記録を開いた時の区分の決め方\n\nON：直近3ヶ月の記録から、同じ曜日・同じ時刻（時）で最も多い区分にします\n\n同じ数のときは、最近使った区分にします\n\n該当する記録が無く未定のときは、時間帯マップを使います\n\nOFF：時間帯マップだけを使います"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "새 기록을 열었을 때 표시되는 구분을 정하는 방법\n\nON: 최근 3개월 기록에서 요일·시각의 근접도·최신성·시간대 맵으로 가중치를 매겨 구분을 추정합니다\n\nOFF: 시간대 맵만 사용합니다"
+            "value" : "새 기록을 열 때 구분을 정하는 방법\n\n켬: 최근 3개월 기록 중 같은 요일·같은 시각(시)에 가장 많은 구분으로 정합니다\n\n같은 수일 때는 최근에 사용한 구분으로 정합니다\n\n해당하는 기록이 없어 미정이면 시간대 맵을 사용합니다\n\n끔: 시간대 맵만 사용합니다"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "決定開啟新記錄時所顯示類別的方式\n\nON：依最近三個月的記錄，以星期、時間接近度、新近程度與時段對應表加權，推估類別\n\nOFF：僅使用時段對應表"
+            "value" : "開啟新記錄時決定分類的方式\n\n開啟：依最近3個月的記錄，選擇相同星期、相同時刻（小時）中最多的分類\n\n數量相同時，選擇最近使用的分類\n\n沒有符合的記錄而未定時，使用時段對照表\n\n關閉：只使用時段對照表"
           }
         }
       }
@@ -14125,25 +14125,25 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Set the category to show for each time period when opening a new record\n\nThis map is used when category estimation is off or there are not enough records"
+            "value" : "Set the category to show for each time period when opening a new record\n\nThis map is used when category estimation is off or there are no matching records (undecided)"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "新しい記録を開いた時に表示したい区分を時間帯毎に設定します\n\n区分推定機能がOFFまたは記録が少ないとき、このマップで決定します"
+            "value" : "新しい記録を開いた時に表示したい区分を時間帯毎に設定します\n\n区分推定機能がOFFまたは同じ曜日・時刻の記録が無く未定のとき、このマップで決定します"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "새 기록을 열었을 때 표시할 구분을 시간대별로 설정합니다\n\n구분 추정 기능이 OFF이거나 기록이 적을 때 이 맵으로 결정합니다"
+            "value" : "새 기록을 열었을 때 표시할 구분을 시간대별로 설정합니다\n\n구분 추정 기능이 OFF이거나 같은 요일·시각의 기록이 없어 미정일 때 이 맵으로 결정합니다"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "設定開啟新記錄時各時段要顯示的類別\n\n當類別推估功能為 OFF 或記錄較少時，以此對應表決定"
+            "value" : "設定開啟新記錄時各時段要顯示的類別\n\n當類別推估功能為 OFF 或沒有相同星期與時刻的記錄而未定時，以此對應表決定"
           }
         }
       }
@@ -22767,6 +22767,238 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "開啟分類 1（起床）的新記錄、變更日期時間，或切換為分類 1 時，會自動從健康App取得"
+          }
+        }
+      }
+    },
+    "reminder.titleFormat" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Time to measure: %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@の測定時刻です"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 측정 시각입니다"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@的測量時間到了"
+          }
+        }
+      }
+    },
+    "reminder.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap to record your measurement"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "タップすると測定を記録できます"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "탭하면 측정을 기록할 수 있습니다"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "點選即可記錄測量"
+          }
+        }
+      }
+    },
+    "settings.category.reminder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notify"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通知する"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "알림"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通知"
+          }
+        }
+      }
+    },
+    "settings.category.reminder.denied.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notifications Are Off"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通知が許可されていません"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "알림이 허용되지 않았습니다"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尚未允許通知"
+          }
+        }
+      }
+    },
+    "settings.category.reminder.denied.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allow notifications for this app in the Settings app"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "設定アプリで、このアプリの通知を許可してください"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "설정 앱에서 이 앱의 알림을 허용해 주세요"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請在「設定」App 中允許本App的通知"
+          }
+        }
+      }
+    },
+    "settings.category.reminder.openSettings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Settings"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "設定を開く"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "설정 열기"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開啟設定"
+          }
+        }
+      }
+    },
+    "settings.category.estimateDistribution.undecided" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blank cells have no records and are undecided\nIf undecided, the time slot map is used"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "空欄は記録が無く未定です\n未定ならば時間帯マップを使います"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "빈칸은 기록이 없어 미정입니다\n미정이면 시간대 맵을 사용합니다"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "空白表示沒有記錄而未定\n未定時會使用時段對照表"
+          }
+        }
+      }
+    },
+    "settings.category.reminder.help" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When on, you’ll get a notification at your measurement time\n\nNotifications are shown only, with no sound or vibration\n\nTap a notification to open the measurement screen"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ONにすると測定時刻に通知が届きます\n\n通知は表示だけで、音や振動はありません\n\n通知をタップすると、測定画面が開きます"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "켜면 측정 시각에 알림이 옵니다\n\n알림은 표시만 되며 소리나 진동은 없습니다\n\n알림을 탭하면 측정 화면이 열립니다"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開啟後會在測量時間收到通知\n\n通知僅顯示，不會發出聲音或震動\n\n點選通知即可開啟測量畫面"
           }
         }
       }

@@ -130,6 +130,11 @@ struct ContentView: View {
             AppAnalytics.shared.logScreen(selectedTab.analyticsName)
             // cold launch：フォアグラウンド表示と同時にブロック層を出したいので、
             // scenePhase の onChange を待たず最初の描画時にここで起動アクションを開始する。
+            // 通知から起動した場合は、起動時アクションより測定シートを優先する
+            if settings.pendingReminderMeasurement {
+                didRunInitialLaunchAction = true
+                openMeasurementFromReminderIfNeeded()
+            }
             if !didRunInitialLaunchAction {
                 didRunInitialLaunchAction = true
                 // シート系アクションはこの時点で即ブロック層を立ててチラつき・誤タップを防ぐ
@@ -138,6 +143,11 @@ struct ContentView: View {
                 }
                 performLaunchAction(settings.launchAction)
             }
+            MeasurementReminder.reschedule()
+        }
+        // 測定時刻の通知がタップされたら測定シートを開く（起動中・復帰時）
+        .onChange(of: settings.pendingReminderMeasurement) { _, _ in
+            openMeasurementFromReminderIfNeeded()
         }
         .onChange(of: selectedTab) { _, tab in
             // タブ切り替えから、よく使われる機能を把握する
@@ -150,9 +160,16 @@ struct ContentView: View {
             }
             if phase == .active {
                 AppAnalytics.shared.logSettingsSnapshot(settings: settings, reason: "foreground")
+                // 推定は記録が増えると変わるので、復帰のたびに通知の時刻を作り直す
+                MeasurementReminder.reschedule()
             }
             // cold launch は onAppear 側で実行済み。ここではバックグラウンド復帰時のみ扱う。
             guard phase == .active, hasEnteredBackground else { return }
+            // 通知のタップで戻ったときは、起動時アクションより測定シートを優先する
+            if settings.pendingReminderMeasurement {
+                openMeasurementFromReminderIfNeeded()
+                return
+            }
             // 復帰と同時にブロック層を立て、前画面を触らせない。
             // ただし新規記録シートが開いているときは起動アクションを実行しない
             // （performLaunchAction 内で拒否される）ため、暗幕も先出ししない。
@@ -343,6 +360,13 @@ struct ContentView: View {
         case .dial:
             settings.showNewRecordSheet = true
         }
+    }
+
+    /// 測定時刻の通知がタップされていれば、測定シートを開く
+    private func openMeasurementFromReminderIfNeeded() {
+        guard settings.pendingReminderMeasurement else { return }
+        settings.pendingReminderMeasurement = false
+        presentSheet(kind: .multi)
     }
 
     /// 起動（フォアグラウンド復帰）時アクションを実行する

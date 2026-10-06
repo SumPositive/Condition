@@ -658,6 +658,14 @@ final class AppSettings {
         didSet { ud.set(sleepAutoFetch, forKey: UDefKeys.sleepAutoFetch) }
     }
 
+    // MARK: - 測定時刻の通知
+    /// 測定時刻を通知する区分（DateOpt.rawValue）。通知の許可は端末ごとなので、バックアップには含めない
+    var reminderDateOpts: [Int] = [] {
+        didSet { ud.set(reminderDateOpts, forKey: UDefKeys.reminderDateOpts) }
+    }
+    /// 測定時刻の通知がタップされ、測定シートを開く待ちか（保存しない）
+    var pendingReminderMeasurement = false
+
     // MARK: - ダイアル式の測定記録
     /// 初期からあるダイアル式の記録画面を使うか。既定 OFF で、記録は複数平均式と症状の2つに絞る。
     /// OFF のときは一覧のボタンだけでなく、記録タブ再タップと起動時アクションの経路も塞ぐ
@@ -777,6 +785,7 @@ final class AppSettings {
         }
         useDialRecordEntry = ud.bool(forKey: UDefKeys.useDialRecordEntry)
         sleepAutoFetch = ud.bool(forKey: UDefKeys.sleepAutoFetch)
+        reminderDateOpts = (ud.array(forKey: UDefKeys.reminderDateOpts) as? [Int]) ?? []
         if let domain = RecordDomain(rawValue: ud.integer(forKey: SettingsKeys.settRecordDomain)) {
             recordDomain = domain
         }

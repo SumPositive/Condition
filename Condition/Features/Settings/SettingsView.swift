@@ -1500,6 +1500,8 @@ struct DateOptMatrixView: View {
         .background(Color(.systemGroupedBackground))
         // 区分のアイコン・名称・色を変更したら時間帯マップも再生成する
         .id(settings.dateOptAppearanceRevision)
+        // 時間帯の割り当てや推定の ON/OFF で通知の時刻が変わるので、画面を離れるときに作り直す
+        .onDisappear { MeasurementReminder.reschedule() }
         .navigationTitle("settings.category")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -1580,6 +1582,9 @@ private struct DateOptAppearanceListView: View {
 private struct DateOptAppearanceEditView: View {
     let dateOpt: DateOpt
     @Binding var appearance: DateOptAppearance
+    @State private var settings = AppSettings.shared
+    /// 通知が許可されていないときの案内
+    @State private var showsReminderDenied = false
     @State private var draftName: String
     @FocusState private var isNameFocused: Bool
 
@@ -1648,6 +1653,20 @@ private struct DateOptAppearanceEditView: View {
                 }
 
                 Section {
+                    // 説明は見出しの右の (?) のヘルプシートにまとめる
+                    HStack {
+                        SettingsHelpTitle(
+                            titleKey: "settings.category.reminder",
+                            helpKey: "settings.category.reminder.help",
+                            storageKey: "helpDismissed.settings.categoryReminder"
+                        )
+                        Spacer()
+                        Toggle("settings.category.reminder", isOn: reminderBinding)
+                            .labelsHidden()
+                    }
+                }
+
+                Section {
                     LazyVGrid(columns: columns, spacing: 10) {
                         ForEach(DateOptIconOption.all, id: \.self) { iconName in
                             Button {
@@ -1710,9 +1729,44 @@ private struct DateOptAppearanceEditView: View {
         }
         .onDisappear {
             commitDraftName()
+            // 名称を変えたら通知の文面も変わるので作り直す
+            MeasurementReminder.reschedule()
+        }
+        .alert("settings.category.reminder.denied.title", isPresented: $showsReminderDenied) {
+            Button("settings.category.reminder.openSettings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button("action.cancel", role: .cancel) {}
+        } message: {
+            Text("settings.category.reminder.denied.message")
         }
         .navigationTitle(String(format: NSLocalizedString("settings.category.number", comment: ""), dateOpt.rawValue + 1))
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    /// 測定時刻の通知。ON にするときは通知の許可を求め、許可されなければ OFF に戻して案内する
+    private var reminderBinding: Binding<Bool> {
+        Binding(
+            get: { settings.reminderDateOpts.contains(dateOpt.rawValue) },
+            set: { isOn in
+                if isOn {
+                    settings.reminderDateOpts.append(dateOpt.rawValue)
+                    Task { @MainActor in
+                        if await MeasurementReminder.requestAuthorization() {
+                            MeasurementReminder.reschedule()
+                        } else {
+                            settings.reminderDateOpts.removeAll { $0 == dateOpt.rawValue }
+                            showsReminderDenied = true
+                        }
+                    }
+                } else {
+                    settings.reminderDateOpts.removeAll { $0 == dateOpt.rawValue }
+                    MeasurementReminder.reschedule()
+                }
+            }
+        )
     }
 
     private var previewContent: some View {
@@ -1848,7 +1902,7 @@ private struct DateOptEstimateDistributionView: View {
             VStack(spacing: 1) {
                 HStack(spacing: 1) {
                     Spacer().frame(width: distributionHourWidth)
-                    ForEach(1...7, id: \.self) { weekday in
+                    ForEach(orderedWeekdays, id: \.self) { weekday in
                         Text(weekdayLabel(weekday))
                             .font(.caption2.weight(.semibold))
                             .foregroundStyle(.secondary)
@@ -1863,19 +1917,25 @@ private struct DateOptEstimateDistributionView: View {
                             .foregroundStyle(.secondary)
                             .frame(width: distributionHourWidth, alignment: .trailing)
                             .padding(.trailing, 2)
-                        ForEach(1...7, id: \.self) { weekday in
+                        ForEach(orderedWeekdays, id: \.self) { weekday in
                             let dateOpt = estimatedDateOpt(
                                 weekday: weekday,
                                 hour: hour,
                                 referenceDate: referenceDate
                             )
                             ZStack {
-                                RoundedRectangle(cornerRadius: 3)
-                                    .fill(dateOpt.color.opacity(0.18))
-                                // 分布表は密度を優先し、アイコンで行高が膨らまないようにする
-                                Image(systemName: dateOpt.icon)
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundStyle(dateOpt.color)
+                                if let dateOpt {
+                                    RoundedRectangle(cornerRadius: 3)
+                                        .fill(dateOpt.color.opacity(0.18))
+                                    // 分布表は密度を優先し、アイコンで行高が膨らまないようにする
+                                    Image(systemName: dateOpt.icon)
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundStyle(dateOpt.color)
+                                } else {
+                                    // 記録が無く未定のときは空欄にする
+                                    RoundedRectangle(cornerRadius: 3)
+                                        .fill(Color(.systemFill))
+                                }
                             }
                             .frame(maxWidth: .infinity)
                             .frame(height: distributionCellSize)
@@ -1883,19 +1943,23 @@ private struct DateOptEstimateDistributionView: View {
                     }
                 }
             }
+            Text("settings.category.estimateDistribution.undecided")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
         .padding(10)
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10))
     }
 
-    private func estimatedDateOpt(weekday: Int, hour: Int, referenceDate: Date) -> DateOpt {
+    /// 記録から推定した区分（nil = 未定）
+    private func estimatedDateOpt(weekday: Int, hour: Int, referenceDate: Date) -> DateOpt? {
         let target = targetDate(weekday: weekday, hour: hour, referenceDate: referenceDate)
-        return DateOptEstimator.estimate(
+        return DateOptEstimator.estimateResult(
             from: records,
             targetDate: target,
             hourMap: settings.dateOptHourMap,
             referenceDate: referenceDate
-        )
+        ).estimated
     }
 
     private func targetDate(weekday: Int, hour: Int, referenceDate: Date) -> Date {
@@ -1908,6 +1972,11 @@ private struct DateOptEstimateDistributionView: View {
         components.second = 0
         // 推定器は曜日と時刻を使うため、同じ週の代表日時を作れば十分
         return calendar.date(from: components) ?? referenceDate
+    }
+
+    /// 曜日の並び（1=日曜〜7=土曜）。端末の「週の始まりの曜日」から始める
+    private var orderedWeekdays: [Int] {
+        AppDateCalendar.weekdayIndices(in: AppDateCalendar.gregorian).map { $0 + 1 }
     }
 
     private func weekdayLabel(_ weekday: Int) -> String {

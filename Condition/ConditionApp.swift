@@ -3,6 +3,7 @@
 
 import SwiftUI
 import SwiftData
+import UserNotifications
 import FirebaseCore
 @preconcurrency import GoogleMobileAds
 
@@ -12,6 +13,8 @@ struct ConditionApp: App {
 
     @State private var migrationService = MigrationService()
     @State private var settings = AppSettings.shared
+    /// 測定時刻の通知のタップを受け取る
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     init() {
         // FirebaseはAnalytics/Crashlyticsの利用前に初期化する
@@ -267,5 +270,160 @@ private struct MigrationErrorView: View {
             }
             .padding(40)
         }
+    }
+}
+
+
+// MARK: - 測定時刻の通知
+
+/// 通知のタップを受け取り、測定シートを開く合図を出す
+final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        // 通知から起動したときのタップも受け取れるよう、起動直後に設定する
+        UNUserNotificationCenter.current().delegate = self
+        return true
+    }
+
+    /// アプリを開いているときも、音なしで表示だけする
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification
+    ) async -> UNNotificationPresentationOptions {
+        [.banner, .list]
+    }
+
+    /// 測定時刻の通知がタップされたら、測定シートを開く
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
+    ) async {
+        guard response.notification.request.identifier.hasPrefix(MeasurementReminder.identifierPrefix) else { return }
+        await MainActor.run {
+            AppAnalytics.shared.logOperation("measurement_reminder_open")
+            AppSettings.shared.pendingReminderMeasurement = true
+        }
+    }
+}
+
+/// 測定時刻の通知を登録する。
+/// 記録から推定した曜日ごとの区分で、通知 ON の区分がその曜日に最初に現れる時刻に、毎週くり返しのローカル通知を置く。
+/// その曜日に推定が無い（未定）区分は通知しない（時間帯マップでは補わない）。表示だけで音・振動は無い
+enum MeasurementReminder {
+    /// このアプリの測定時刻の通知の識別子の頭
+    static let identifierPrefix = "measurementReminder."
+    /// iOS が保持できる予約は 64 件まで
+    private static let maxRequests = 60
+
+    /// 区分の時間帯が始まる曜日と時刻（weekday は 1=日曜〜7=土曜）
+    struct Slot: Hashable {
+        let dateOpt: DateOpt
+        let weekday: Int
+        let hour: Int
+    }
+
+    /// 通知の許可を求める（表示だけ。音・バッジは求めない）
+    static func requestAuthorization() async -> Bool {
+        let center = UNUserNotificationCenter.current()
+        let settings = await center.notificationSettings()
+        switch settings.authorizationStatus {
+        case .authorized, .provisional, .ephemeral:
+            return true
+        case .notDetermined:
+            return (try? await center.requestAuthorization(options: [.alert])) ?? false
+        default:
+            return false
+        }
+    }
+
+    /// 予約を作り直す。起動・復帰時と、通知や区分の設定を変えたときに呼ぶ
+    @MainActor
+    static func reschedule() {
+        let settings = AppSettings.shared
+        let targets = Set(settings.reminderDateOpts.compactMap(DateOpt.init(rawValue:)).filter(\.isDefined))
+        // 予約を作る材料は画面側で集め、登録だけを後で行う
+        let slots: [Slot]
+        if targets.isEmpty {
+            slots = []
+        } else {
+            let context = ModelContainer.shared.mainContext
+            let descriptor = FetchDescriptor<BodyRecord>(
+                predicate: #Predicate { $0.dateTime < bodyRecordGoalDate }
+            )
+            let records = (try? context.fetch(descriptor)) ?? []
+            slots = firstSlots(
+                table: weeklyTable(records: records, hourMap: settings.dateOptHourMap, referenceDate: Date()),
+                targets: targets
+            )
+        }
+        let requests = slots.prefix(maxRequests).map(request(for:))
+        Task {
+            let center = UNUserNotificationCenter.current()
+            let pending = await center.pendingNotificationRequests()
+            center.removePendingNotificationRequests(
+                withIdentifiers: pending.map(\.identifier).filter { $0.hasPrefix(identifierPrefix) }
+            )
+            guard !requests.isEmpty else { return }
+            let status = await center.notificationSettings().authorizationStatus
+            guard status == .authorized || status == .provisional || status == .ephemeral else { return }
+            for request in requests {
+                try? await center.add(request)
+            }
+        }
+    }
+
+    /// 曜日（1〜7）× 時（0〜23）の推定区分表（nil = 未定）。設定画面の分布表と同じ推定
+    @MainActor
+    static func weeklyTable(
+        records: [BodyRecord],
+        hourMap: [Int],
+        referenceDate: Date
+    ) -> [[DateOpt?]] {
+        let calendar = AppDateCalendar.gregorian
+        return (1...7).map { weekday in
+            (0..<24).map { hour in
+                // 推定は曜日と時刻を使うため、同じ週の代表日時を作れば十分
+                var components = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: referenceDate)
+                components.weekday = weekday
+                components.hour = hour
+                components.minute = 0
+                let target = calendar.date(from: components) ?? referenceDate
+                return DateOptEstimator.estimateResult(
+                    from: records, targetDate: target, hourMap: hourMap, referenceDate: referenceDate
+                ).estimated
+            }
+        }
+    }
+
+    /// 曜日ごとに、通知する区分が最初に現れる時刻を集める（その曜日に推定が無い区分は通知しない）
+    static func firstSlots(table: [[DateOpt?]], targets: Set<DateOpt>) -> [Slot] {
+        var result: [Slot] = []
+        for dayIndex in table.indices {
+            for target in DateOpt.allCases where targets.contains(target) {
+                guard let hour = table[dayIndex].firstIndex(of: target) else { continue }
+                result.append(Slot(dateOpt: target, weekday: dayIndex + 1, hour: hour))
+            }
+        }
+        return result
+    }
+
+    @MainActor
+    private static func request(for slot: Slot) -> UNNotificationRequest {
+        let content = UNMutableNotificationContent()
+        content.title = String(format: String(localized: "reminder.titleFormat"), slot.dateOpt.displayName)
+        content.body = String(localized: "reminder.body")
+        // 表示だけにする（音・振動なし）
+        content.sound = nil
+        var components = DateComponents()
+        components.calendar = Calendar(identifier: .gregorian)
+        components.weekday = slot.weekday
+        components.hour = slot.hour
+        components.minute = 0
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
+        let identifier = "\(identifierPrefix)\(slot.dateOpt.rawValue).\(slot.weekday).\(slot.hour)"
+        return UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
     }
 }

@@ -1668,46 +1668,58 @@ struct DateOptEstimatorTests {
         try body()
     }
 
-    @Test("90日より古い履歴は加点されない")
+    @Test("90日より古い履歴は数えない")
     func historyCutoffAt90Days() {
         let reference = date(2026, 6, 15, 12, 0)
         let cal = AppDateCalendar.gregorian
-        let inside  = cal.date(byAdding: .day, value: -89, to: reference) ?? reference
+        // どちらも同じ曜日・同じ時刻（12時台）
+        let inside  = cal.date(byAdding: .day, value: -84, to: reference) ?? reference
         let outside = cal.date(byAdding: .day, value: -91, to: reference) ?? reference
         let result = DateOptEstimator.estimateResult(
             from: [rec(.cat01, inside), rec(.cat03, outside)],
             targetDate: reference, hourMap: hourMap(all: .cat02), referenceDate: reference
         )
-        #expect((result.scores[.cat01] ?? 0) > 0)   // 89日前は加点される
-        #expect(result.scores[.cat03] == 0)          // 91日前は集計対象外
+        #expect(result.counts[.cat01] == 1)   // 84日前は数える
+        #expect(result.counts[.cat03] == nil) // 91日前は集計対象外
+        #expect(result.estimated == .cat01)
     }
 
-    @Test("時刻差は日をまたいで最短側で評価する")
-    func timeProximityIsCircularAcrossMidnight() {
-        let reference = date(2026, 6, 15, 1, 0)   // 01:00
-        // 同一日の 23:00(cat01)と 12:00(cat03)。曜日・新しさは同条件なので時刻差だけが効く
-        let near = date(2026, 6, 10, 23, 0)
-        let far  = date(2026, 6, 10, 12, 0)
+    @Test("同じ曜日・同じ時刻で最も多い区分にする")
+    func picksMostFrequentAtSameWeekdayAndHour() {
+        let reference = date(2026, 6, 15, 7, 40)   // 月曜 7時台
+        let records = [
+            rec(.cat01, date(2026, 6, 8, 7, 5)),   // 月曜 7時台
+            rec(.cat01, date(2026, 6, 1, 7, 55)),  // 月曜 7時台
+            rec(.cat02, date(2026, 5, 25, 7, 30)), // 月曜 7時台
+            rec(.cat03, date(2026, 6, 9, 7, 30)),  // 火曜は数えない
+            rec(.cat03, date(2026, 6, 8, 8, 0)),   // 8時台は数えない
+        ]
         let result = DateOptEstimator.estimateResult(
-            from: [rec(.cat01, near), rec(.cat03, far)],
-            targetDate: reference, hourMap: hourMap(all: .cat02), referenceDate: reference
+            from: records, targetDate: reference, hourMap: hourMap(all: .cat04), referenceDate: reference
         )
-        // 23:00 は 01:00 と circular 120分 → 12:00(660分)より高スコア
-        #expect((result.scores[.cat01] ?? 0) > (result.scores[.cat03] ?? 0))
+        #expect(result.counts == [.cat01: 2, .cat02: 1])
+        #expect(result.selected == .cat01)
     }
 
-    @Test("最大区分が僅差ならマトリクスの既定へ戻す")
-    func tiedTopScoresFallBackToMatrix() {
+    @Test("同数なら最近使った区分にする")
+    func tieUsesMostRecent() {
         let reference = date(2026, 6, 15, 9, 0)
-        let t1 = date(2026, 6, 8, 9, 0)
-        let t2 = date(2026, 6, 1, 9, 0)
-        // cat01 と cat03 を同一日時で積み、完全同点にする
-        let records = [rec(.cat01, t1), rec(.cat01, t2), rec(.cat03, t1), rec(.cat03, t2)]
+        let records = [rec(.cat01, date(2026, 6, 1, 9, 0)), rec(.cat03, date(2026, 6, 8, 9, 0))]
         let selected = DateOptEstimator.estimate(
             from: records, targetDate: reference, hourMap: hourMap(all: .cat02), referenceDate: reference
         )
-        // 僅差判定でマトリクス既定 cat02 へ戻る
-        #expect(selected == .cat02)
+        #expect(selected == .cat03)
+    }
+
+    @Test("該当する記録が無ければ未定で、時間帯マップの区分にする")
+    func undecidedFallsBackToHourMap() {
+        let reference = date(2026, 6, 15, 9, 0)
+        let result = DateOptEstimator.estimateResult(
+            from: [rec(.cat01, date(2026, 6, 14, 9, 0))],   // 曜日が違う
+            targetDate: reference, hourMap: hourMap(all: .cat02), referenceDate: reference
+        )
+        #expect(result.estimated == nil)
+        #expect(result.selected == .cat02)
     }
 
     @Test("未定義区分の履歴は選ばれない")
@@ -1724,8 +1736,8 @@ struct DateOptEstimatorTests {
                 from: records, targetDate: reference, hourMap: hourMap(all: .cat02), referenceDate: reference
             )
             #expect(result.selected != .cat07)
-            #expect(result.scores[.cat07] == nil)   // 未定義区分はスコア表に存在しない
-            #expect(result.selected == .cat02)       // 定義済みのマトリクス既定へ落ち着く
+            #expect(result.counts[.cat07] == nil)   // 未定義区分は数えない
+            #expect(result.selected == .cat02)       // 未定なので時間帯マップの区分になる
         }
     }
 
@@ -3742,5 +3754,46 @@ struct SleepSessionTests {
         #expect(options.last == SleepEntry.sleeplessMinutes)
         #expect(options.contains(SleepEntry.durationFocusMinutes))
         #expect(options.count == 22)
+    }
+}
+
+// MARK: - 測定時刻の通知テスト
+
+@Suite("Measurement Reminder Tests")
+struct MeasurementReminderTests {
+
+    /// 全曜日が未定の表（nil = 未定）
+    private var emptyWeek: [[DateOpt?]] {
+        Array(repeating: Array(repeating: nil, count: 24), count: 7)
+    }
+
+    @Test("曜日ごとに、その区分が最初に現れる時刻で1回だけ通知する")
+    func notifiesAtFirstHourOfDay() {
+        var weekly = emptyWeek
+        for day in 0..<7 {
+            // 起床時は 6〜7時、就寝前は 22時
+            weekly[day][6] = .cat01
+            weekly[day][7] = .cat01
+            weekly[day][22] = .cat03
+        }
+        // 日曜だけ起床時が遅い（8時）
+        weekly[0][6] = nil
+        weekly[0][7] = nil
+        weekly[0][8] = .cat01
+        let slots = MeasurementReminder.firstSlots(table: weekly, targets: [.cat01, .cat03])
+        let wake = slots.filter { $0.dateOpt == .cat01 }
+        #expect(wake.count == 7)
+        #expect(wake.first { $0.weekday == 1 }?.hour == 8)
+        #expect(wake.filter { $0.weekday != 1 }.allSatisfy { $0.hour == 6 })
+        #expect(slots.filter { $0.dateOpt == .cat03 }.allSatisfy { $0.hour == 22 })
+    }
+
+    @Test("推定が未定の曜日は通知しない")
+    func skipsUndecidedWeekday() {
+        var weekly = emptyWeek
+        // 月曜だけ 7時が起床時
+        weekly[1][7] = .cat01
+        let slots = MeasurementReminder.firstSlots(table: weekly, targets: [.cat01, .cat02])
+        #expect(slots == [MeasurementReminder.Slot(dateOpt: .cat01, weekday: 2, hour: 7)])
     }
 }

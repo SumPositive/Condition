@@ -399,27 +399,25 @@ enum DateOptAppearanceStore {
 
 // MARK: - 区分推定
 
-/// 過去記録と時間帯マトリックスから、入力日時に最も自然な区分を推定する
+/// 直近3ヶ月の記録から、同じ曜日・同じ時刻（時）で最も多い区分を推定する。
+/// 該当する記録が無ければ未定とし、区分を決めるときは時間帯マップ（時間帯と区分の初期値）を使う
 enum DateOptEstimator {
-    /// 推定結果と、区分ごとの内部スコア
+    /// 推定結果
     struct Result {
+        /// 記録から推定した区分（nil = 未定）
+        let estimated: DateOpt?
+        /// 決定した区分（未定なら時間帯マップ）
         let selected: DateOpt
+        /// 時間帯マップの区分
         let matrixDefault: DateOpt
-        let scores: [DateOpt: Double]
+        /// 同じ曜日・同じ時刻の記録数（区分ごと）
+        let counts: [DateOpt: Int]
     }
 
-    /// 時間帯マトリックスを優先しすぎず、履歴が少ない時の土台として使う固定加点
-    private static let matrixBias = 1.5
-    /// 同じ曜日の記録を少し強く見る倍率
-    private static let sameWeekdayMultiplier = 1.25
-    /// 時刻差がこの分数に近いほど、スコアが自然に弱くなる
-    private static let timeScaleMinutes = 90.0
     /// 推定対象にする履歴期間（3ヶ月相当）
     private static let historyDays = 90
-    /// 最大区分と次点がこの差未満なら、時間帯マトリックスを優先する
-    private static let decisionMargin = 0.3
 
-    /// 区分を1つ返す簡易API
+    /// 区分を1つ返す。未定なら時間帯マップの区分
     static func estimate(
         from records: [BodyRecord],
         targetDate: Date,
@@ -434,7 +432,7 @@ enum DateOptEstimator {
         ).selected
     }
 
-    /// 区分ごとのスコアも含めて返す
+    /// 推定した区分と、決定した区分・記録数を返す
     static func estimateResult(
         from records: [BodyRecord],
         targetDate: Date,
@@ -443,94 +441,54 @@ enum DateOptEstimator {
     ) -> Result {
         let calendar = AppDateCalendar.gregorian
         let targetHour = calendar.component(.hour, from: targetDate)
-        let cutoff = calendar.date(byAdding: .day, value: -historyDays, to: referenceDate) ?? referenceDate
         let targetWeekday = calendar.component(.weekday, from: targetDate)
-        let targetMinutes = minutesOfDay(targetDate, calendar: calendar)
+        let cutoff = calendar.date(byAdding: .day, value: -historyDays, to: referenceDate) ?? referenceDate
 
         // 推定対象は定義済み（名称設定済み）区分のみ。新規記録の候補と一致させる
         let definedOpts = DateOpt.allCases.filter(\.isDefined)
 
-        // 時間帯マトリックスの既定が未定義区分を指す場合は、定義済みの先頭へ丸める
+        // 時間帯マップの既定が未定義区分を指す場合は、定義済みの先頭へ丸める
         let rawMatrixDefault = matrixDateOpt(hour: targetHour, hourMap: hourMap)
         let matrixDefault = rawMatrixDefault.isDefined
             ? rawMatrixDefault
             : (definedOpts.first ?? rawMatrixDefault)
 
-        // 定義済み区分だけ0点で用意する
-        var scores = Dictionary(uniqueKeysWithValues: definedOpts.map { ($0, 0.0) })
-
-        // 時間帯マトリックスは、履歴が薄い時に戻るための土台として加点する
-        scores[matrixDefault, default: 0] += matrixBias
-
+        // 同じ曜日・同じ時刻の記録を区分ごとに数え、同数のときに使う最新日時も控える
+        var counts: [DateOpt: Int] = [:]
+        var latest: [DateOpt: Date] = [:]
         for record in records {
-            // 目標値レコードや未来レコードは推定材料にしない
+            // 目標値レコード・未来の記録・3ヶ月より前の記録は使わない
             if bodyRecordGoalDate <= record.dateTime { continue }
             if referenceDate < record.dateTime { continue }
             if record.dateTime < cutoff { continue }
-            // 未定義区分の履歴は新規記録の候補にならないので加点しない
+            // 未定義区分の履歴は新規記録の候補にならないので数えない
             guard record.dateOpt.isDefined else { continue }
-
-            let weekdayWeight = calendar.component(.weekday, from: record.dateTime) == targetWeekday
-                ? sameWeekdayMultiplier
-                : 1.0
-            let timeWeight = timeProximityWeight(
-                from: minutesOfDay(record.dateTime, calendar: calendar),
-                to: targetMinutes
-            )
-            let recencyWeight = recencyWeight(recordDate: record.dateTime, referenceDate: referenceDate)
-
-            // 各記録の区分へ、曜日・時刻差・新しさを掛け合わせた点を足す
-            scores[record.dateOpt, default: 0] += weekdayWeight * timeWeight * recencyWeight
+            guard calendar.component(.weekday, from: record.dateTime) == targetWeekday,
+                  calendar.component(.hour, from: record.dateTime) == targetHour else { continue }
+            counts[record.dateOpt, default: 0] += 1
+            latest[record.dateOpt] = max(latest[record.dateOpt] ?? .distantPast, record.dateTime)
         }
 
+        // 最も多い区分。同数なら最近使った区分にする
+        let estimated = counts.max { lhs, rhs in
+            if lhs.value != rhs.value { return lhs.value < rhs.value }
+            return (latest[lhs.key] ?? .distantPast) < (latest[rhs.key] ?? .distantPast)
+        }?.key
+
         return Result(
-            selected: selectedDateOpt(scores: scores, fallback: matrixDefault),
+            estimated: estimated,
+            selected: estimated ?? matrixDefault,
             matrixDefault: matrixDefault,
-            scores: scores
+            counts: counts
         )
     }
 
-    private static func matrixDateOpt(hour: Int, hourMap: [Int]) -> DateOpt {
+    /// 時間帯と区分の初期値から区分を引く（測定時刻の通知でも使う）
+    static func matrixDateOpt(hour: Int, hourMap: [Int]) -> DateOpt {
         guard 0 <= hour, hour < hourMap.count else {
             return .cat02
         }
         return DateOpt(rawValue: hourMap[hour]) ?? .cat02
-    }
-
-    private static func minutesOfDay(_ date: Date, calendar: Calendar) -> Int {
-        calendar.component(.hour, from: date) * 60 + calendar.component(.minute, from: date)
-    }
-
-    private static func timeProximityWeight(from sourceMinutes: Int, to targetMinutes: Int) -> Double {
-        let rawDiff = abs(sourceMinutes - targetMinutes)
-        let circularDiff = min(rawDiff, 1440 - rawDiff)
-        let scaled = Double(circularDiff) / timeScaleMinutes
-        // ガウス型に落とすことで、30分差は強く、2〜3時間差はかなり弱くなる
-        return exp(-(scaled * scaled))
-    }
-
-    private static func recencyWeight(recordDate: Date, referenceDate: Date) -> Double {
-        let daysAgo = max(0, referenceDate.timeIntervalSince(recordDate) / 86_400)
-        // 90日以内の履歴は最低0.5倍まで残し、直近ほど強くする
-        return max(0.5, 1.0 - daysAgo / 180.0)
-    }
-
-    private static func selectedDateOpt(scores: [DateOpt: Double], fallback: DateOpt) -> DateOpt {
-        let ranked = scores.sorted { lhs, rhs in
-            if lhs.value == rhs.value {
-                return lhs.key.rawValue < rhs.key.rawValue
-            }
-            return rhs.value < lhs.value
-        }
-        guard let top = ranked.first else {
-            return fallback
-        }
-        let secondScore = ranked.dropFirst().first?.value ?? 0
-        // 最大区分が次点と僅差なら、説明しやすく安定した時間帯マトリックスへ戻す
-        if top.value - secondScore < decisionMargin {
-            return fallback
-        }
-        return top.key
     }
 }
 
