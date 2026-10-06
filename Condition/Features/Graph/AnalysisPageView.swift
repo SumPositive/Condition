@@ -569,6 +569,7 @@ private struct AnalysisStatPanel: View {
 
   private static let resizable: Set<StatSection> = [
     .bpJsh, .bpDateOptCorr, .bp24h, .temp24h, .tempHist, .weightBpScatter,
+    .sleepStartBpScatter, .sleepDurationBpScatter,
   ]
 
   private var height: CGFloat {
@@ -607,6 +608,8 @@ private struct AnalysisStatPanel: View {
     case .temp24h: Temp24HChartView(records: records)
     case .tempHist: TempHistogramView(records: records)
     case .weightBpScatter: WeightBpScatterView(records: records)
+    case .sleepStartBpScatter: SleepBpScatterView(records: records, metric: .start)
+    case .sleepDurationBpScatter: SleepBpScatterView(records: records, metric: .duration)
     }
   }
 }

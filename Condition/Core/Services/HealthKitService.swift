@@ -528,6 +528,67 @@ final class HealthKitService {
         return v
     }
 
+    // MARK: - 睡眠の読み込み
+
+    /// 睡眠の取得結果
+    enum SleepReadResult: Equatable {
+        case found(SleepEntry)
+        /// データが無い（読み取りを許可していない場合も区別できずここになる）
+        case notFound
+        /// 読み取りに失敗した
+        case failed
+    }
+
+    /// 記録日時の直前（SleepSessionLogic.lookback の範囲）から、最も長い睡眠を取得する。
+    /// 睡眠は同期設定とは別に、ボタンを押したときだけ読み取り許可を求める
+    func readSleep(before recordDate: Date) async -> SleepReadResult {
+        guard isAvailable else { return .failed }
+        let type = HKCategoryType(.sleepAnalysis)
+        do {
+            // 許可済みなら何も表示されずに戻る
+            try await store.requestAuthorization(toShare: [], read: [type])
+        } catch {
+            logger.error("HealthKit 睡眠の権限エラー: \(error.localizedDescription)")
+            AppAnalytics.shared.record(error: error, name: "healthkit_sleep_authorization_failed")
+            return .failed
+        }
+        // 範囲に一部でも重なるサンプルを取り、範囲外は SleepSessionLogic で切り詰める
+        let predicate = HKQuery.predicateForSamples(
+            withStart: recordDate.addingTimeInterval(-SleepSessionLogic.lookback),
+            end: recordDate
+        )
+        let descriptor = HKSampleQueryDescriptor(
+            predicates: [.categorySample(type: type, predicate: predicate)],
+            sortDescriptors: [SortDescriptor(\.startDate)]
+        )
+        let samples: [HKCategorySample]
+        do {
+            samples = try await descriptor.result(for: store)
+        } catch {
+            if Self.isNoDataError(error) { return .notFound }
+            logger.error("HealthKit 睡眠の読み取りエラー: \(error.localizedDescription)")
+            AppAnalytics.shared.record(error: error, name: "healthkit_sleep_read_failed")
+            return .failed
+        }
+        let intervals = samples.compactMap { sample -> SleepInterval? in
+            guard let value = HKCategoryValueSleepAnalysis(rawValue: sample.value) else { return nil }
+            switch value {
+            case .inBed:
+                return SleepInterval(start: sample.startDate, end: sample.endDate, isAsleep: false)
+            case .awake:
+                // 夜中に目が覚めた区間は睡眠時間に含めない
+                return nil
+            default:
+                // 段階不明・コア・深い・レムはすべて睡眠として数える
+                return SleepInterval(start: sample.startDate, end: sample.endDate, isAsleep: true)
+            }
+        }
+        guard let entry = SleepSessionLogic.mainSleep(from: intervals, recordDate: recordDate) else {
+            return .notFound
+        }
+        return .found(entry)
+    }
+
     // MARK: - Private helpers
 
     /// 指定日時にこのアプリが書き込んだサンプルを削除する。

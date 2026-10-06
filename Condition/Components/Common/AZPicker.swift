@@ -171,6 +171,8 @@ struct AZDropdownPicker<Option: Hashable & Identifiable, Label: View>: View {
     var style: AZPickerStyle = .form
     /// UI テスト用の識別子。選択ボタンはこの値、候補は "<値>.option.<id>" になる
     var accessibilityID: String = ""
+    /// 開いたときに中央へ見せる候補。nil なら選択中の候補を中央にする
+    var initialScrollID: Option.ID? = nil
     @ViewBuilder let label: (Option) -> Label
 
     var body: some View {
@@ -285,7 +287,7 @@ struct AZDropdownPicker<Option: Hashable & Identifiable, Label: View>: View {
             .onAppear {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                     withAnimation(.easeInOut(duration: 0.18)) {
-                        proxy.scrollTo(selection.id, anchor: .center)
+                        proxy.scrollTo(initialScrollID ?? selection.id, anchor: .center)
                     }
                 }
             }

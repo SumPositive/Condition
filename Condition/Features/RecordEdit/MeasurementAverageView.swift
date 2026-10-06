@@ -98,6 +98,8 @@ private struct MeasurementAverageSnapshot: Equatable {
     let caution: Bool
     // 環境だけの編集も変更として検出する
     let environment: EnvironmentSnapshot
+    // 睡眠だけの編集も変更として検出する
+    let sleep: SleepEntry
 }
 
 /// ばらつき（標準偏差）が「赤」になっている主因の測定値を特定する。
@@ -202,9 +204,9 @@ struct MeasurementAverageView: View {
     /// 復元時の日時変更と、ユーザーによる日時変更を区別する
     @State private var environmentRecordDate: Date?
     @State private var showEnvironmentSheet = false
-    @State private var tableViewportWidth: CGFloat = 0
-    /// 「＋・血圧部位・環境」の行を詰めて並べたときの幅（画面に収まるかの判定に使う）
-    @State private var addTrialRowNaturalWidth: CGFloat = 0
+    /// 睡眠（起床時の区分だけで入力・保存する）
+    @State private var sleep = SleepEntry()
+    @State private var showSleepSheet = false
     @State private var showDatePicker = false
     @State private var showDeleteAlert = false
     @State private var isDateOptExpanded = false
@@ -341,13 +343,15 @@ struct MeasurementAverageView: View {
             note1: note1,
             note2: note2,
             caution: caution,
-            environment: environment
+            environment: environment,
+            sleep: sleep
         )
     }
 
     /// メモ欄に何か入力されているか（新規シートの「変更あり」判定に使う）
     private var hasAnyMemoInput: Bool {
         !equipment.isEmpty || !note1.isEmpty || !note2.isEmpty || caution || environment.hasAnyValue
+            || sleep.hasAnyValue
     }
 
     var body: some View {
@@ -434,6 +438,11 @@ struct MeasurementAverageView: View {
                 EnvironmentEditView(snapshot: environment, recordDate: dateTime) { updated in
                     if updated != environment { environment = updated }
                     environmentRecordDate = dateTime
+                }
+            }
+            .sheet(isPresented: $showSleepSheet) {
+                SleepEditSheet(entry: sleep, recordDate: dateTime) { updated in
+                    if updated != sleep { sleep = updated }
                 }
             }
             // 記録日時を変更した端末気圧を、その日時の実測値として残さない
@@ -580,40 +589,10 @@ struct MeasurementAverageView: View {
         columns.contains(.bpHi) || columns.contains(.bpLo)
     }
 
-    /// 左端を番号・ヘルプ列に合わせ、環境シートのボタンを置く。
-    /// 画面に見える幅に収まるときは環境ボタンを右端へ寄せ、収まらないときは
-    /// L・R のすぐ右に続けて置く（文字を欠かさず、はみ出しは横スクロールで見せる）。
-    /// 横スクロールのコンテンツ幅に入るよう、収まらないときは行そのものを中身の幅まで広げる
-    /// （外側を画面幅で固定すると、はみ出した環境ボタンまでスクロールできない）
+    /// 左端を番号・ヘルプ列に合わせ、「＋」と血圧部位を並べる
     private var addTrialAndBpSideRow: some View {
-        let viewport = max(0, tableViewportWidth - 24)
-        let fits = tableViewportWidth == 0 || addTrialRowNaturalWidth <= viewport
-        return Group {
-            if fits {
-                addTrialAndBpSideContent(pushesEnvironmentToTrailing: true)
-                    .frame(width: tableViewportWidth == 0 ? nil : viewport)
-            } else {
-                addTrialAndBpSideContent(pushesEnvironmentToTrailing: false)
-                    .frame(width: addTrialRowNaturalWidth, alignment: .leading)
-            }
-        }
-        // 入力行と同じ高さにそろえ、表の行間を一定に見せる
-        .frame(height: cellHeight)
-        // 右端へ寄せない並べ方の自然な幅を測り、収まるかの判定と広げる幅に使う
-        .background(alignment: .leading) {
-            addTrialAndBpSideContent(pushesEnvironmentToTrailing: false)
-                .fixedSize()
-                .hidden()
-                .onGeometryChange(for: CGFloat.self, of: { $0.size.width }) {
-                    addTrialRowNaturalWidth = $0
-                }
-        }
-    }
-
-    private func addTrialAndBpSideContent(pushesEnvironmentToTrailing: Bool) -> some View {
         HStack(spacing: 6) {
-            // 各部品は自然な幅のまま置く。幅を測った行と実際の行で大きさが変わらないようにし、
-            // 伸び縮みする部品（L・R の切り替えは 1 つあたり 46〜60pt）が他の文字を押し出して欠けさせないため
+            // 各部品は自然な幅のまま置き、伸び縮みする部品が他の文字を押し出して欠けさせないようにする
             if trialCount < maxTrials {
                 addTrialButton
                     .fixedSize()
@@ -628,24 +607,10 @@ struct MeasurementAverageView: View {
                 bpSideSegment
                     .fixedSize()
             }
-            if pushesEnvironmentToTrailing {
-                Spacer(minLength: 4)
-            } else {
-                Color.clear.frame(width: 6, height: 1)
-            }
-            Button {
-                commitInputText()
-                dismissMemoFocus()
-                showEnvironmentSheet = true
-            } label: {
-                // 環境シートの見出しと同じアイコンを使う
-                Label("environment.title", systemImage: "thermometer.sun")
-                    .font(.callout)
-            }
-            .buttonStyle(.borderless)
-            .fixedSize()
         }
         .lineLimit(1)
+        // 入力行と同じ高さにそろえ、表の行間を一定に見せる
+        .frame(height: cellHeight)
     }
 
     /// 入力済みの値だけをまとめ、屋外・室内・端末を区別する
@@ -727,16 +692,6 @@ struct MeasurementAverageView: View {
                             // 表のスクロール範囲を圧迫しないこの行にまとめる。血圧列が無ければ非表示。
                             addTrialAndBpSideRow
                                 .padding(.top, 2)
-                            // 環境未入力時は行を作らず、入力後は画面幅内の右端に1行で表示する
-                            if !environmentSummary.isEmpty {
-                                Text(environmentSummary)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                                    .minimumScaleFactor(0.5)
-                                    .frame(width: tableViewportWidth == 0 ? nil : max(0, tableViewportWidth - 24), alignment: .trailing)
-                                    .padding(.top, 2)
-                            }
                             Divider().padding(.vertical, 4)
                             summaryRow(metric: .average)
                             summaryRow(metric: .standardDeviation)
@@ -745,10 +700,6 @@ struct MeasurementAverageView: View {
                         .padding(.vertical, 10)
                     }
                     .scrollIndicators(.hidden)
-                    // 操作行は表全体の幅ではなく、画面に見える幅に収める
-                    .onGeometryChange(for: CGFloat.self, of: { $0.size.width }) {
-                        tableViewportWidth = $0
-                    }
                     // 標準偏差の下に、ダイアル式の記録編集と同じメモ欄を置く
                     memoSection
                         .padding(.horizontal, 12)
@@ -1280,6 +1231,34 @@ struct MeasurementAverageView: View {
     private var memoSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Divider()
+            // 環境は睡眠と同じ形の行で、メモの上に置く
+            RecordAuxRow(
+                titleKey: "environment.title",
+                systemImage: "thermometer.sun",
+                summary: environmentSummary.isEmpty ? String(localized: "sleep.notEntered") : environmentSummary,
+                hasValue: !environmentSummary.isEmpty,
+                helpKey: "record.environment.help"
+            ) {
+                commitInputText()
+                dismissMemoFocus()
+                showEnvironmentSheet = true
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 10)
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            // 睡眠は起床時の区分だけで入力する
+            if dateOpt == SleepEntry.dateOpt {
+                SleepEntryRow(entry: sleep) {
+                    commitInputText()
+                    dismissMemoFocus()
+                    showSleepSheet = true
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 10)
+                .background(Color(.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
             Text("record.memo.section")
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(.secondary)
@@ -1584,6 +1563,7 @@ struct MeasurementAverageView: View {
         caution = record.bCaution
         environment = record.environmentSnapshot
         environmentRecordDate = record.dateTime
+        sleep = record.sleepEntry
         guard let set = record.measurementSampleSet else {
             ensureSamplesArrays()
             initialSnapshot = currentSnapshot
@@ -1610,7 +1590,8 @@ struct MeasurementAverageView: View {
             note1: record.sNote1,
             note2: record.sNote2,
             caution: record.bCaution,
-            environment: environment
+            environment: environment,
+            sleep: sleep
         )
     }
 
@@ -2000,6 +1981,10 @@ struct MeasurementAverageView: View {
         target.bCaution = caution
         // 身体測定の平均値とは独立した付帯情報として保存する
         target.environmentSnapshot = environment
+        // 睡眠は起床時の区分だけに残す
+        target.sleepEntry = dateOpt == SleepEntry.dateOpt
+            ? sleep.normalized(recordDate: dateTime)
+            : SleepEntry()
 
         // 全列が空の行（＝入力せずに残った試行）は詰めて保存する。
         // 残しても平均には影響しないが、修正時に空行として復元されて紛らわしいため。

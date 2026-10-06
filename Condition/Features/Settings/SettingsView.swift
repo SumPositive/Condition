@@ -1640,6 +1640,11 @@ private struct DateOptAppearanceEditView: View {
                         Spacer()
                         Text(isCJKWidthLocale ? "settings.category.name.limit.ja" : "settings.category.name.limit.en")
                     }
+                } footer: {
+                    // 睡眠を付けられるのは区分1だけなので、名称を変えても分かるよう明記する
+                    if dateOpt == SleepEntry.dateOpt {
+                        Text("settings.category.sleepNote")
+                    }
                 }
 
                 Section {

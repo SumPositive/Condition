@@ -61,6 +61,7 @@ struct RecordEditView: View {
     /// バックグラウンドを経由したか
     @State private var didEnterBackground = false
     @State private var showStaleDateAlert = false
+    @State private var showSleepSheet = false
     @FocusState private var focusNote1: Bool
     @FocusState private var focusNote2: Bool
     @FocusState private var focusEquipment: Bool
@@ -466,6 +467,11 @@ struct RecordEditView: View {
                     vm.onDateChanged()
                 }
             }
+            .sheet(isPresented: $showSleepSheet) {
+                SleepEditSheet(entry: vm.sleep, recordDate: vm.dateTime) { updated in
+                    if updated != vm.sleep { vm.sleep = updated }
+                }
+            }
             .sheet(item: $conflictData) { conflict in
                 RecentConflictSheet(conflict: conflict) { action in
                     handleConflictAction(action, previous: conflict.previous)
@@ -644,6 +650,10 @@ struct RecordEditView: View {
                 dateRow
                     .disabled(vm.isHealthRecord)
                 dateOptRow
+                // 睡眠は起床時の区分だけで入力する
+                if vm.dateOpt == SleepEntry.dateOpt {
+                    SleepEntryRow(entry: vm.sleep) { showSleepSheet = true }
+                }
             }
         }
     }
@@ -1398,5 +1408,300 @@ struct DatePickerSheet: View {
         .presentationDetents([.height(contentHeight)])
         .presentationDragIndicator(.visible)
         .presentationBackground(Color(.systemBackground))
+    }
+}
+
+// MARK: - 睡眠（起床時の記録に付ける補助データ）
+
+/// 記録画面に置く補助データ（環境・睡眠）の行。タップで入力シートを開く。
+/// 見出しの右の (?) は、入れると何ができるかを説明するヘルプシートを開く
+struct RecordAuxRow: View {
+    let titleKey: LocalizedStringKey
+    let systemImage: String
+    let summary: String
+    let hasValue: Bool
+    let helpKey: LocalizedStringKey
+    let action: () -> Void
+
+    var body: some View {
+        // ヘルプのボタンを入力シートのボタンに入れ子にしないよう、見出しと値を別のボタンにする
+        HStack(spacing: 8) {
+            Button(action: action) {
+                Label(titleKey, systemImage: systemImage)
+                    .foregroundStyle(.primary)
+                    .fixedSize()
+            }
+            .buttonStyle(.plain)
+            // ユーザレベルに関わらず表示する（ヒント文なしのアイコンだけ）
+            BeginnerHelpBanner(helpKey, storageKey: "", compact: true)
+            Button(action: action) {
+                HStack(spacing: 8) {
+                    Spacer(minLength: 8)
+                    // 環境は項目が多いので2行まで折り返し、右端にそろえる
+                    Text(summary)
+                        .foregroundStyle(hasValue ? .primary : .secondary)
+                        .font(hasValue ? .callout : .body)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.7)
+                        .multilineTextAlignment(.trailing)
+                    Image(systemName: "chevron.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+    }
+}
+
+/// 記録画面に置く睡眠の行
+struct SleepEntryRow: View {
+    let entry: SleepEntry
+    let action: () -> Void
+
+    var body: some View {
+        RecordAuxRow(
+            titleKey: "sleep.title",
+            systemImage: "bed.double",
+            summary: Self.summary(entry),
+            hasValue: entry.hasAnyValue,
+            helpKey: "sleep.help",
+            action: action
+        )
+    }
+
+    /// 入力済みの値だけを並べる（例: 22:30〜  7時間30分）
+    static func summary(_ entry: SleepEntry) -> String {
+        guard entry.hasAnyValue else { return String(localized: "sleep.notEntered") }
+        var parts: [String] = []
+        if let start = entry.start {
+            parts.append(String(format: String(localized: "sleep.startFormat"), SleepEntry.startText(start)))
+        }
+        if entry.minutes != 0 {
+            parts.append(SleepEntry.durationText(entry.minutes))
+        }
+        return parts.joined(separator: "  ")
+    }
+}
+
+/// 睡眠開始の選択肢（nil = 未入力）
+private struct SleepStartOption: Hashable, Identifiable {
+    let date: Date?
+    var id: Double { date?.timeIntervalSinceReferenceDate ?? -.infinity }
+}
+
+/// 睡眠時間の選択肢（0 = 未入力）
+private struct SleepDurationOption: Hashable, Identifiable {
+    let minutes: Int
+    var id: Int { minutes }
+}
+
+/// 睡眠開始と睡眠時間を、30分刻みのプルダウンまたはヘルスケアから入力するシート。
+/// 環境シートと同じく、閉じた時点で入力を反映する（破棄は呼び出し元の記録シートで行う）
+struct SleepEditSheet: View {
+    let recordDate: Date
+    let onDone: (SleepEntry) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var draft: SleepEntry
+    @State private var isStartExpanded = false
+    @State private var isDurationExpanded = false
+    @State private var isLoading = false
+    /// 取得結果の案内（nil = 未取得）
+    @State private var fetchResult: HealthKitService.SleepReadResult?
+    /// 内容に合わせたシートの高さ（ナビバーと下部セーフエリアを含む）
+    @State private var sheetHeight: CGFloat = 360
+
+    init(entry: SleepEntry, recordDate: Date, onDone: @escaping (SleepEntry) -> Void) {
+        self.recordDate = recordDate
+        self.onDone = onDone
+        // 選択肢に無い値（刻み外など）は最も近い選択肢へ寄せて開く
+        _draft = State(initialValue: entry.normalized(recordDate: recordDate))
+    }
+
+    // 未入力を先頭に置き、選び直しで消せるようにする
+    private var startOptions: [SleepStartOption] {
+        [SleepStartOption(date: nil)]
+            + SleepEntry.startOptions(recordDate: recordDate).map { SleepStartOption(date: $0) }
+    }
+
+    private var durationOptions: [SleepDurationOption] {
+        [SleepDurationOption(minutes: 0)]
+            + SleepEntry.durationOptions.map { SleepDurationOption(minutes: $0) }
+    }
+
+    private var startSelection: Binding<SleepStartOption> {
+        Binding(
+            get: { SleepStartOption(date: draft.start) },
+            set: { draft.start = $0.date }
+        )
+    }
+
+    private var durationSelection: Binding<SleepDurationOption> {
+        Binding(
+            get: { SleepDurationOption(minutes: draft.minutes) },
+            set: { draft.minutes = $0.minutes }
+        )
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    // 30分刻みの目安なので、プルダウンの前に「およそ」を添える
+                    HStack(spacing: 8) {
+                        Text("sleep.start")
+                        Spacer(minLength: 8)
+                        Text("sleep.approx")
+                            .foregroundStyle(.secondary)
+                        startPicker
+                    }
+                    HStack(spacing: 8) {
+                        Text("sleep.duration")
+                        Spacer(minLength: 8)
+                        Text("sleep.approx")
+                            .foregroundStyle(.secondary)
+                        durationPicker
+                    }
+                }
+                Section {
+                    Button {
+                        fetchFromHealthKit()
+                    } label: {
+                        HStack(spacing: 8) {
+                            Label("sleep.fetch", systemImage: "heart.text.square")
+                            Spacer(minLength: 8)
+                            if isLoading { ProgressView() }
+                        }
+                    }
+                    .disabled(isLoading || !HealthKitService.shared.isAvailable)
+                } footer: {
+                    Text(fetchMessageKey)
+                        .foregroundStyle(fetchMessageColor)
+                }
+            }
+            // 中身の高さ＋上下の余白（ナビバー・セーフエリア）をシートの高さにする。
+            // 取得結果の案内文で行数が変わっても追従する
+            .onScrollGeometryChange(for: CGFloat.self) { geometry in
+                geometry.contentSize.height + geometry.contentInsets.top + geometry.contentInsets.bottom
+            } action: { _, height in
+                if 0 < height { sheetHeight = height }
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    HStack(spacing: 4) {
+                        // 記録画面の睡眠行と共通のアイコンで表示する
+                        Image(systemName: "bed.double")
+                        Text("sleep.title")
+                    }
+                    .font(.headline)
+                    // シートのタイトルは通常のラベル色にする（他のシートと揃える）
+                    .foregroundStyle(Color.primary)
+                    .lineLimit(1)
+                    .fixedSize()
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(Text("sleep.title"))
+                }
+                ToolbarItem(placement: .topBarLeading) {
+                    // 環境シートと同じ下向き矢印で閉じる。反映は onDisappear に任せ、スワイプで閉じた場合と揃える
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "chevron.down")
+                    }
+                    .accessibilityLabel(Text("action.close"))
+                }
+            }
+        }
+        // 中身に合わせた高さで開く（文字が大きく収まらないときは画面の高さまで）
+        .presentationDetents([.height(sheetHeight)])
+        .presentationDragIndicator(.visible)
+        // 下の記録画面と区別できるよう、夜の藍色を淡く混ぜる
+        .presentationBackground(Color.azTintedSheetBackground(.systemIndigo))
+        // 閉じ方によらず入力を反映する（閉じるボタン・スワイプのどちらでも同じ）
+        .onDisappear { onDone(draft.normalized(recordDate: recordDate)) }
+    }
+
+    // MARK: プルダウン
+
+    private var startPicker: some View {
+        AZDropdownPicker(
+            options: startOptions,
+            selection: startSelection,
+            isExpanded: $isStartExpanded,
+            minWidth: 130,
+            accessibilityID: "sleep.startPicker",
+            // 未入力のときは8時間前を中央に見せる
+            initialScrollID: draft.start == nil
+                ? SleepStartOption(date: SleepEntry.startFocus(recordDate: recordDate)).id
+                : nil
+        ) { option in
+            Text(option.date.map(startLabel) ?? String(localized: "sleep.notEntered"))
+                .monospacedDigit()
+        }
+    }
+
+    /// 日付の変わり目だけ「前日 23:30」「今日 0:00」と添え、どちらの日か分かるようにする
+    private func startLabel(_ date: Date) -> String {
+        let time = SleepEntry.startText(date)
+        let todayStart = AppDateCalendar.gregorian.startOfDay(for: recordDate)
+        if date == todayStart {
+            return String(format: String(localized: "sleep.start.todayFormat"), time)
+        }
+        if date == todayStart.addingTimeInterval(-TimeInterval(SleepEntry.stepMinutes * 60)) {
+            return String(format: String(localized: "sleep.start.previousDayFormat"), time)
+        }
+        return time
+    }
+
+    private var durationPicker: some View {
+        AZDropdownPicker(
+            options: durationOptions,
+            selection: durationSelection,
+            isExpanded: $isDurationExpanded,
+            minWidth: 130,
+            accessibilityID: "sleep.durationPicker",
+            // 未入力のときは6時間を中央に見せる
+            initialScrollID: draft.minutes == 0 ? SleepEntry.durationFocusMinutes : nil
+        ) { option in
+            Text(SleepEntry.durationText(option.minutes))
+                .monospacedDigit()
+        }
+    }
+
+    // MARK: ヘルスケアから取得
+
+    private var fetchMessageKey: LocalizedStringKey {
+        switch fetchResult {
+        case .found:    return "sleep.fetch.found"
+        case .notFound: return "sleep.fetch.notFound"
+        case .failed:   return "sleep.fetch.failed"
+        case nil:       return "sleep.fetch.footer"
+        }
+    }
+
+    private var fetchMessageColor: Color {
+        switch fetchResult {
+        case .notFound, .failed: return .orange
+        default:                 return .secondary
+        }
+    }
+
+    private func fetchFromHealthKit() {
+        isLoading = true
+        Task { @MainActor in
+            defer { isLoading = false }
+            let result = await HealthKitService.shared.readSleep(before: recordDate)
+            fetchResult = result
+            // 見つかったときだけ選択肢の刻みへ寄せて置き換え、見つからなければ入力中の値を残す
+            var found = 0
+            if case .found(let entry) = result {
+                draft = entry.normalized(recordDate: recordDate)
+                found = 1
+            }
+            AppAnalytics.shared.logOperation("sleep_fetch", parameters: ["found": found])
+        }
     }
 }

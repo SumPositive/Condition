@@ -206,6 +206,12 @@ struct SymptomWeatherImport: Decodable {
     }
 }
 
+/// 起床時の睡眠（開始日時は記録日時と同じ ISO8601 文字列）
+struct RecordImportSleep: Decodable {
+    let start: String?
+    let minutes: Int?
+}
+
 struct RecordImportRecord: Decodable {
     let dateTime: String
     let condition: String?
@@ -227,6 +233,8 @@ struct RecordImportRecord: Decodable {
     let measurementSamples: ImportField<MeasurementSampleSet>
     /// 測定に付けた環境。旧バックアップには無い。無ければ既存値を保持し、null なら空にする
     let environment: ImportField<EnvironmentSnapshot>
+    /// 起床時の睡眠。旧バックアップには無い。無ければ既存値を保持し、null なら空にする
+    let sleep: ImportField<RecordImportSleep>
 
     var parsedDate: Date? {
         let iso = ISO8601DateFormatter()
@@ -373,6 +381,17 @@ enum RecordsJSONIO {
                 object["environment"] = try jsonObject(record.environmentSnapshot)
             } else {
                 object["environment"] = NSNull()
+            }
+            // 睡眠も同じく、無いときは null を書いて旧形式と区別する
+            let sleep = record.sleepEntry
+            if sleep.hasAnyValue {
+                var sleepObject: [String: Any] = [:]
+                if let start = sleep.start { sleepObject["start"] = iso.string(from: start) }
+                // 不眠は -1、10時間超は 630 のまま書き、取り込みで元に戻せるようにする
+                if sleep.minutes != 0 { sleepObject["minutes"] = sleep.minutes }
+                object["sleep"] = sleepObject
+            } else {
+                object["sleep"] = NSNull()
             }
             recordObjects.append(object)
         }
@@ -799,6 +818,19 @@ enum RecordsJSONIO {
             case .value(let environment):
                 // 症状の weather と同じ範囲・文字列長へ収めてから保存する
                 record.environmentSnapshot = environment.normalized()
+            }
+            switch imported.sleep {
+            case .absent:
+                break
+            case .null:
+                record.sleepEntry = SleepEntry()
+            case .value(let sleep):
+                // 記録日時と同じ書式で読み、選択肢の刻みへ寄せる
+                let iso = ISO8601DateFormatter()
+                iso.formatOptions = [.withInternetDateTime, .withDashSeparatorInDate, .withColonSeparatorInTime, .withTimeZone]
+                let start = sleep.start.flatMap { iso.date(from: $0) }
+                record.sleepEntry = SleepEntry(start: start, minutes: sleep.minutes ?? 0)
+                    .normalized(recordDate: date)
             }
         }
 

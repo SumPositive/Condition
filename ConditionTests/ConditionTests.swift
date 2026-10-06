@@ -3640,3 +3640,100 @@ struct LaunchActionTests {
         }
     }
 }
+
+// MARK: - 睡眠テスト
+
+@Suite("Sleep Session Tests")
+struct SleepSessionTests {
+
+    /// 固定の記録日時を基準に、そこから何分前かで日時を作る
+    private let recordDate = Date(timeIntervalSinceReferenceDate: 813_000_000)
+    private func ago(_ minutes: Int) -> Date { recordDate.addingTimeInterval(-TimeInterval(minutes) * 60) }
+
+    @Test("夜中の短い中断はまとめ、中断分は睡眠時間に含めない")
+    func mergesShortGaps() {
+        let intervals = [
+            SleepInterval(start: ago(480), end: ago(300), isAsleep: true),   // 3時間
+            SleepInterval(start: ago(280), end: ago(40), isAsleep: true),    // 20分の中断後に4時間
+        ]
+        let entry = SleepSessionLogic.mainSleep(from: intervals, recordDate: recordDate)
+        #expect(entry?.start == ago(480))
+        #expect(entry?.minutes == 420)
+    }
+
+    @Test("複数の記録元が重なっても二重に数えない")
+    func unionOfOverlappingSources() {
+        let intervals = [
+            SleepInterval(start: ago(480), end: ago(60), isAsleep: true),
+            SleepInterval(start: ago(470), end: ago(70), isAsleep: true),
+        ]
+        let entry = SleepSessionLogic.mainSleep(from: intervals, recordDate: recordDate)
+        #expect(entry?.minutes == 420)
+    }
+
+    @Test("起床後の昼寝より長い本睡眠を採る")
+    func picksLongestSession() {
+        let intervals = [
+            SleepInterval(start: ago(540), end: ago(120), isAsleep: true),  // 7時間
+            SleepInterval(start: ago(50), end: ago(20), isAsleep: true),    // 30分
+        ]
+        let entry = SleepSessionLogic.mainSleep(from: intervals, recordDate: recordDate)
+        #expect(entry?.start == ago(540))
+        #expect(entry?.minutes == 420)
+    }
+
+    @Test("睡眠が無ければベッドにいた時間で代用し、睡眠があればベッドは使わない")
+    func inBedFallback() {
+        let inBedOnly = [SleepInterval(start: ago(500), end: ago(20), isAsleep: false)]
+        #expect(SleepSessionLogic.mainSleep(from: inBedOnly, recordDate: recordDate)?.minutes == 480)
+
+        let mixed = inBedOnly + [SleepInterval(start: ago(450), end: ago(60), isAsleep: true)]
+        #expect(SleepSessionLogic.mainSleep(from: mixed, recordDate: recordDate)?.minutes == 390)
+    }
+
+    @Test("記録日時より後と18時間より前は切り捨てる")
+    func clipsToWindow() {
+        let intervals = [
+            SleepInterval(start: ago(20 * 60), end: ago(17 * 60), isAsleep: true),  // 18時間前で切る → 1時間
+            SleepInterval(start: ago(30), end: recordDate.addingTimeInterval(3600), isAsleep: true), // 記録後は切る → 30分
+        ]
+        let entry = SleepSessionLogic.mainSleep(from: intervals, recordDate: recordDate)
+        #expect(entry?.start == ago(18 * 60))
+        #expect(entry?.minutes == 60)
+        #expect(SleepSessionLogic.mainSleep(from: [], recordDate: recordDate) == nil)
+    }
+
+    @Test("記録日時より後の開始は捨て、睡眠時間は30分刻み・不眠・10時間超へ寄せる")
+    func normalizesEntry() {
+        let late = SleepEntry(start: recordDate.addingTimeInterval(60), minutes: 99_999)
+            .normalized(recordDate: recordDate)
+        #expect(late.start == nil)
+        #expect(late.minutes == SleepEntry.overMaxMinutes)
+
+        #expect(SleepEntry.snappedMinutes(432) == 420)
+        #expect(SleepEntry.snappedMinutes(10) == SleepEntry.sleeplessMinutes)
+        #expect(SleepEntry.snappedMinutes(600) == 600)
+        #expect(SleepEntry.snappedMinutes(0) == 0)
+        #expect(SleepEntry.snappedMinutes(SleepEntry.sleeplessMinutes) == SleepEntry.sleeplessMinutes)
+    }
+
+    @Test("睡眠開始の選択肢は18時間前〜記録日時の30分刻みで、開始は最も近い刻みへ寄せる")
+    func startOptionsAndSnap() {
+        let options = SleepEntry.startOptions(recordDate: recordDate)
+        #expect(options.allSatisfy { $0 <= recordDate })
+        #expect(recordDate.addingTimeInterval(-18 * 3600) <= options[0])
+        #expect(zip(options, options.dropFirst()).allSatisfy { $1.timeIntervalSince($0) == 1800 })
+        let snapped = SleepEntry(start: options[10].addingTimeInterval(7 * 60))
+            .normalized(recordDate: recordDate)
+        #expect(snapped.start == options[10])
+    }
+
+    @Test("睡眠時間の選択肢は10時間超から不眠まで")
+    func durationOptions() {
+        let options = SleepEntry.durationOptions
+        #expect(options.first == SleepEntry.overMaxMinutes)
+        #expect(options.last == SleepEntry.sleeplessMinutes)
+        #expect(options.contains(SleepEntry.durationFocusMinutes))
+        #expect(options.count == 22)
+    }
+}

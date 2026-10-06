@@ -80,6 +80,17 @@ enum SnapshotSeed {
             // 骨格筋率（28.0 → 29.5% 付近、x10）
             r.nSkMuscle_10p = Int(280 + 15 * t + wave * 2)
 
+            // 睡眠（22時〜24時に就寝、遅く寝た日ほど短く血圧が高めになるようにして相関図を見せる）
+            let late = sin(Double(day) * 1.3)          // -1（早寝）〜 1（夜更かし）
+            let bedMinutes = Int(23 * 60 + late * 60)  // 前日 0時からの分
+            let previous = cal.date(byAdding: .day, value: -1, to: date) ?? date
+            r.dSleepStart = cal.date(byAdding: .minute, value: bedMinutes, to: previous)
+            r.nSleep_min = Int(7 * 60 - late * 50)
+            // 入力画面の選択肢と同じ30分刻みに揃える
+            r.sleepEntry = r.sleepEntry.normalized(recordDate: morning)
+            r.nBpHi_mmHg += Int(late * 5)
+            r.nBpLo_mmHg += Int(late * 3)
+
             context.insert(r)
 
             // 過去ほど間隔をあける（最近は毎日、古い分は 2 日おき）

@@ -23,6 +23,8 @@ final class RecordEditViewModel {
     var sNote1: String            { didSet { markModified() } }
     var sNote2: String            { didSet { markModified() } }
     var sEquipment: String        { didSet { markModified() } }
+    /// 睡眠（起床時の区分だけで入力・保存する）
+    var sleep: SleepEntry = SleepEntry() { didSet { markModified() } }
 
     var nBpHi_mmHg: Int          { didSet { markModified() } }
     var nBpLo_mmHg: Int          { didSet { markModified() } }
@@ -104,6 +106,7 @@ final class RecordEditViewModel {
             sNote1      = record.sNote1
             sNote2      = record.sNote2
             sEquipment  = record.sEquipment
+            sleep       = record.sleepEntry
             nBpHi_mmHg  = record.nBpHi_mmHg  > 0 ? record.nBpHi_mmHg  : MeasureRange.bpHi.initVal
             nBpLo_mmHg  = record.nBpLo_mmHg  > 0 ? record.nBpLo_mmHg  : MeasureRange.bpLo.initVal
             bpSide      = record.bpSide
@@ -543,6 +546,9 @@ final class RecordEditViewModel {
         // 注意フラグ・区分：新しい値で上書き
         prev.bCaution = bCaution
         prev.dateOpt  = dateOpt
+        // 睡眠：新しい記録が入力済みなら上書きし、起床時以外になったら外す
+        if sleep.hasAnyValue { prev.sleepEntry = sleep.normalized(recordDate: prev.dateTime) }
+        if dateOpt != SleepEntry.dateOpt { prev.sleepEntry = SleepEntry() }
 
         // dataSource を「修正済み」へ
         switch prev.dataSource {
@@ -604,6 +610,10 @@ final class RecordEditViewModel {
         record.nSkMuscle_10p = skMuscleEnabled  ? nSkMuscle_10p : 0
         // 複数回測定時だけ元の試行値を平均値と一緒に保存する
         record.measurementSampleSet = measurementSampleSet
+        // 睡眠は起床時の区分だけに残す
+        record.sleepEntry = dateOpt == SleepEntry.dateOpt
+            ? sleep.normalized(recordDate: record.dateTime)
+            : SleepEntry()
     }
 
     private func restoreHealthValues(to record: BodyRecord) {

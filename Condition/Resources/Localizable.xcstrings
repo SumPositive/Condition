@@ -13800,6 +13800,35 @@
         }
       }
     },
+    "settings.category.sleepNote" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "With Category 1 (Wake), you can record and analyze sleep data"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "区分1（起床時）には、睡眠データを記録して分析ができます"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "구분 1(기상)에서는 수면 데이터를 기록하고 분석할 수 있습니다"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分類 1（起床）可以記錄並分析睡眠資料"
+          }
+        }
+      }
+    },
     "settings.category.name.ja" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -21868,6 +21897,847 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "mmHg"
+          }
+        }
+      }
+    },
+    "chart.sleepDurationCorrelation.help" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "For wake-up records, how strongly sleep time and systolic BP move together is measured by the correlation coefficient (r).\n\nThe closer |r| is to 1, the stronger the relationship. Close to 0 means little or no relationship.\n\nGuide (absolute value):\n  0.0 – 0.4: weak\n  0.4 – 0.7: moderate\n  0.7 – 1.0: strong\n\nPositive r: the longer you sleep, the higher BP tends to be\nNegative r: the longer you sleep, the lower BP tends to be"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "区分「起床時」の記録で、睡眠時間と血圧（上）がどれくらい一緒に動くかを「相関係数（r）」という数値で表しています\n\n|r| が 1 に近いほど関連が強く、0 に近いほど関連が弱いことを意味します\n\n目安（絶対値）\n  0.0〜0.4: 関連は弱い\n  0.4〜0.7: 中程度の関連\n  0.7〜1.0: 強い関連\n\nプラスのr: 睡眠時間が長いほど血圧が高い傾向\nマイナスのr: 睡眠時間が長いほど血圧が低い傾向"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "기상 시 기록에서 수면 시간과 혈압(수축기)이 얼마나 함께 움직이는지를 「상관계수(r)」라는 수치로 나타냅니다\n\n|r|이 1에 가까울수록 관련이 강하고, 0에 가까울수록 관련이 약함을 의미합니다\n\n기준(절댓값)\n  0.0~0.4: 관련이 약함\n  0.4~0.7: 중간 정도의 관련\n  0.7~1.0: 강한 관련\n\n양의 r: 수면 시간이 길수록 혈압이 높은 경향\n음의 r: 수면 시간이 길수록 혈압이 낮은 경향"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "以起床時的記錄，用「相關係數（r）」這個數值表示睡眠時間與血壓（收縮壓）一起變動的程度\n\n|r| 越接近 1 關聯越強，越接近 0 則關聯越弱\n\n參考標準（絕對值）\n  0.0～0.4：關聯較弱\n  0.4～0.7：中等關聯\n  0.7～1.0：強烈關聯\n\n正 r：睡眠時間越長血壓傾向越高\n負 r：睡眠時間越長血壓傾向越低"
+          }
+        }
+      }
+    },
+    "chart.sleepDurationCorrelationGuide" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Relationship between sleep time and BP"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠時間と血圧の関連の強さ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "수면 시간과 혈압의 관련 강도"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠時間與血壓的關聯強度"
+          }
+        }
+      }
+    },
+    "chart.sleepStartCorrelation.help" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "For wake-up records, how strongly sleep start time and systolic BP move together is measured by the correlation coefficient (r).\n\nThe closer |r| is to 1, the stronger the relationship. Close to 0 means little or no relationship.\n\nGuide (absolute value):\n  0.0 – 0.4: weak\n  0.4 – 0.7: moderate\n  0.7 – 1.0: strong\n\nPositive r: the later you fall asleep, the higher BP tends to be\nNegative r: the later you fall asleep, the lower BP tends to be"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "区分「起床時」の記録で、睡眠開始の時刻と血圧（上）がどれくらい一緒に動くかを「相関係数（r）」という数値で表しています\n\n|r| が 1 に近いほど関連が強く、0 に近いほど関連が弱いことを意味します\n\n目安（絶対値）\n  0.0〜0.4: 関連は弱い\n  0.4〜0.7: 中程度の関連\n  0.7〜1.0: 強い関連\n\nプラスのr: 寝る時刻が遅いほど血圧が高い傾向\nマイナスのr: 寝る時刻が遅いほど血圧が低い傾向"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "기상 시 기록에서 수면 시작 시각과 혈압(수축기)이 얼마나 함께 움직이는지를 「상관계수(r)」라는 수치로 나타냅니다\n\n|r|이 1에 가까울수록 관련이 강하고, 0에 가까울수록 관련이 약함을 의미합니다\n\n기준(절댓값)\n  0.0~0.4: 관련이 약함\n  0.4~0.7: 중간 정도의 관련\n  0.7~1.0: 강한 관련\n\n양의 r: 늦게 잠들수록 혈압이 높은 경향\n음의 r: 늦게 잠들수록 혈압이 낮은 경향"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "以起床時的記錄，用「相關係數（r）」這個數值表示入睡時間與血壓（收縮壓）一起變動的程度\n\n|r| 越接近 1 關聯越強，越接近 0 則關聯越弱\n\n參考標準（絕對值）\n  0.0～0.4：關聯較弱\n  0.4～0.7：中等關聯\n  0.7～1.0：強烈關聯\n\n正 r：入睡越晚血壓傾向越高\n負 r：入睡越晚血壓傾向越低"
+          }
+        }
+      }
+    },
+    "chart.sleepStartCorrelationGuide" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Relationship between sleep start and BP"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠開始と血圧の関連の強さ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "수면 시작과 혈압의 관련 강도"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "入睡時間與血壓的關聯強度"
+          }
+        }
+      }
+    },
+    "metric.sleepDurationBpCorrelation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blood Pressure × Sleep Time"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "血圧 × 睡眠時間"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "혈압 × 수면 시간"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "血壓 × 睡眠時間"
+          }
+        }
+      }
+    },
+    "metric.sleepStartBpCorrelation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blood Pressure × Sleep Start"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "血圧 × 睡眠開始"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "혈압 × 수면 시작"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "血壓 × 入睡時間"
+          }
+        }
+      }
+    },
+    "sleep.axis.duration" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sleep time (h)"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠時間（時間）"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "수면 시간(시간)"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠時間（小時）"
+          }
+        }
+      }
+    },
+    "sleep.axis.start" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sleep start (hour)"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠開始（時）"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "수면 시작(시)"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "入睡時間（時）"
+          }
+        }
+      }
+    },
+    "sleep.chart.noteFormat" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uses records in “%@”"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "区分「%@」の記録を集計"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "구분 「%@」 기록으로 집계"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "統計分類「%@」的記錄"
+          }
+        }
+      }
+    },
+    "sleep.duration" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sleep time"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠時間"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "수면 시간"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠時間"
+          }
+        }
+      }
+    },
+    "sleep.duration.format" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$dh %2$02dm"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$d時間%2$02d分"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$d시간 %2$02d분"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$d小時%2$02d分"
+          }
+        }
+      }
+    },
+    "sleep.fetch" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Get Sleep Data"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠データを取得する"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "수면 데이터 가져오기"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取得睡眠資料"
+          }
+        }
+      }
+    },
+    "sleep.fetch.failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t get sleep data"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠データを取得できませんでした"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "수면 데이터를 가져오지 못했습니다"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法取得睡眠資料"
+          }
+        }
+      }
+    },
+    "sleep.fetch.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gets the longest sleep in the Health app from the 18 hours before the record time"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "記録日時の18時間前から記録日時までのヘルスケアの睡眠から、最も長い睡眠を取得します"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "기록 일시 18시간 전부터 기록 일시까지 건강 앱의 수면 중 가장 긴 수면을 가져옵니다"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "從記錄時間前18小時至記錄時間的健康App睡眠中，取得最長的一段睡眠"
+          }
+        }
+      }
+    },
+    "sleep.fetch.found" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retrieved from the Health app"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ヘルスケアから取得しました"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "건강 앱에서 가져왔습니다"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已從健康App取得"
+          }
+        }
+      }
+    },
+    "sleep.fetch.notFound" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No sleep data was found\nAlso check that this app is allowed to read Sleep in the Health app"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠データが見つかりませんでした\nヘルスケアで、このアプリに睡眠の読み取りが許可されているかも確認してください"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "수면 데이터를 찾지 못했습니다\n건강 앱에서 이 앱의 수면 읽기가 허용되어 있는지도 확인해 주세요"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "找不到睡眠資料\n也請確認健康App中已允許本App讀取睡眠"
+          }
+        }
+      }
+    },
+    "sleep.notEntered" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not entered"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未入力"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "미입력"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未輸入"
+          }
+        }
+      }
+    },
+    "sleep.start" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sleep start"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠開始"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "수면 시작"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "入睡時間"
+          }
+        }
+      }
+    },
+    "sleep.startFormat" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ –"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@〜"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@~"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@～"
+          }
+        }
+      }
+    },
+    "sleep.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sleep"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "수면"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠"
+          }
+        }
+      }
+    },
+    "sleep.duration.sleepless" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No sleep"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不眠"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "불면"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "失眠"
+          }
+        }
+      }
+    },
+    "sleep.duration.minutesFormat" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%dm"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d分"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d분"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d分鐘"
+          }
+        }
+      }
+    },
+    "sleep.duration.overFormat" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Over %dh"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d時間超"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d시간 초과"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "超過%d小時"
+          }
+        }
+      }
+    },
+    "sleep.duration.hoursFormat" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%dh"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d時間"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d시간"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d小時"
+          }
+        }
+      }
+    },
+    "sleep.approx" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "About"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "およそ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "약"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "約"
+          }
+        }
+      }
+    },
+    "sleep.start.todayFormat" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今日 %@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "오늘 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天 %@"
+          }
+        }
+      }
+    },
+    "sleep.start.previousDayFormat" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prev. day %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "前日 %@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "전날 %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "前一天 %@"
+          }
+        }
+      }
+    },
+    "record.environment.help" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save the temperature, humidity, air pressure and more at the time of measurement\n\nIn Japan, outdoor values can be fetched automatically from JMA AMeDAS\n\nYou can also record room temperature, room humidity and the device barometer\n\nWhen you look back later, it helps you see how temperature and pressure changes relate to your blood pressure"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "測定したときの気温・湿度・気圧などを記録に残せます\n\n国内では、気象庁アメダスから屋外の値を自動で取得できます\n\n室温・室内湿度や、端末の気圧計の値も記録できます\n\n後から見返すときに、気温や気圧の変化と血圧の関係を考える手がかりになります"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "측정할 때의 기온·습도·기압 등을 기록에 남길 수 있습니다\n\n일본 국내에서는 기상청 AMeDAS에서 실외 값을 자동으로 가져올 수 있습니다\n\n실내 온도·실내 습도와 기기의 기압계 값도 기록할 수 있습니다\n\n나중에 돌아볼 때 기온이나 기압의 변화와 혈압의 관계를 살펴보는 단서가 됩니다"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可在記錄中保存測量時的氣溫、濕度、氣壓等\n\n在日本國內，可自動從氣象廳 AMeDAS 取得室外數值\n\n也可記錄室溫、室內濕度與裝置氣壓計的數值\n\n日後回顧時，可作為了解氣溫或氣壓變化與血壓關係的線索"
+          }
+        }
+      }
+    },
+    "sleep.help" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save the approximate time you fell asleep and how long you slept with your wake-up records\n\nTap “Get Sleep Data” to fill them in from the sleep recorded in the Health app\n\nIn Analysis, “Blood Pressure × Sleep Start” and “Blood Pressure × Sleep Time” show how your bedtime and sleep time relate to your morning blood pressure"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "区分「起床時」の記録に、前夜の睡眠開始のおよその時刻と睡眠時間を残せます\n\n「睡眠データを取得する」で、ヘルスケアに記録された睡眠から自動で入力できます\n\n分析の「血圧 × 睡眠開始」「血圧 × 睡眠時間」で、寝る時刻や睡眠時間と朝の血圧の関係を確かめられます"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "구분 「기상」 기록에 전날 밤 수면 시작의 대략적인 시각과 수면 시간을 남길 수 있습니다\n\n「수면 데이터 가져오기」로 건강 앱에 기록된 수면에서 자동으로 입력할 수 있습니다\n\n분석의 「혈압 × 수면 시작」「혈압 × 수면 시간」에서 잠드는 시각이나 수면 시간과 아침 혈압의 관계를 확인할 수 있습니다"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可在分類「起床」的記錄中，保存前一晚大約的入睡時間與睡眠時間\n\n點選「取得睡眠資料」，即可從健康App記錄的睡眠自動輸入\n\n在分析的「血壓 × 入睡時間」「血壓 × 睡眠時間」中，可確認入睡時間或睡眠時間與早晨血壓的關係"
           }
         }
       }

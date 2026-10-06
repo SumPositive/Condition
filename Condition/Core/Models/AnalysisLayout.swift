@@ -78,6 +78,8 @@ enum AnalysisPanelID: String, CaseIterable, Codable, Identifiable {
   case statBodyTemperature24Hours = "statistics.bodyTemperature24Hours"
   case statBodyTemperatureDistribution = "statistics.bodyTemperatureDistribution"
   case statWeightBloodPressure = "statistics.weightBloodPressure"
+  case statSleepStartBloodPressure = "statistics.sleepStartBloodPressure"
+  case statSleepDurationBloodPressure = "statistics.sleepDurationBloodPressure"
 
   case symptomOverview = "symptom.overview"
   case symptomCalendar = "symptom.calendar"
@@ -152,6 +154,8 @@ enum AnalysisPanelID: String, CaseIterable, Codable, Identifiable {
     case .statBodyTemperature24Hours: return .temp24h
     case .statBodyTemperatureDistribution: return .tempHist
     case .statWeightBloodPressure: return .weightBpScatter
+    case .statSleepStartBloodPressure: return .sleepStartBpScatter
+    case .statSleepDurationBloodPressure: return .sleepDurationBpScatter
     default: return nil
     }
   }
@@ -169,6 +173,8 @@ enum AnalysisPanelID: String, CaseIterable, Codable, Identifiable {
     case .temp24h: self = .statBodyTemperature24Hours
     case .tempHist: self = .statBodyTemperatureDistribution
     case .weightBpScatter: self = .statWeightBloodPressure
+    case .sleepStartBpScatter: self = .statSleepStartBloodPressure
+    case .sleepDurationBpScatter: self = .statSleepDurationBloodPressure
     }
   }
 }

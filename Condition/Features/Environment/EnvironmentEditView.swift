@@ -13,6 +13,8 @@ struct EnvironmentEditView: View {
     @State private var vm: EnvironmentEditViewModel
     /// リワード広告。シートを開いた時点で読み込んでおく
     @StateObject private var adLoader = RewardedAdLoader()
+    /// 内容に合わせたシートの高さ（ナビバーと下部セーフエリアを含む）
+    @State private var sheetHeight: CGFloat = 560
 
     init(
         snapshot: EnvironmentSnapshot,
@@ -39,6 +41,13 @@ struct EnvironmentEditView: View {
                 if vm.devicePressure_10hpa != 0 || vm.canFetchDevicePressure {
                     devicePressureSection
                 }
+            }
+            // 中身の高さ＋上下の余白（ナビバー・セーフエリア）をシートの高さにする。
+            // 取得ボタンや端末気圧の有無、取得後の表示で行数が変わっても追従する
+            .onScrollGeometryChange(for: CGFloat.self) { geometry in
+                geometry.contentSize.height + geometry.contentInsets.top + geometry.contentInsets.bottom
+            } action: { _, height in
+                if 0 < height { sheetHeight = height }
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -74,6 +83,8 @@ struct EnvironmentEditView: View {
         // 下の記録画面と同じ灰色だと、どちらを操作しているのか分からなくなる。
         // 天候のシートなので青緑を淡く混ぜ、症状(青)・対処(橙)とも区別する
         .presentationBackground(Color.azTintedSheetBackground(.systemTeal))
+        // 中身に合わせた高さで開く（収まらないときは画面の高さまで）
+        .presentationDetents([.height(sheetHeight)])
         // 閉じ方によらず入力を反映する（閉じるボタン・スワイプのどちらでも同じ）
         .onDisappear { onDone(vm.snapshot()) }
         .onAppear {

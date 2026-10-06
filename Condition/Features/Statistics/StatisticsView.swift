@@ -291,7 +291,8 @@ private struct StatisticsContentView: View {
 
     /// リサイズハンドル対応セクション（ユーザー指定の6種）
     private static let resizableStatSections: Set<StatSection> = [
-        .bpJsh, .bpDateOptCorr, .bp24h, .temp24h, .tempHist, .weightBpScatter
+        .bpJsh, .bpDateOptCorr, .bp24h, .temp24h, .tempHist, .weightBpScatter,
+        .sleepStartBpScatter, .sleepDurationBpScatter
     ]
 
     @ViewBuilder
@@ -386,6 +387,8 @@ private struct StatisticsContentView: View {
         case .temp24h:         Temp24HChartView(records: targetRecords)
         case .tempHist:        TempHistogramView(records: targetRecords)
         case .weightBpScatter: WeightBpScatterView(records: targetRecords)
+        case .sleepStartBpScatter: SleepBpScatterView(records: targetRecords, metric: .start)
+        case .sleepDurationBpScatter: SleepBpScatterView(records: targetRecords, metric: .duration)
         }
     }
 
@@ -2331,9 +2334,15 @@ struct WeightBpScatterView: View {
         }
     }
 
-    /// 相関係数の意味を説明する詳細シート
-    private struct CorrelationRInfoPopover: View {
+    /// 相関係数の意味を説明する詳細シート（睡眠 × 血圧でも使う）
+    fileprivate struct CorrelationRInfoPopover: View {
+        /// 説明文（睡眠 × 血圧では横軸に合わせた文にする）
+        let messageKey: LocalizedStringKey
         @State private var contentHeight: CGFloat = 280
+
+        init(messageKey: LocalizedStringKey = "chart.correlationR.help") {
+            self.messageKey = messageKey
+        }
 
         var body: some View {
             ScrollView {
@@ -2346,7 +2355,7 @@ struct WeightBpScatterView: View {
                     }
                     .padding(.top, 16)
 
-                    Text("chart.correlationR.help")
+                    Text(messageKey)
                         .font(.body)
                         .foregroundStyle(.primary)
                         .lineLimit(nil)
@@ -2371,6 +2380,243 @@ struct WeightBpScatterView: View {
         let abs = Swift.abs(r)
         if abs >= 0.7 { return .red }
         if abs >= 0.4 { return .orange }
+        return .secondary
+    }
+}
+
+// MARK: - 睡眠 × 血圧 相関散布図
+
+/// 起床時の記録に付けた睡眠（開始時刻または睡眠時間）と血圧の相関
+struct SleepBpScatterView: View {
+    enum Metric {
+        /// 睡眠開始時刻
+        case start
+        /// 睡眠時間
+        case duration
+    }
+
+    let records: [BodyRecord]
+    let metric: Metric
+
+    @Environment(\.chartAvailableWidth) private var chartWidth
+    @Environment(\.chartExtraHeight) private var chartExtraHeight
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    @State private var showCorrelationInfo = false
+
+    private struct Point: Identifiable {
+        let id: Int
+        let x: Double
+        let bp: Int
+        let isSystolic: Bool
+    }
+
+    private var title: LocalizedStringKey {
+        switch metric {
+        case .start:    return "metric.sleepStartBpCorrelation"
+        case .duration: return "metric.sleepDurationBpCorrelation"
+        }
+    }
+
+    private var guideKey: LocalizedStringKey {
+        switch metric {
+        case .start:    return "chart.sleepStartCorrelationGuide"
+        case .duration: return "chart.sleepDurationCorrelationGuide"
+        }
+    }
+
+    private var helpKey: LocalizedStringKey {
+        switch metric {
+        case .start:    return "chart.sleepStartCorrelation.help"
+        case .duration: return "chart.sleepDurationCorrelation.help"
+        }
+    }
+
+    private var xAxisLabel: LocalizedStringKey {
+        switch metric {
+        case .start:    return "sleep.axis.start"
+        case .duration: return "sleep.axis.duration"
+        }
+    }
+
+    /// 横軸の値。開始時刻は日付をまたいでも連続するよう、正午より前を24時以降として扱う（例: 1時 → 25）
+    private func xValue(_ record: BodyRecord) -> Double? {
+        switch metric {
+        case .start:
+            guard let start = record.dSleepStart else { return nil }
+            let parts = AppDateCalendar.gregorian.dateComponents([.hour, .minute], from: start)
+            let hour = Double(parts.hour ?? 0) + Double(parts.minute ?? 0) / 60
+            return hour < 12 ? hour + 24 : hour
+        case .duration:
+            // 不眠は 0 時間、10時間超は 10.5 時間として置く
+            return record.sleepEntry.hours
+        }
+    }
+
+    /// 起床時で、睡眠と血圧の両方がある記録の組
+    private var pairs: [(x: Double, record: BodyRecord)] {
+        records.compactMap { record in
+            guard record.dateOpt == SleepEntry.dateOpt,
+                  0 < record.nBpHi_mmHg, 0 < record.nBpLo_mmHg,
+                  let x = xValue(record) else { return nil }
+            return (x, record)
+        }
+    }
+
+    private var points: [Point] {
+        var result: [Point] = []
+        for (i, pair) in pairs.enumerated() {
+            result.append(Point(id: i * 2,     x: pair.x, bp: pair.record.nBpHi_mmHg, isSystolic: true))
+            result.append(Point(id: i * 2 + 1, x: pair.x, bp: pair.record.nBpLo_mmHg, isSystolic: false))
+        }
+        return result
+    }
+
+    private var xDomain: ClosedRange<Double> {
+        let xs = pairs.map(\.x)
+        guard let lo = xs.min(), let hi = xs.max() else {
+            return metric == .start ? 20...28 : 4...10
+        }
+        let lower = metric == .start ? (lo - 1).rounded(.down) : max(0, (lo - 1).rounded(.down))
+        return lower...(hi + 1).rounded(.up)
+    }
+
+    private var yDomain: ClosedRange<Int> {
+        let allBp = pairs.flatMap { [$0.record.nBpHi_mmHg, $0.record.nBpLo_mmHg] }
+        guard let lo = allBp.min(), let hi = allBp.max() else { return 50...180 }
+        let lower = max(30, (lo / 10) * 10 - 10)
+        let upper = min(260, ((hi + 9) / 10) * 10 + 10)
+        return lower...upper
+    }
+
+    /// 目盛りの間隔（横軸が広いときは2時間ごと）
+    private var xStride: Double {
+        xDomain.upperBound - xDomain.lowerBound <= 8 ? 1 : 2
+    }
+
+    /// ピアソン相関係数（睡眠 vs 収縮期）
+    private var correlation: Double? {
+        guard 3 <= pairs.count else { return nil }
+        let xs = pairs.map(\.x)
+        let ys = pairs.map { Double($0.record.nBpHi_mmHg) }
+        let n = Double(xs.count)
+        let xMean = xs.reduce(0, +) / n
+        let yMean = ys.reduce(0, +) / n
+        let num = zip(xs, ys).map { ($0 - xMean) * ($1 - yMean) }.reduce(0, +)
+        let denX = sqrt(xs.map { pow($0 - xMean, 2) }.reduce(0, +))
+        let denY = sqrt(ys.map { pow($0 - yMean, 2) }.reduce(0, +))
+        guard 0 < denX, 0 < denY else { return nil }
+        return num / (denX * denY)
+    }
+
+    /// 目盛りの文字（開始時刻は24時以降を0時台へ戻す）
+    private func xLabel(_ value: Double) -> String {
+        let hour = Int(value.rounded())
+        switch metric {
+        case .start:    return "\(hour % 24)"
+        case .duration: return "\(hour)"
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+                .font(.title3)
+                .padding(.horizontal)
+
+            if pairs.isEmpty {
+                Text("empty.noDataInPeriod")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+            } else {
+                // r 値とラベル、詳細ヘルプボタンを横一列で表示（チャートの上に配置）
+                if let r = correlation {
+                    HStack(spacing: 4) {
+                        Spacer(minLength: 0)
+                        (
+                            Text(guideKey)
+                                .foregroundColor(.secondary)
+                            + Text(verbatim: " ")
+                            + Text(String(format: "r=%.2f", r))
+                                .foregroundColor(correlationColor(r))
+                        )
+                        .font(.caption.monospacedDigit())
+                        Button {
+                            showCorrelationInfo = true
+                        } label: {
+                            Image(systemName: "questionmark.circle")
+                                .font(.callout.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                                .padding(.vertical, 2).padding(.horizontal, 2)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(Text("button.help"))
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal)
+                }
+
+                Chart(points) { pt in
+                    PointMark(
+                        x: .value("sleep.title", pt.x),
+                        y: .value("unit.mmHg", pt.bp)
+                    )
+                    .foregroundStyle(pt.isSystolic ? Color.bpSystolic.opacity(0.6) : Color.bpDiastolic.opacity(0.6))
+                    .symbolSize(28)
+                }
+                .chartXScale(domain: xDomain)
+                .chartYScale(domain: yDomain)
+                .chartXAxis {
+                    AxisMarks(values: .stride(by: xStride)) { value in
+                        AxisGridLine()
+                        AxisTick()
+                        AxisValueLabel {
+                            if let v = value.as(Double.self) { Text(verbatim: xLabel(v)) }
+                        }
+                    }
+                }
+                .chartXAxisLabel(xAxisLabel)
+                .chartYAxisLabel("unit.mmHg")
+                .frame(height: adaptiveChartHeight(base: 240, width: chartWidth, dynamicTypeSize: dynamicTypeSize) + chartExtraHeight)
+                .padding(.horizontal)
+
+                // 凡例
+                HStack(spacing: 14) {
+                    Spacer()
+                    HStack(spacing: 4) {
+                        Circle().fill(Color.bpSystolic.opacity(0.9)).frame(width: 8, height: 8)
+                        Text("metric.systolic.short").font(.caption).foregroundStyle(.secondary)
+                    }
+                    HStack(spacing: 4) {
+                        Circle().fill(Color.bpDiastolic.opacity(0.9)).frame(width: 8, height: 8)
+                        Text("metric.diastolic.short").font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                }
+            }
+
+            // 集計対象の区分を名前で示す（区分名は利用者が変えられるため）
+            Text(String(format: String(localized: "sleep.chart.noteFormat"), SleepEntry.dateOpt.displayName))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal)
+        }
+        .padding(.vertical, 8)
+        .background(.background.secondary)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .sheet(isPresented: $showCorrelationInfo) {
+            WeightBpScatterView.CorrelationRInfoPopover(messageKey: helpKey)
+        }
+    }
+
+    private func correlationColor(_ r: Double) -> Color {
+        let abs = Swift.abs(r)
+        if 0.7 <= abs { return .red }
+        if 0.4 <= abs { return .orange }
         return .secondary
     }
 }

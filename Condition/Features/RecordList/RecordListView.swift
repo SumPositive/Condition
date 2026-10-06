@@ -919,6 +919,17 @@ private struct DemoDataGenerator {
                 record.nSkMuscle_10p = max(150, rand(profile.skMuscleBase,profile.skMuscleRange, step: 5))
                 record.bCaution = record.nBpHi_mmHg >= 140 || record.nBpLo_mmHg >= 90
                 record.environmentSnapshot = demoEnvironment(dayOffset: dayOffset)
+                // 起床時には睡眠を付ける（遅く寝た日ほど短くなるようにする）
+                if dateOpt == SleepEntry.dateOpt {
+                    let late = Int.random(in: -60...90, using: &rng)
+                    // 前日23時を基準に前後させる
+                    record.dSleepStart = cal.date(byAdding: .day, value: -1, to: day)
+                        .flatMap { cal.date(bySettingHour: 23, minute: 0, second: 0, of: $0) }
+                        .flatMap { cal.date(byAdding: .minute, value: late, to: $0) }
+                    record.nSleep_min = 7 * 60 - late / 2 + Int.random(in: -30...30, using: &rng)
+                    // 入力画面の選択肢と同じ30分刻みに揃える
+                    record.sleepEntry = record.sleepEntry.normalized(recordDate: dt)
+                }
                 context.insert(record)
             }
         }
@@ -1614,6 +1625,14 @@ private struct ExportSheetView: View {
                 default: break
                 }
             }
+            // 睡眠（起床時の記録だけに付く）
+            if let start = r.dSleepStart { obj["sleepStart"] = iso.string(from: start) }
+            switch r.nSleep_min {
+            case 0: break
+            case SleepEntry.sleeplessMinutes: obj["sleepMinutes"] = 0          // 不眠
+            case SleepEntry.overMaxMinutes: obj["sleepOver10Hours"] = true    // 10時間超
+            default: obj["sleepMinutes"] = r.nSleep_min
+            }
             if r.bCaution         { obj["cautionFlag"] = true }
             if !r.sNote1.isEmpty  { obj["memo1"]  = r.sNote1 }
             if !r.sNote2.isEmpty  { obj["memo2"]  = r.sNote2 }
@@ -1673,6 +1692,12 @@ private struct ExportSheetView: View {
             default: break
             }
         }
+        // 睡眠の列は、対象に睡眠の入力がある場合だけ足す
+        let includesSleep = targetRecords.contains { $0.sleepEntry.hasAnyValue }
+        if includesSleep {
+            headers.append(escape(L("sleep.start")))
+            headers.append(escape(L("sleep.duration")))
+        }
         headers += [
             escape(L("record.cautionFlag")),
             escape(L("record.memo1")),
@@ -1708,6 +1733,11 @@ private struct ExportSheetView: View {
                     fields.append(r.nSkMuscle_10p > 0 ? String(format: "%.1f", Double(r.nSkMuscle_10p) / 10.0) : "")
                 default: break
                 }
+            }
+            if includesSleep {
+                fields.append(r.dSleepStart.map { escape(df.string(from: $0)) } ?? "")
+                // 不眠・10時間超も読めるよう、画面と同じ表記で出す
+                fields.append(r.nSleep_min != 0 ? escape(SleepEntry.durationText(r.nSleep_min)) : "")
             }
             fields += [r.bCaution ? "1" : "", escape(r.sNote1), escape(r.sNote2), escape(r.sEquipment)]
             rows.append(fields.joined(separator: ","))
