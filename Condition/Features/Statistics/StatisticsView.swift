@@ -2389,7 +2389,7 @@ struct WeightBpScatterView: View {
 /// 起床時の記録に付けた睡眠（開始時刻または睡眠時間）と血圧の相関
 struct SleepBpScatterView: View {
     enum Metric {
-        /// 睡眠開始時刻
+        /// 入眠時刻
         case start
         /// 睡眠時間
         case duration

@@ -268,7 +268,7 @@ enum StatSection: Int, CaseIterable, Identifiable {
     case temp24h         = 6
     case tempHist        = 7
     case weightBpScatter = 10  // 体重 × 血圧 相関散布図
-    case sleepStartBpScatter    = 12  // 睡眠開始 × 血圧 相関散布図
+    case sleepStartBpScatter    = 12  // 入眠時刻 × 血圧 相関散布図
     case sleepDurationBpScatter = 13  // 睡眠時間 × 血圧 相関散布図
 
     var id: Int { rawValue }

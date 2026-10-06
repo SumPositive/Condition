@@ -21907,25 +21907,25 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "For wake-up records, how strongly sleep time and systolic BP move together is measured by the correlation coefficient (r).\n\nThe closer |r| is to 1, the stronger the relationship. Close to 0 means little or no relationship.\n\nGuide (absolute value):\n  0.0 – 0.4: weak\n  0.4 – 0.7: moderate\n  0.7 – 1.0: strong\n\nPositive r: the longer you sleep, the higher BP tends to be\nNegative r: the longer you sleep, the lower BP tends to be"
+            "value" : "For Category 1 (Wake) records, how strongly sleep time and systolic BP move together is measured by the correlation coefficient (r).\n\nThe closer |r| is to 1, the stronger the relationship. Close to 0 means little or no relationship.\n\nGuide (absolute value):\n  0.0 – 0.4: weak\n  0.4 – 0.7: moderate\n  0.7 – 1.0: strong\n\nPositive r: the longer you sleep, the higher BP tends to be\nNegative r: the longer you sleep, the lower BP tends to be"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "区分「起床時」の記録で、睡眠時間と血圧（上）がどれくらい一緒に動くかを「相関係数（r）」という数値で表しています\n\n|r| が 1 に近いほど関連が強く、0 に近いほど関連が弱いことを意味します\n\n目安（絶対値）\n  0.0〜0.4: 関連は弱い\n  0.4〜0.7: 中程度の関連\n  0.7〜1.0: 強い関連\n\nプラスのr: 睡眠時間が長いほど血圧が高い傾向\nマイナスのr: 睡眠時間が長いほど血圧が低い傾向"
+            "value" : "区分1（起床時）の記録で、睡眠時間と血圧（上）がどれくらい一緒に動くかを「相関係数（r）」という数値で表しています\n\n|r| が 1 に近いほど関連が強く、0 に近いほど関連が弱いことを意味します\n\n目安（絶対値）\n  0.0〜0.4: 関連は弱い\n  0.4〜0.7: 中程度の関連\n  0.7〜1.0: 強い関連\n\nプラスのr: 睡眠時間が長いほど血圧が高い傾向\nマイナスのr: 睡眠時間が長いほど血圧が低い傾向"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "기상 시 기록에서 수면 시간과 혈압(수축기)이 얼마나 함께 움직이는지를 「상관계수(r)」라는 수치로 나타냅니다\n\n|r|이 1에 가까울수록 관련이 강하고, 0에 가까울수록 관련이 약함을 의미합니다\n\n기준(절댓값)\n  0.0~0.4: 관련이 약함\n  0.4~0.7: 중간 정도의 관련\n  0.7~1.0: 강한 관련\n\n양의 r: 수면 시간이 길수록 혈압이 높은 경향\n음의 r: 수면 시간이 길수록 혈압이 낮은 경향"
+            "value" : "구분 1(기상) 기록에서 수면 시간과 혈압(수축기)이 얼마나 함께 움직이는지를 「상관계수(r)」라는 수치로 나타냅니다\n\n|r|이 1에 가까울수록 관련이 강하고, 0에 가까울수록 관련이 약함을 의미합니다\n\n기준(절댓값)\n  0.0~0.4: 관련이 약함\n  0.4~0.7: 중간 정도의 관련\n  0.7~1.0: 강한 관련\n\n양의 r: 수면 시간이 길수록 혈압이 높은 경향\n음의 r: 수면 시간이 길수록 혈압이 낮은 경향"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "以起床時的記錄，用「相關係數（r）」這個數值表示睡眠時間與血壓（收縮壓）一起變動的程度\n\n|r| 越接近 1 關聯越強，越接近 0 則關聯越弱\n\n參考標準（絕對值）\n  0.0～0.4：關聯較弱\n  0.4～0.7：中等關聯\n  0.7～1.0：強烈關聯\n\n正 r：睡眠時間越長血壓傾向越高\n負 r：睡眠時間越長血壓傾向越低"
+            "value" : "以分類 1（起床）的記錄，用「相關係數（r）」這個數值表示睡眠時間與血壓（收縮壓）一起變動的程度\n\n|r| 越接近 1 關聯越強，越接近 0 則關聯越弱\n\n參考標準（絕對值）\n  0.0～0.4：關聯較弱\n  0.4～0.7：中等關聯\n  0.7～1.0：強烈關聯\n\n正 r：睡眠時間越長血壓傾向越高\n負 r：睡眠時間越長血壓傾向越低"
           }
         }
       }
@@ -21965,25 +21965,25 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "For wake-up records, how strongly sleep start time and systolic BP move together is measured by the correlation coefficient (r).\n\nThe closer |r| is to 1, the stronger the relationship. Close to 0 means little or no relationship.\n\nGuide (absolute value):\n  0.0 – 0.4: weak\n  0.4 – 0.7: moderate\n  0.7 – 1.0: strong\n\nPositive r: the later you fall asleep, the higher BP tends to be\nNegative r: the later you fall asleep, the lower BP tends to be"
+            "value" : "For Category 1 (Wake) records, how strongly the time you fell asleep and systolic BP move together is measured by the correlation coefficient (r).\n\nThe closer |r| is to 1, the stronger the relationship. Close to 0 means little or no relationship.\n\nGuide (absolute value):\n  0.0 – 0.4: weak\n  0.4 – 0.7: moderate\n  0.7 – 1.0: strong\n\nPositive r: the later you fall asleep, the higher BP tends to be\nNegative r: the later you fall asleep, the lower BP tends to be"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "区分「起床時」の記録で、睡眠開始の時刻と血圧（上）がどれくらい一緒に動くかを「相関係数（r）」という数値で表しています\n\n|r| が 1 に近いほど関連が強く、0 に近いほど関連が弱いことを意味します\n\n目安（絶対値）\n  0.0〜0.4: 関連は弱い\n  0.4〜0.7: 中程度の関連\n  0.7〜1.0: 強い関連\n\nプラスのr: 寝る時刻が遅いほど血圧が高い傾向\nマイナスのr: 寝る時刻が遅いほど血圧が低い傾向"
+            "value" : "区分1（起床時）の記録で、入眠時刻と血圧（上）がどれくらい一緒に動くかを「相関係数（r）」という数値で表しています\n\n|r| が 1 に近いほど関連が強く、0 に近いほど関連が弱いことを意味します\n\n目安（絶対値）\n  0.0〜0.4: 関連は弱い\n  0.4〜0.7: 中程度の関連\n  0.7〜1.0: 強い関連\n\nプラスのr: 寝る時刻が遅いほど血圧が高い傾向\nマイナスのr: 寝る時刻が遅いほど血圧が低い傾向"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "기상 시 기록에서 수면 시작 시각과 혈압(수축기)이 얼마나 함께 움직이는지를 「상관계수(r)」라는 수치로 나타냅니다\n\n|r|이 1에 가까울수록 관련이 강하고, 0에 가까울수록 관련이 약함을 의미합니다\n\n기준(절댓값)\n  0.0~0.4: 관련이 약함\n  0.4~0.7: 중간 정도의 관련\n  0.7~1.0: 강한 관련\n\n양의 r: 늦게 잠들수록 혈압이 높은 경향\n음의 r: 늦게 잠들수록 혈압이 낮은 경향"
+            "value" : "구분 1(기상) 기록에서 잠든 시각과 혈압(수축기)이 얼마나 함께 움직이는지를 「상관계수(r)」라는 수치로 나타냅니다\n\n|r|이 1에 가까울수록 관련이 강하고, 0에 가까울수록 관련이 약함을 의미합니다\n\n기준(절댓값)\n  0.0~0.4: 관련이 약함\n  0.4~0.7: 중간 정도의 관련\n  0.7~1.0: 강한 관련\n\n양의 r: 늦게 잠들수록 혈압이 높은 경향\n음의 r: 늦게 잠들수록 혈압이 낮은 경향"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "以起床時的記錄，用「相關係數（r）」這個數值表示入睡時間與血壓（收縮壓）一起變動的程度\n\n|r| 越接近 1 關聯越強，越接近 0 則關聯越弱\n\n參考標準（絕對值）\n  0.0～0.4：關聯較弱\n  0.4～0.7：中等關聯\n  0.7～1.0：強烈關聯\n\n正 r：入睡越晚血壓傾向越高\n負 r：入睡越晚血壓傾向越低"
+            "value" : "以分類 1（起床）的記錄，用「相關係數（r）」這個數值表示入睡時間與血壓（收縮壓）一起變動的程度\n\n|r| 越接近 1 關聯越強，越接近 0 則關聯越弱\n\n參考標準（絕對值）\n  0.0～0.4：關聯較弱\n  0.4～0.7：中等關聯\n  0.7～1.0：強烈關聯\n\n正 r：入睡越晚血壓傾向越高\n負 r：入睡越晚血壓傾向越低"
           }
         }
       }
@@ -21994,19 +21994,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Relationship between sleep start and BP"
+            "value" : "Relationship between fell-asleep time and BP"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "睡眠開始と血圧の関連の強さ"
+            "value" : "入眠時刻と血圧の関連の強さ"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "수면 시작과 혈압의 관련 강도"
+            "value" : "잠든 시각과 혈압의 관련 강도"
           }
         },
         "zh-Hant" : {
@@ -22052,19 +22052,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Blood Pressure × Sleep Start"
+            "value" : "Blood Pressure × Fell Asleep"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "血圧 × 睡眠開始"
+            "value" : "血圧 × 入眠時刻"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "혈압 × 수면 시작"
+            "value" : "혈압 × 잠든 시각"
           }
         },
         "zh-Hant" : {
@@ -22110,19 +22110,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sleep start (hour)"
+            "value" : "Fell asleep (hour)"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "睡眠開始（時）"
+            "value" : "入眠時刻（時）"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "수면 시작(시)"
+            "value" : "잠든 시각(시)"
           }
         },
         "zh-Hant" : {
@@ -22400,19 +22400,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sleep start"
+            "value" : "Fell asleep"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "睡眠開始"
+            "value" : "入眠時刻"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "수면 시작"
+            "value" : "잠든 시각"
           }
         },
         "zh-Hant" : {
@@ -22690,25 +22690,25 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Save the approximate time you fell asleep and how long you slept with your wake-up records\n\nTap “Get Sleep Data” to fill them in from the sleep recorded in the Health app\n\nIn Analysis, “Blood Pressure × Sleep Start” and “Blood Pressure × Sleep Time” show how your bedtime and sleep time relate to your morning blood pressure"
+            "value" : "Save the time you fell asleep and how long you slept with your Category 1 (Wake) records\n\nTap “Get Sleep Data” to fill them in from the sleep recorded in the Health app\n\nIn Analysis, “Blood Pressure × Fell Asleep” and “Blood Pressure × Sleep Time” show how the time you fell asleep and your sleep time relate to your morning blood pressure"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "区分「起床時」の記録に、前夜の睡眠開始のおよその時刻と睡眠時間を残せます\n\n「睡眠データを取得する」で、ヘルスケアに記録された睡眠から自動で入力できます\n\n分析の「血圧 × 睡眠開始」「血圧 × 睡眠時間」で、寝る時刻や睡眠時間と朝の血圧の関係を確かめられます"
+            "value" : "区分1（起床時）の記録に、前夜の入眠時刻と睡眠時間を残せます\n\n「睡眠データを取得する」で、ヘルスケアに記録された睡眠から自動で入力できます\n\n分析の「血圧 × 入眠時刻」「血圧 × 睡眠時間」で、寝付いた時刻や睡眠時間と朝の血圧の関係を確かめられます"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "구분 「기상」 기록에 전날 밤 수면 시작의 대략적인 시각과 수면 시간을 남길 수 있습니다\n\n「수면 데이터 가져오기」로 건강 앱에 기록된 수면에서 자동으로 입력할 수 있습니다\n\n분석의 「혈압 × 수면 시작」「혈압 × 수면 시간」에서 잠드는 시각이나 수면 시간과 아침 혈압의 관계를 확인할 수 있습니다"
+            "value" : "구분 1(기상) 기록에 전날 밤 잠든 시각과 수면 시간을 남길 수 있습니다\n\n「수면 데이터 가져오기」로 건강 앱에 기록된 수면에서 자동으로 입력할 수 있습니다\n\n분석의 「혈압 × 잠든 시각」「혈압 × 수면 시간」에서 잠든 시각이나 수면 시간과 아침 혈압의 관계를 확인할 수 있습니다"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "可在分類「起床」的記錄中，保存前一晚大約的入睡時間與睡眠時間\n\n點選「取得睡眠資料」，即可從健康App記錄的睡眠自動輸入\n\n在分析的「血壓 × 入睡時間」「血壓 × 睡眠時間」中，可確認入睡時間或睡眠時間與早晨血壓的關係"
+            "value" : "可在分類 1（起床）的記錄中，保存前一晚的入睡時間與睡眠時間\n\n點選「取得睡眠資料」，即可從健康App記錄的睡眠自動輸入\n\n在分析的「血壓 × 入睡時間」「血壓 × 睡眠時間」中，可確認入睡時間或睡眠時間與早晨血壓的關係"
           }
         }
       }

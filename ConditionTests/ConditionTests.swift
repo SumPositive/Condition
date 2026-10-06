@@ -3724,7 +3724,7 @@ struct SleepSessionTests {
         #expect(SleepEntry.snappedMinutes(SleepEntry.sleeplessMinutes) == SleepEntry.sleeplessMinutes)
     }
 
-    @Test("睡眠開始の選択肢は18時間前〜記録日時の30分刻みで、サンプル用の寄せは最も近い刻みにする")
+    @Test("入眠時刻の選択肢は18時間前〜記録日時の30分刻みで、サンプル用の寄せは最も近い刻みにする")
     func startOptionsAndSnap() {
         let options = SleepEntry.startOptions(recordDate: recordDate)
         #expect(options.allSatisfy { $0 <= recordDate })

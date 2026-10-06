@@ -24,7 +24,7 @@ var sNote1: String = ""
     var sEnvironment: String = ""
 
     // MARK: - 睡眠（起床時の区分だけに付ける補助データ）
-    /// 睡眠開始日時（nil = 未入力）
+    /// 入眠日時（nil = 未入力）
     var dSleepStart: Date? = nil
     /// 睡眠時間（分、0 = 未入力）
     var nSleep_min: Int = 0
@@ -167,9 +167,9 @@ struct SleepEntry: Equatable, Sendable {
     static let dateOpt: DateOpt = .cat01
     /// 選択肢の刻み（分）
     static let stepMinutes = 30
-    /// 睡眠開始を選べる範囲（記録日時から遡る時間）
+    /// 入眠時刻を選べる範囲（記録日時から遡る時間）
     static let startLookbackMinutes = 18 * 60
-    /// 睡眠開始の選択肢で最初に中央へ見せる位置（記録日時の8時間前）
+    /// 入眠時刻の選択肢で最初に中央へ見せる位置（記録日時の8時間前）
     static let startFocusMinutes = 8 * 60
     /// 睡眠時間の選択肢で最初に中央へ見せる値（6時間）
     static let durationFocusMinutes = 6 * 60
@@ -230,7 +230,7 @@ struct SleepEntry: Equatable, Sendable {
         return snapped == 0 ? sleeplessMinutes : snapped
     }
 
-    /// 睡眠開始の選択肢（記録日時の18時間前〜記録日時、時計の00分・30分の刻み、古い順）
+    /// 入眠時刻の選択肢（記録日時の18時間前〜記録日時、時計の00分・30分の刻み、古い順）
     static func startOptions(recordDate: Date) -> [Date] {
         let step = TimeInterval(stepMinutes * 60)
         let lower = recordDate.addingTimeInterval(-TimeInterval(startLookbackMinutes * 60))
@@ -246,7 +246,7 @@ struct SleepEntry: Equatable, Sendable {
         return result
     }
 
-    /// 睡眠開始の選択肢で、最初に中央へ見せる値（記録日時の8時間前に最も近い刻み）
+    /// 入眠時刻の選択肢で、最初に中央へ見せる値（記録日時の8時間前に最も近い刻み）
     static func startFocus(recordDate: Date) -> Date? {
         let target = recordDate.addingTimeInterval(-TimeInterval(startFocusMinutes * 60))
         return startOptions(recordDate: recordDate)
@@ -279,7 +279,7 @@ struct SleepEntry: Equatable, Sendable {
         }
     }
 
-    /// 睡眠開始時刻の表示（端末の12/24時間表記に従う）
+    /// 入眠時刻の表示（端末の12/24時間表記に従う）
     static func startText(_ date: Date) -> String {
         let formatter = AppDateCalendar.formatter()
         formatter.setLocalizedDateFormatFromTemplate("jmm")

@@ -1516,7 +1516,7 @@ struct SleepEntryRow: View {
     }
 }
 
-/// 睡眠開始の選択肢（nil = 未入力）
+/// 入眠時刻の選択肢（nil = 未入力）
 private struct SleepStartOption: Hashable, Identifiable {
     let date: Date?
     var id: Double { date?.timeIntervalSinceReferenceDate ?? -.infinity }
@@ -1528,7 +1528,7 @@ private struct SleepDurationOption: Hashable, Identifiable {
     var id: Int { minutes }
 }
 
-/// 睡眠開始と睡眠時間を、30分刻みのプルダウンまたはヘルスケアから入力するシート。
+/// 入眠時刻と睡眠時間を、30分刻みのプルダウンまたはヘルスケアから入力するシート。
 /// 環境シートと同じく、閉じた時点で入力を反映する（破棄は呼び出し元の記録シートで行う）
 struct SleepEditSheet: View {
     let recordDate: Date
