@@ -651,6 +651,13 @@ final class AppSettings {
         didSet { ud.set(estimateDateOpt, forKey: UDefKeys.estimateDateOpt) }
     }
 
+    // MARK: - 睡眠の自動取得
+    /// 区分1（起床時）の記録で、ヘルスケアの睡眠を自動で取得する（既定 OFF）。
+    /// ヘルスケアの許可は端末ごとなので、バックアップには含めない
+    var sleepAutoFetch: Bool = false {
+        didSet { ud.set(sleepAutoFetch, forKey: UDefKeys.sleepAutoFetch) }
+    }
+
     // MARK: - ダイアル式の測定記録
     /// 初期からあるダイアル式の記録画面を使うか。既定 OFF で、記録は複数平均式と症状の2つに絞る。
     /// OFF のときは一覧のボタンだけでなく、記録タブ再タップと起動時アクションの経路も塞ぐ
@@ -769,6 +776,7 @@ final class AppSettings {
             estimateDateOpt = ud.bool(forKey: UDefKeys.estimateDateOpt)
         }
         useDialRecordEntry = ud.bool(forKey: UDefKeys.useDialRecordEntry)
+        sleepAutoFetch = ud.bool(forKey: UDefKeys.sleepAutoFetch)
         if let domain = RecordDomain(rawValue: ud.integer(forKey: SettingsKeys.settRecordDomain)) {
             recordDomain = domain
         }

@@ -81,15 +81,15 @@ struct ValueFormatterTests {
         )
     }
 
-    @Test("日時の共通表示：並び順は iOS の言語・地域の設定に従い、曜日の前後は半角スペース、年の前後の / は残す")
+    @Test("日時の共通表示：並び順は iOS の言語・地域の設定に従い、曜日の前後と先頭の年の後ろは半角スペース、後ろの年の前の / は残す")
     func dateTimeDisplayFollowsSystemOrder() {
-        #expect(Self.fieldTexts("ja_JP").all == "2026/10/3 土 16:25")
+        #expect(Self.fieldTexts("ja_JP").all == "2026 10/3 土 16:25")
         #expect(Self.fieldTexts("en_US").all == "Sat 10/3/2026 4:25 PM")
         // 日が先の地域では日/月の順になる
         #expect(Self.fieldTexts("en_GB").all == "Sat 03/10/2026 16:25")
-        // 年の後ろの「. 」は残し、月/日の間の区切りは iOS の書式のまま残す
-        #expect(Self.fieldTexts("ko_KR").all == "2026. 10. 3 토 오후 4:25")
-        #expect(Self.fieldTexts("ko_KR").minor == ["2026", ". ", "토"])
+        // 年の後ろの「. 」も半角スペースにし、月/日の間の区切りは iOS の書式のまま残す
+        #expect(Self.fieldTexts("ko_KR").all == "2026 10. 3 토 오후 4:25")
+        #expect(Self.fieldTexts("ko_KR").minor == ["2026", "토"])
     }
 
     @Test("日時の共通表示：続いた空白は半角スペース1つにまとめる")
@@ -98,10 +98,10 @@ struct ValueFormatterTests {
         #expect(String(collapsed.characters) == "a b c d")
     }
 
-    @Test("日時の共通表示：年・曜日（年の前後の / 込み）、月/日（区切り込み）、時刻（午前午後込み）を分けて強調する")
+    @Test("日時の共通表示：年・曜日（残した年の前の / 込み）、月/日（区切り込み）、時刻（午前午後込み）を分けて強調する")
     func dateTimeDisplayFieldRanges() {
         let ja = Self.fieldTexts("ja_JP")
-        #expect(ja.minor == ["2026", "/", "土"])
+        #expect(ja.minor == ["2026", "土"])
         #expect(ja.monthDay == "10/3")
         #expect(ja.time == "16:25")
 
@@ -118,7 +118,7 @@ struct ValueFormatterTests {
     func dateTimeDisplayUsesGregorianYear() {
         #expect(Self.fieldTexts("ja_JP@calendar=japanese").minor.first == "2026")
         // 元号の位置に「西暦」を出さない
-        #expect(Self.fieldTexts("ja_JP@calendar=japanese").all == "2026/10/3 土 16:25")
+        #expect(Self.fieldTexts("ja_JP@calendar=japanese").all == "2026 10/3 土 16:25")
     }
 
     @Test("和暦の設定でも年月の見出しに「西暦」を付けない")
@@ -3703,12 +3703,19 @@ struct SleepSessionTests {
         #expect(SleepSessionLogic.mainSleep(from: [], recordDate: recordDate) == nil)
     }
 
-    @Test("記録日時より後の開始は捨て、睡眠時間は30分刻み・不眠・10時間超へ寄せる")
+    @Test("範囲外の値だけを外し、ヘルスケアの値は30分刻みにしない")
     func normalizesEntry() {
         let late = SleepEntry(start: recordDate.addingTimeInterval(60), minutes: 99_999)
             .normalized(recordDate: recordDate)
         #expect(late.start == nil)
-        #expect(late.minutes == SleepEntry.overMaxMinutes)
+        #expect(late.minutes == 24 * 60)
+
+        // 取得値（刻み外）はそのまま残す
+        let exact = SleepEntry(start: ago(437), minutes: 412).normalized(recordDate: recordDate)
+        #expect(exact.start == ago(437))
+        #expect(exact.minutes == 412)
+        #expect(SleepEntry(minutes: SleepEntry.sleeplessMinutes).normalized(recordDate: recordDate).minutes
+                == SleepEntry.sleeplessMinutes)
 
         #expect(SleepEntry.snappedMinutes(432) == 420)
         #expect(SleepEntry.snappedMinutes(10) == SleepEntry.sleeplessMinutes)
@@ -3717,14 +3724,14 @@ struct SleepSessionTests {
         #expect(SleepEntry.snappedMinutes(SleepEntry.sleeplessMinutes) == SleepEntry.sleeplessMinutes)
     }
 
-    @Test("睡眠開始の選択肢は18時間前〜記録日時の30分刻みで、開始は最も近い刻みへ寄せる")
+    @Test("睡眠開始の選択肢は18時間前〜記録日時の30分刻みで、サンプル用の寄せは最も近い刻みにする")
     func startOptionsAndSnap() {
         let options = SleepEntry.startOptions(recordDate: recordDate)
         #expect(options.allSatisfy { $0 <= recordDate })
         #expect(recordDate.addingTimeInterval(-18 * 3600) <= options[0])
         #expect(zip(options, options.dropFirst()).allSatisfy { $1.timeIntervalSince($0) == 1800 })
         let snapped = SleepEntry(start: options[10].addingTimeInterval(7 * 60))
-            .normalized(recordDate: recordDate)
+            .snapped(recordDate: recordDate)
         #expect(snapped.start == options[10])
     }
 

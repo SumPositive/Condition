@@ -41,15 +41,16 @@ enum ValueFormatter {
 /// 記録・症状の日時を共通の強弱で表示する。
 /// 並び順と区切りは iOS の言語・地域の設定に従い、年は西暦で出す
 /// 曜日の前後の区切り（( ) , など）は半角スペースにして、すっきり見せる。
-/// 年の前後の区切り（/ や ko の「. 」）は括弧・読点だけ除いて残し、年と同じ小ささ・薄さにする。
+/// 年が先頭の地域（ja・ko など）は、年の後ろの区切り（/ や「. 」）も半角スペースにする。
+/// 年が最後の地域（en_US・en_GB など）は「10/3/2026」が見慣れた形なので、年の前の / は残して年と同じ小ささ・薄さにする。
 /// 半角スペースが続く箇所は1つにまとめる
-/// - ja：「2026/10/3 土 16:25」 en_US：「Sat 10/3/2026 4:25 PM」 ko：「2026. 10. 3 토 오후 4:25」
+/// - ja：「2026 10/3 土 16:25」 en_US：「Sat 10/3/2026 4:25 PM」 ko：「2026 10. 3 토 오후 4:25」
 /// 年・曜日は小さく薄く、月/日は大きく太く、時刻は太くする
 enum DateTimeDisplay {
 
     /// 強弱を付ける部分の範囲
     struct FieldRanges {
-        /// 年・曜日と、年の前後の区切り（小さく薄く）
+        /// 年・曜日と、残した年の前の区切り（小さく薄く）
         var minor: [Range<AttributedString.Index>] = []
         /// 月/日。間の区切りも含む（大きく太く）
         var monthDay: Range<AttributedString.Index>?
@@ -74,12 +75,13 @@ enum DateTimeDisplay {
         return simplifiedSeparators(date.formatted(style.attributedStyle))
     }
 
-    /// 曜日に接する区切りは半角スペース1つにし、年に接する区切りは括弧・読点を除いて残す
-    /// （空白だけになれば半角スペース1つ）。端にある空白の区切りは消す。
-    /// 月/日の間や時刻の中の区切りは iOS の書式のまま残す
+    /// 曜日に接する区切りは半角スペース1つにする。年に接する区切りは、年が先頭なら半角スペース、
+    /// 年が月日より後ろなら括弧・読点だけ除いて残す（空白だけになれば半角スペース1つ）。
+    /// 端にある区切りは消す。月/日の間や時刻の中の区切りは iOS の書式のまま残す
     static func simplifiedSeparators(_ source: AttributedString) -> AttributedString {
         var text = source
         let runs = text.runs.map { (range: $0.range, field: $0.foundation.dateField) }
+        let keepsYearSeparator = !isYearFirst(runs.map(\.field))
         // 置き換えで後ろの位置がずれないよう、末尾から処理する
         for index in runs.indices.reversed() where runs[index].field == nil {
             let previous = 0 < index ? runs[index - 1].field : nil
@@ -89,8 +91,8 @@ enum DateTimeDisplay {
             guard touchesWeekday || touchesYear else { continue }
             let isEdge = index == 0 || index == runs.count - 1
             var replacement = isEdge ? "" : " "
-            // 年の前後の区切り（/ や「. 」）は残す。曜日に接するときは括弧なので残さない
-            if !touchesWeekday {
+            // 年が後ろの地域だけ年の前の区切り（/ など）を残す。曜日に接するときは括弧なので残さない
+            if keepsYearSeparator, !touchesWeekday {
                 let kept = String(text[runs[index].range].characters)
                     .filter { !removedSeparatorCharacters.contains($0) }
                 if !kept.allSatisfy(\.isWhitespace) { replacement = kept }
@@ -100,10 +102,22 @@ enum DateTimeDisplay {
         return collapsedSpaces(text)
     }
 
+    /// 年が月・日より前に並ぶ書式か
+    private static func isYearFirst(_ fields: [AttributeScopes.FoundationAttributes.DateFieldAttribute.Field?]) -> Bool {
+        guard let year = fields.firstIndex(of: .year) else { return false }
+        guard let monthDay = fields.firstIndex(where: { $0 == .month || $0 == .day }) else { return true }
+        return year < monthDay
+    }
+
     /// 年の前後の区切りから除く文字（括弧・読点）
     private static let removedSeparatorCharacters: Set<Character> = [
         ",", "，", "、", "(", ")", "（", "）",
     ]
+
+    /// 年の前後に残した区切りか（空白だけのものは除く）
+    private static func isYearSeparator(_ separator: AttributedSubstring) -> Bool {
+        !String(separator.characters).allSatisfy(\.isWhitespace)
+    }
 
     /// 続いた空白を半角スペース1つにまとめる。項目の文字には空白が無いので、区切りだけが対象になる
     static func collapsedSpaces(_ source: AttributedString) -> AttributedString {
@@ -132,11 +146,6 @@ enum DateTimeDisplay {
         return text
     }
 
-    /// 年の前後に残した区切りか（空白だけのものは除く）
-    private static func isYearSeparator(_ separator: AttributedSubstring) -> Bool {
-        !String(separator.characters).allSatisfy(\.isWhitespace)
-    }
-
     /// 1行の文字列
     static func string(for date: Date, locale: Locale = .current) -> String {
         String(attributedString(for: date, locale: locale).characters)
@@ -155,7 +164,7 @@ enum DateTimeDisplay {
         let runs = Array(text.runs)
         for (index, run) in runs.enumerated() {
             guard let field = run.foundation.dateField else {
-                // 年の前後に残した区切り（/ や「. 」）は年と同じ小ささ・薄さにする
+                // 年の前に残した区切り（/）は年と同じ小ささ・薄さにする
                 let previous = 0 < index ? runs[index - 1].foundation.dateField : nil
                 let next = index + 1 < runs.count ? runs[index + 1].foundation.dateField : nil
                 if previous == .year || next == .year, isYearSeparator(text[run.range]) {

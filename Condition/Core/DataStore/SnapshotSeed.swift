@@ -87,7 +87,7 @@ enum SnapshotSeed {
             r.dSleepStart = cal.date(byAdding: .minute, value: bedMinutes, to: previous)
             r.nSleep_min = Int(7 * 60 - late * 50)
             // 入力画面の選択肢と同じ30分刻みに揃える
-            r.sleepEntry = r.sleepEntry.normalized(recordDate: morning)
+            r.sleepEntry = r.sleepEntry.snapped(recordDate: morning)
             r.nBpHi_mmHg += Int(late * 5)
             r.nBpLo_mmHg += Int(late * 3)
 

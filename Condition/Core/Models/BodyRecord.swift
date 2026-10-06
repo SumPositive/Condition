@@ -195,21 +195,28 @@ struct SleepEntry: Equatable, Sendable {
         }
     }
 
-    /// 選択肢の刻みへ揃える。開始は記録日時の範囲内、睡眠時間は 不眠〜10時間超 に収める
+    /// 範囲外の値だけを外す。ヘルスケアから取得した値は30分刻みにせずそのまま残す。
+    /// 開始は記録日時の18時間前〜記録日時、睡眠時間は 不眠・0〜24時間
     func normalized(recordDate: Date) -> SleepEntry {
         var result = self
         if let start {
-            let options = Self.startOptions(recordDate: recordDate)
-            // 刻みの半分（秒）。先頭の刻みへ寄せられる範囲までは残す
-            let halfStep = TimeInterval(Self.stepMinutes * 30)
-            // 範囲外は捨て、範囲内は最も近い刻みへ寄せる
-            if let first = options.first, first.addingTimeInterval(-halfStep) <= start, start <= recordDate {
-                result.start = options.min { abs($0.timeIntervalSince(start)) < abs($1.timeIntervalSince(start)) }
-            } else {
-                result.start = nil
-            }
+            let lower = recordDate.addingTimeInterval(-TimeInterval(Self.startLookbackMinutes * 60))
+            if !(lower <= start && start <= recordDate) { result.start = nil }
         }
-        result.minutes = Self.snappedMinutes(minutes)
+        if minutes != Self.sleeplessMinutes {
+            result.minutes = min(max(minutes, 0), 24 * 60)
+        }
+        return result
+    }
+
+    /// 選択肢の30分刻みへ寄せる（サンプルデータ用。入力や取得の値には使わない）
+    func snapped(recordDate: Date) -> SleepEntry {
+        var result = normalized(recordDate: recordDate)
+        if let start = result.start {
+            result.start = Self.startOptions(recordDate: recordDate)
+                .min { abs($0.timeIntervalSince(start)) < abs($1.timeIntervalSince(start)) }
+        }
+        result.minutes = Self.snappedMinutes(result.minutes)
         return result
     }
 
@@ -259,7 +266,7 @@ struct SleepEntry: Equatable, Sendable {
             return String(localized: "sleep.notEntered")
         case sleeplessMinutes:
             return String(localized: "sleep.duration.sleepless")
-        case overMaxMinutes...:
+        case overMaxMinutes:
             return String(format: String(localized: "sleep.duration.overFormat"), maxStepMinutes / 60)
         default:
             if minutes < 60 {

@@ -62,6 +62,8 @@ struct RecordEditView: View {
     @State private var didEnterBackground = false
     @State private var showStaleDateAlert = false
     @State private var showSleepSheet = false
+    /// 睡眠の自動取得（日時・区分を続けて変えたら前の取得は捨てる）
+    @State private var sleepAutoTask: Task<Void, Never>?
     @FocusState private var focusNote1: Bool
     @FocusState private var focusNote2: Bool
     @FocusState private var focusEquipment: Bool
@@ -510,6 +512,8 @@ struct RecordEditView: View {
             .onAppear {
                 if isNewRecord {
                     vm.loadPreviousValues(context: context)
+                    // 新しい記録を開いたときに区分1なら睡眠を自動取得する
+                    autoFetchSleepIfNeeded()
                 }
                 equipmentCandidateStore.refresh(with: recordsForEquipmentHistory)
             }
@@ -535,6 +539,11 @@ struct RecordEditView: View {
                     break
                 }
             }
+            // 区分1になったら、または区分1で日時を変えたら睡眠を自動取得する
+            .onChange(of: vm.dateOpt) { _, newValue in
+                if newValue == SleepEntry.dateOpt { autoFetchSleepIfNeeded() }
+            }
+            .onChange(of: vm.dateTime) { _, _ in autoFetchSleepIfNeeded() }
             // isModified は ViewModel の didSet で管理（View 側 onChange 不要）
             .onChange(of: vm.isModified) { _, newValue in onModifiedChanged?(newValue) }
             // 未保存の編集がある間は下スワイプで閉じられないようにする
@@ -542,6 +551,7 @@ struct RecordEditView: View {
             .onDisappear {
                 memoScrollTask?.cancel()
                 discardResetTask?.cancel()
+                sleepAutoTask?.cancel()
             }
         }
         .overlay(alignment: .top) {
@@ -730,6 +740,23 @@ struct RecordEditView: View {
                 DateTimeDisplayText(date: vm.dateTime)
                     .foregroundStyle(.primary)
             }
+        }
+    }
+
+    /// 設定が ON で区分1なら、記録日時の直前の睡眠をヘルスケアから取得して入れる。
+    /// 見つからない・失敗したときは何も表示せず、入力中の値を残す
+    private func autoFetchSleepIfNeeded() {
+        guard settings.sleepAutoFetch, vm.dateOpt == SleepEntry.dateOpt,
+              HealthKitService.shared.isAvailable else { return }
+        if case .goalEdit = vm.mode { return }
+        sleepAutoTask?.cancel()
+        let target = vm.dateTime
+        sleepAutoTask = Task { @MainActor in
+            let result = await HealthKitService.shared.readSleep(before: target)
+            // 取得中に日時・区分が変わっていたら反映しない
+            guard !Task.isCancelled, target == vm.dateTime, vm.dateOpt == SleepEntry.dateOpt,
+                  case .found(let entry) = result else { return }
+            vm.applyAutoFetchedSleep(entry.normalized(recordDate: target))
         }
     }
 
@@ -1421,6 +1448,8 @@ struct RecordAuxRow: View {
     let summary: String
     let hasValue: Bool
     let helpKey: LocalizedStringKey
+    /// 値の最大行数（環境は項目が多いので2行、睡眠は1行）
+    var summaryLineLimit: Int = 2
     let action: () -> Void
 
     var body: some View {
@@ -1437,12 +1466,12 @@ struct RecordAuxRow: View {
             Button(action: action) {
                 HStack(spacing: 8) {
                     Spacer(minLength: 8)
-                    // 環境は項目が多いので2行まで折り返し、右端にそろえる
+                    // 指定の行数まで折り返して右端にそろえ、収まらなければ縮小する
                     Text(summary)
                         .foregroundStyle(hasValue ? .primary : .secondary)
                         .font(hasValue ? .callout : .body)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.7)
+                        .lineLimit(summaryLineLimit)
+                        .minimumScaleFactor(summaryLineLimit == 1 ? 0.5 : 0.7)
                         .multilineTextAlignment(.trailing)
                     Image(systemName: "chevron.right")
                         .font(.footnote.weight(.semibold))
@@ -1467,6 +1496,8 @@ struct SleepEntryRow: View {
             summary: Self.summary(entry),
             hasValue: entry.hasAnyValue,
             helpKey: "sleep.help",
+            // 開始と時間を1行に収め、長いときは縮小する
+            summaryLineLimit: 1,
             action: action
         )
     }
@@ -1516,19 +1547,30 @@ struct SleepEditSheet: View {
     init(entry: SleepEntry, recordDate: Date, onDone: @escaping (SleepEntry) -> Void) {
         self.recordDate = recordDate
         self.onDone = onDone
-        // 選択肢に無い値（刻み外など）は最も近い選択肢へ寄せて開く
+        // ヘルスケアから取得した刻み外の値はそのまま開き、選択肢に足して表示する
         _draft = State(initialValue: entry.normalized(recordDate: recordDate))
     }
 
-    // 未入力を先頭に置き、選び直しで消せるようにする
+    // 未入力を先頭に置き、選び直しで消せるようにする。
+    // ヘルスケアから取得した刻み外の値は、時刻順の位置へ足して選択中として見せる
     private var startOptions: [SleepStartOption] {
-        [SleepStartOption(date: nil)]
-            + SleepEntry.startOptions(recordDate: recordDate).map { SleepStartOption(date: $0) }
+        var dates = SleepEntry.startOptions(recordDate: recordDate)
+        if let start = draft.start, !dates.contains(start) {
+            dates.append(start)
+            dates.sort()
+        }
+        return [SleepStartOption(date: nil)] + dates.map { SleepStartOption(date: $0) }
     }
 
     private var durationOptions: [SleepDurationOption] {
-        [SleepDurationOption(minutes: 0)]
-            + SleepEntry.durationOptions.map { SleepDurationOption(minutes: $0) }
+        var values = SleepEntry.durationOptions
+        if draft.minutes != 0, !values.contains(draft.minutes) {
+            // 並びは 10時間超 → 長い順 → 不眠。取得値は長さの順の位置へ入れる
+            let index = values.firstIndex { $0 != SleepEntry.overMaxMinutes && $0 < draft.minutes }
+                ?? values.count
+            values.insert(draft.minutes, at: index)
+        }
+        return [SleepDurationOption(minutes: 0)] + values.map { SleepDurationOption(minutes: $0) }
     }
 
     private var startSelection: Binding<SleepStartOption> {
@@ -1549,19 +1591,14 @@ struct SleepEditSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    // 30分刻みの目安なので、プルダウンの前に「およそ」を添える
                     HStack(spacing: 8) {
                         Text("sleep.start")
                         Spacer(minLength: 8)
-                        Text("sleep.approx")
-                            .foregroundStyle(.secondary)
                         startPicker
                     }
                     HStack(spacing: 8) {
                         Text("sleep.duration")
                         Spacer(minLength: 8)
-                        Text("sleep.approx")
-                            .foregroundStyle(.secondary)
                         durationPicker
                     }
                 }
@@ -1579,6 +1616,12 @@ struct SleepEditSheet: View {
                 } footer: {
                     Text(fetchMessageKey)
                         .foregroundStyle(fetchMessageColor)
+                }
+                Section {
+                    Toggle("sleep.autoFetch", isOn: autoFetchBinding)
+                        .disabled(!HealthKitService.shared.isAvailable)
+                } footer: {
+                    Text("sleep.autoFetch.footer")
                 }
             }
             // 中身の高さ＋上下の余白（ナビバー・セーフエリア）をシートの高さにする。
@@ -1622,6 +1665,17 @@ struct SleepEditSheet: View {
         .presentationBackground(Color.azTintedSheetBackground(.systemIndigo))
         // 閉じ方によらず入力を反映する（閉じるボタン・スワイプのどちらでも同じ）
         .onDisappear { onDone(draft.normalized(recordDate: recordDate)) }
+    }
+
+    /// 自動取得の設定。ON にしたときは、その場でも取得して許可の確認と結果を見せる
+    private var autoFetchBinding: Binding<Bool> {
+        Binding(
+            get: { AppSettings.shared.sleepAutoFetch },
+            set: { isOn in
+                AppSettings.shared.sleepAutoFetch = isOn
+                if isOn { fetchFromHealthKit() }
+            }
+        )
     }
 
     // MARK: プルダウン
@@ -1695,7 +1749,7 @@ struct SleepEditSheet: View {
             defer { isLoading = false }
             let result = await HealthKitService.shared.readSleep(before: recordDate)
             fetchResult = result
-            // 見つかったときだけ選択肢の刻みへ寄せて置き換え、見つからなければ入力中の値を残す
+            // 見つかったときだけ取得値のまま置き換え（30分刻みにしない）、見つからなければ入力中の値を残す
             var found = 0
             if case .found(let entry) = result {
                 draft = entry.normalized(recordDate: recordDate)

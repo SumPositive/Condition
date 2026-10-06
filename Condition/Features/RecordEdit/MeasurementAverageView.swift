@@ -207,6 +207,10 @@ struct MeasurementAverageView: View {
     /// 睡眠（起床時の区分だけで入力・保存する）
     @State private var sleep = SleepEntry()
     @State private var showSleepSheet = false
+    /// 睡眠の自動取得（日時・区分を続けて変えたら前の取得は捨てる）
+    @State private var sleepAutoTask: Task<Void, Never>?
+    /// 自動取得した睡眠。これだけなら新しい記録の「入力あり」に数えない
+    @State private var autoFetchedSleep: SleepEntry?
     @State private var showDatePicker = false
     @State private var showDeleteAlert = false
     @State private var isDateOptExpanded = false
@@ -351,7 +355,7 @@ struct MeasurementAverageView: View {
     /// メモ欄に何か入力されているか（新規シートの「変更あり」判定に使う）
     private var hasAnyMemoInput: Bool {
         !equipment.isEmpty || !note1.isEmpty || !note2.isEmpty || caution || environment.hasAnyValue
-            || sleep.hasAnyValue
+            || (sleep.hasAnyValue && sleep != autoFetchedSleep)
     }
 
     var body: some View {
@@ -493,15 +497,23 @@ struct MeasurementAverageView: View {
                 } else {
                     ensureSamplesArrays()
                     loadInitialDateOpt()
+                    // 新しい記録を開いたときに区分1なら睡眠を自動取得する
+                    autoFetchSleepIfNeeded()
                 }
                 if columns.isEmpty { return }
                 if focused == nil, let first = columns.first {
                     focused = AvgCell(column: first, trial: 0)
                 }
             }
-            .onChange(of: dateOpt) { _, _ in
+            .onChange(of: dateOpt) { _, newValue in
                 // 区分を切り替えた直後でまだ入力していなければ、新しい区分の直近値で初期化し直す
                 loadFirstTrialDefaultsFromRecent()
+                // 区分1になったら睡眠を自動取得する（修正を開いたときの復元は除く）
+                if newValue == SleepEntry.dateOpt, !isRestoredState { autoFetchSleepIfNeeded() }
+            }
+            // 区分1で日時を変えたら、その日時の睡眠を自動取得し直す（修正を開いたときの復元は除く）
+            .onChange(of: dateTime) { _, _ in
+                if !isRestoredState { autoFetchSleepIfNeeded() }
             }
             // 履歴が変わったときだけ候補プールを作り直す（入力のたびの再集計を避ける）。
             // @Model は同一性で比較されるため、既存記録の測定場所を書き換えただけでは
@@ -528,6 +540,7 @@ struct MeasurementAverageView: View {
             .onDisappear {
                 memoScrollTask?.cancel()
                 discardResetTask?.cancel()
+                sleepAutoTask?.cancel()
             }
         }
         if settings.fontScale.followsSystem {
@@ -1551,6 +1564,30 @@ struct MeasurementAverageView: View {
     }
 
     // MARK: 入力ハンドリング
+
+    /// 修正中の記録で、日時・区分が保存済みのまま（＝開いたときの復元）か
+    private var isRestoredState: Bool {
+        guard let record else { return false }
+        return dateTime == record.dateTime && dateOpt == record.dateOpt
+    }
+
+    /// 設定が ON で区分1なら、記録日時の直前の睡眠をヘルスケアから取得して入れる。
+    /// 見つからない・失敗したときは何も表示せず、入力中の値を残す
+    private func autoFetchSleepIfNeeded() {
+        guard settings.sleepAutoFetch, dateOpt == SleepEntry.dateOpt,
+              HealthKitService.shared.isAvailable else { return }
+        sleepAutoTask?.cancel()
+        let target = dateTime
+        sleepAutoTask = Task { @MainActor in
+            let result = await HealthKitService.shared.readSleep(before: target)
+            // 取得中に日時・区分が変わっていたら反映しない
+            guard !Task.isCancelled, target == dateTime, dateOpt == SleepEntry.dateOpt,
+                  case .found(let entry) = result else { return }
+            let fetched = entry.normalized(recordDate: target)
+            autoFetchedSleep = fetched
+            sleep = fetched
+        }
+    }
 
     /// 保存済みの平均記録と各試行値を修正画面へ復元する
     private func loadSavedRecord(_ record: BodyRecord) {

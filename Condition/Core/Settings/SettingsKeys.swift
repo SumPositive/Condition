@@ -141,4 +141,5 @@ enum UDefKeys {
     static let mergeDefaultAction        = "UDEF_MergeDefaultAction"        // 衝突解決の初期選択 ConflictAction.rawValue
     static let estimateDateOpt           = "UDEF_EstimateDateOpt"           // 区分を蓄積記録から推定して初期表示する
     static let useDialRecordEntry        = "UDEF_UseDialRecordEntry"        // 新しい記録（ダイアル式）を使う（既定 OFF）
+    static let sleepAutoFetch            = "UDEF_SleepAutoFetch"            // 起床時の睡眠をヘルスケアから自動取得する（既定 OFF）
 }

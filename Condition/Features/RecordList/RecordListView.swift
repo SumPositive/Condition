@@ -928,7 +928,7 @@ private struct DemoDataGenerator {
                         .flatMap { cal.date(byAdding: .minute, value: late, to: $0) }
                     record.nSleep_min = 7 * 60 - late / 2 + Int.random(in: -30...30, using: &rng)
                     // 入力画面の選択肢と同じ30分刻みに揃える
-                    record.sleepEntry = record.sleepEntry.normalized(recordDate: dt)
+                    record.sleepEntry = record.sleepEntry.snapped(recordDate: dt)
                 }
                 context.insert(record)
             }

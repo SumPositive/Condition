@@ -825,7 +825,7 @@ enum RecordsJSONIO {
             case .null:
                 record.sleepEntry = SleepEntry()
             case .value(let sleep):
-                // 記録日時と同じ書式で読み、選択肢の刻みへ寄せる
+                // 記録日時と同じ書式で読み、範囲外の値は外す
                 let iso = ISO8601DateFormatter()
                 iso.formatOptions = [.withInternetDateTime, .withDashSeparatorInDate, .withColonSeparatorInTime, .withTimeZone]
                 let start = sleep.start.flatMap { iso.date(from: $0) }

@@ -22139,25 +22139,25 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Uses records in “%@”"
+            "value" : "Uses records in Category 1 (%@)"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "区分「%@」の記録を集計"
+            "value" : "区分1（%@）の記録を集計"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "구분 「%@」 기록으로 집계"
+            "value" : "구분 1(%@) 기록으로 집계"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "統計分類「%@」的記錄"
+            "value" : "統計分類 1（%@）的記錄"
           }
         }
       }
@@ -22284,25 +22284,25 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Gets the longest sleep in the Health app from the 18 hours before the record time"
+            "value" : "Gets sleep data from the Health app\nIf anything is off, change it manually"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "記録日時の18時間前から記録日時までのヘルスケアの睡眠から、最も長い睡眠を取得します"
+            "value" : "ヘルスケアの睡眠データから取得します\n違いがあれば手動で変更してください"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "기록 일시 18시간 전부터 기록 일시까지 건강 앱의 수면 중 가장 긴 수면을 가져옵니다"
+            "value" : "건강 앱의 수면 데이터에서 가져옵니다\n차이가 있으면 직접 변경해 주세요"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "從記錄時間前18小時至記錄時間的健康App睡眠中，取得最長的一段睡眠"
+            "value" : "從健康App的睡眠資料取得\n如有差異，請手動修改"
           }
         }
       }
@@ -22597,35 +22597,6 @@
         }
       }
     },
-    "sleep.approx" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "About"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "およそ"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "약"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "約"
-          }
-        }
-      }
-    },
     "sleep.start.todayFormat" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -22738,6 +22709,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "可在分類「起床」的記錄中，保存前一晚大約的入睡時間與睡眠時間\n\n點選「取得睡眠資料」，即可從健康App記錄的睡眠自動輸入\n\n在分析的「血壓 × 入睡時間」「血壓 × 睡眠時間」中，可確認入睡時間或睡眠時間與早晨血壓的關係"
+          }
+        }
+      }
+    },
+    "sleep.autoFetch" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Get Sleep Data Automatically"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠データを自動取得する"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "수면 데이터 자동으로 가져오기"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自動取得睡眠資料"
+          }
+        }
+      }
+    },
+    "sleep.autoFetch.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gets sleep data from the Health app when you open a new Category 1 (Wake) record, change its date and time, or switch to Category 1"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "区分1（起床時）の新しい記録を開いたときや、日時を変えたとき、区分1に変えたときに、ヘルスケアから自動で取得します"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "구분 1(기상)의 새 기록을 열 때, 일시를 바꿀 때, 구분 1로 바꿀 때 건강 앱에서 자동으로 가져옵니다"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開啟分類 1（起床）的新記錄、變更日期時間，或切換為分類 1 時，會自動從健康App取得"
           }
         }
       }

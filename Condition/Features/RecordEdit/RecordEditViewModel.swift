@@ -235,6 +235,17 @@ final class RecordEditViewModel {
         }
     }
 
+    // MARK: - 睡眠の自動取得
+
+    /// 自動取得した睡眠を反映する。新しい記録で未入力のうちは「変更あり」にしない
+    func applyAutoFetchedSleep(_ entry: SleepEntry) {
+        var keepsUnmodified = false
+        if case .addNew = mode { keepsUnmodified = !isModified }
+        suppressModified = keepsUnmodified
+        sleep = entry
+        suppressModified = false
+    }
+
     // MARK: - 日付変更時に DateOpt を自動更新
 
     func onDateChanged() {
