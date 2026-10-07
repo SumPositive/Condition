@@ -123,7 +123,6 @@ final class AppAnalytics {
             "launch_action": settings.launchAction.rawValue,
             "merge_window_minutes": settings.mergeWindowMinutes,
             "merge_default_action": settings.mergeDefaultAction,
-            "estimate_category": settings.estimateDateOpt ? 1 : 0,
             "dial_style": settings.dialStyle,
             "hidden_record_fields": settings.hiddenFields.count,
             "hidden_graph_panels": settings.graphHiddenPanels.count,

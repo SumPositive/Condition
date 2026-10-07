@@ -1722,6 +1722,29 @@ struct DateOptEstimatorTests {
         #expect(result.selected == .cat02)
     }
 
+    @Test("分布表の一括計算は、時刻ごとの推定と同じ結果になる")
+    func weeklyEstimatesMatchPerSlot() {
+        let reference = date(2026, 6, 15, 12, 0)
+        let records = [
+            rec(.cat01, date(2026, 6, 8, 7, 5)), rec(.cat01, date(2026, 6, 1, 7, 55)),
+            rec(.cat02, date(2026, 5, 25, 7, 30)), rec(.cat03, date(2026, 6, 9, 22, 10)),
+            rec(.cat01, date(2026, 6, 2, 22, 0)), rec(.cat03, date(2026, 3, 1, 9, 0)),
+        ]
+        let table = DateOptEstimator.weeklyEstimates(from: records, referenceDate: reference)
+        let cal = AppDateCalendar.gregorian
+        for dayOffset in 0..<7 {
+            let day = cal.date(byAdding: .day, value: -dayOffset, to: reference) ?? reference
+            let weekday = cal.component(.weekday, from: day)
+            for hour in 0..<24 {
+                let target = cal.date(bySettingHour: hour, minute: 0, second: 0, of: day) ?? day
+                let single = DateOptEstimator.estimateResult(
+                    from: records, targetDate: target, hourMap: hourMap(all: .cat02), referenceDate: reference
+                ).estimated
+                #expect(table[weekday - 1][hour] == single, "weekday=\(weekday) hour=\(hour)")
+            }
+        }
+    }
+
     @Test("未定義区分の履歴は選ばれない")
     func undefinedDivisionIsNeverSelected() {
         // 端末の区分マスタに依存しないよう cat01〜cat06 のみ定義済みに固定し、cat07 は未定義にする

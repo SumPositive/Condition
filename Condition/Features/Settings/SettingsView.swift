@@ -1395,40 +1395,21 @@ struct DateOptMatrixView: View {
                 .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10))
                 .padding(.bottom, 8)
 
-                // 新しい記録の区分推定を切り替えるスイッチ
-                VStack(alignment: .leading, spacing: 8) {
+                // 区分は常に過去3ヶ月の分布から推定する。分布表は別画面で広く表示する
+                NavigationLink {
+                    DateOptEstimateDistributionView()
+                } label: {
                     HStack {
-                        SettingsHelpTitle(
-                            titleKey: "settings.category.estimate",
-                            helpKey: "settings.category.estimate.help",
-                            storageKey: "helpDismissed.settings.categoryEstimate"
-                        )
+                        Text("settings.category.estimateDistribution")
                         Spacer()
-                        Toggle("settings.category.estimate", isOn: $settings.estimateDateOpt)
-                            .labelsHidden()
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.tertiary)
                     }
                 }
                 .padding(12)
                 .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10))
-                .padding(.bottom, 8)
-
-                if settings.estimateDateOpt {
-                    // 推定分布表は別画面で広く表示する
-                    NavigationLink {
-                        DateOptEstimateDistributionView()
-                    } label: {
-                        HStack {
-                            Text("settings.category.estimateDistribution")
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.tertiary)
-                        }
-                    }
-                    .padding(12)
-                    .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10))
-                    .padding(.bottom, 10)
-                }
+                .padding(.bottom, 10)
 
                 VStack(alignment: .leading, spacing: 3) {
                     SettingsHelpTitle(
@@ -1498,7 +1479,7 @@ struct DateOptMatrixView: View {
         }
         .scrollIndicators(.hidden)
         .background(Color(.systemGroupedBackground))
-        // 区分のアイコン・名称・色を変更したら時間帯マップも再生成する
+        // 区分のアイコン・名称・色を変更したら時間帯指定も再生成する
         .id(settings.dateOptAppearanceRevision)
         // 時間帯の割り当てや推定の ON/OFF で通知の時刻が変わるので、画面を離れるときに作り直す
         .onDisappear { MeasurementReminder.reschedule() }
@@ -1871,32 +1852,27 @@ private struct DateOptAppearanceEditView: View {
 
 private struct DateOptEstimateDistributionView: View {
     @State private var settings = AppSettings.shared
-    @Query(
-        filter: #Predicate<BodyRecord> { $0.dateTime < bodyRecordGoalDate },
-        sort: \BodyRecord.dateTime,
-        order: .reverse
-    )
-    private var records: [BodyRecord]
+    @Environment(\.modelContext) private var context
 
     @ScaledMetric(relativeTo: .caption2) private var distributionCellSize: CGFloat = 18
     @ScaledMetric(relativeTo: .caption) private var distributionHourWidth: CGFloat = 28
 
     var body: some View {
-        let referenceDate = Date()
+        // 記録の保存時などに作り直して保持している分布を出す（開くたびに計算しない）
         ScrollView {
-            distributionTable(referenceDate: referenceDate)
+            distributionTable(settings.dateOptDistribution)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 4)
         }
         .scrollIndicators(.hidden)
         .background(Color(.systemGroupedBackground))
-        // 区分のアイコン・名称・色を変更したら推定分布も再生成する
-        .id(settings.dateOptAppearanceRevision)
+        // 日が変わっていれば作り直す
+        .onAppear { settings.rebuildDateOptDistributionIfStale(context: context) }
         .navigationTitle("settings.category.estimateDistribution")
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private func distributionTable(referenceDate: Date) -> some View {
+    private func distributionTable(_ table: [[DateOpt?]]) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             // 横軸は曜日、縦軸は時刻。各セルに推定区分アイコンを置く
             VStack(spacing: 1) {
@@ -1918,11 +1894,7 @@ private struct DateOptEstimateDistributionView: View {
                             .frame(width: distributionHourWidth, alignment: .trailing)
                             .padding(.trailing, 2)
                         ForEach(orderedWeekdays, id: \.self) { weekday in
-                            let dateOpt = estimatedDateOpt(
-                                weekday: weekday,
-                                hour: hour,
-                                referenceDate: referenceDate
-                            )
+                            let dateOpt = table[weekday - 1][hour]
                             ZStack {
                                 if let dateOpt {
                                     RoundedRectangle(cornerRadius: 3)
@@ -1949,29 +1921,6 @@ private struct DateOptEstimateDistributionView: View {
         }
         .padding(10)
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10))
-    }
-
-    /// 記録から推定した区分（nil = 未定）
-    private func estimatedDateOpt(weekday: Int, hour: Int, referenceDate: Date) -> DateOpt? {
-        let target = targetDate(weekday: weekday, hour: hour, referenceDate: referenceDate)
-        return DateOptEstimator.estimateResult(
-            from: records,
-            targetDate: target,
-            hourMap: settings.dateOptHourMap,
-            referenceDate: referenceDate
-        ).estimated
-    }
-
-    private func targetDate(weekday: Int, hour: Int, referenceDate: Date) -> Date {
-        var calendar = AppDateCalendar.gregorian
-        calendar.locale = Locale.current
-        var components = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: referenceDate)
-        components.weekday = weekday
-        components.hour = hour
-        components.minute = 0
-        components.second = 0
-        // 推定器は曜日と時刻を使うため、同じ週の代表日時を作れば十分
-        return calendar.date(from: components) ?? referenceDate
     }
 
     /// 曜日の並び（1=日曜〜7=土曜）。端末の「週の始まりの曜日」から始める

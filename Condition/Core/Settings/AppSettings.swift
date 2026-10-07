@@ -5,6 +5,7 @@
 import Foundation
 import SwiftUI
 import Observation
+import SwiftData
 import AZDial
 
 // ユーザレベル（初心者：ヘルプテキスト表示 / 達人：非表示）
@@ -645,12 +646,6 @@ final class AppSettings {
         didSet { ud.set(mergeDefaultAction, forKey: UDefKeys.mergeDefaultAction) }
     }
 
-    // MARK: - 区分の推定
-    /// 蓄積した記録（曜日・時刻）から区分を推定して初期表示する。OFF時は時間帯マップを使用
-    var estimateDateOpt: Bool = true {
-        didSet { ud.set(estimateDateOpt, forKey: UDefKeys.estimateDateOpt) }
-    }
-
     // MARK: - 睡眠の自動取得
     /// 区分1（起床時）の記録で、ヘルスケアの睡眠を自動で取得する（既定 OFF）。
     /// ヘルスケアの許可は端末ごとなので、バックアップには含めない
@@ -750,7 +745,6 @@ final class AppSettings {
             UDefKeys.appearanceMode: AppAppearanceMode.automatic.rawValue,
             UDefKeys.userLevel:     AppUserLevel.beginner.rawValue,
             UDefKeys.fontScale:     AppFontScale.system.rawValue,
-            UDefKeys.estimateDateOpt: true,
         ])
         migrateFromKVSIfNeeded()
         // 読み込みで既定値が保存されてしまう前に、区分を保存済みだったかを控える
@@ -779,9 +773,6 @@ final class AppSettings {
         }
         if ud.object(forKey: UDefKeys.mergeDefaultAction) != nil {
             mergeDefaultAction = ud.integer(forKey: UDefKeys.mergeDefaultAction)
-        }
-        if ud.object(forKey: UDefKeys.estimateDateOpt) != nil {
-            estimateDateOpt = ud.bool(forKey: UDefKeys.estimateDateOpt)
         }
         useDialRecordEntry = ud.bool(forKey: UDefKeys.useDialRecordEntry)
         sleepAutoFetch = ud.bool(forKey: UDefKeys.sleepAutoFetch)
@@ -982,10 +973,48 @@ final class AppSettings {
     }
 
     // MARK: - DateOpt 自動判定
+    // MARK: - 区分判定（共通）
+
+    /// 過去3ヶ月の分布。曜日（添字 0〜6 = 日〜土）× 時（0〜23）の区分（nil = 未定）。
+    /// 区分を決めるたびに記録を読み直さないよう、記録の保存時・日付が変わったとき・区分の設定を変えたときに作り直して保持する
+    private(set) var dateOptDistribution: [[DateOpt?]] = Array(repeating: Array(repeating: nil, count: 24), count: 7)
+    /// 分布を作った日。3ヶ月の範囲は日ごとにずれるので、日が変わったら作り直す
+    private var dateOptDistributionDay: Date?
+
+    /// 区分判定の共通処理。過去3ヶ月の分布で曜日・時刻に該当する区分があれば決定し、
+    /// 無ければ（未定）時間帯指定の区分に決定する
+    func resolvedDateOpt(for date: Date) -> DateOpt {
+        let calendar = AppDateCalendar.gregorian
+        let day = calendar.component(.weekday, from: date) - 1
+        let hour = calendar.component(.hour, from: date)
+        // 作った後に未定義へ変えた区分は候補にしない
+        if let opt = dateOptDistribution[day][hour], opt.isDefined { return opt }
+        return autoDateOpt(for: date)
+    }
+
+    /// 過去3ヶ月の分布を作り直す（直近3ヶ月の記録だけを読む）
+    func rebuildDateOptDistribution(context: ModelContext, referenceDate: Date = Date()) {
+        let calendar = AppDateCalendar.gregorian
+        let cutoff = calendar.date(byAdding: .day, value: -DateOptEstimator.historyDays, to: referenceDate) ?? referenceDate
+        let descriptor = FetchDescriptor<BodyRecord>(
+            predicate: #Predicate { cutoff <= $0.dateTime && $0.dateTime < bodyRecordGoalDate }
+        )
+        let records = (try? context.fetch(descriptor)) ?? []
+        dateOptDistribution = DateOptEstimator.weeklyEstimates(from: records, referenceDate: referenceDate)
+        dateOptDistributionDay = calendar.startOfDay(for: referenceDate)
+    }
+
+    /// 日が変わっていれば作り直す（起動・復帰時に呼ぶ）
+    func rebuildDateOptDistributionIfStale(context: ModelContext, now: Date = Date()) {
+        guard dateOptDistributionDay != AppDateCalendar.gregorian.startOfDay(for: now) else { return }
+        rebuildDateOptDistribution(context: context, referenceDate: now)
+    }
+
+    /// 時間帯指定の区分（過去3ヶ月の分布が未定のときに使う）
     func autoDateOpt(for date: Date) -> DateOpt {
         let hour = Calendar(identifier: .gregorian).component(.hour, from: date)
         let mapped = DateOpt(rawValue: dateOptHourMap[hour]) ?? .cat02
-        // 時間帯マップが未定義区分を指す場合は、定義済み区分（＝新規記録の候補）へ丸める
+        // 時間帯指定が未定義区分を指す場合は、定義済み区分（＝新規記録の候補）へ丸める
         guard !mapped.isDefined else { return mapped }
         return orderedDefinedDateOpts.first ?? mapped
     }
@@ -1020,6 +1049,7 @@ struct AppSettingsBackup: Codable, Equatable {
     var useDialRecordEntry: Bool?
     var mergeWindowMinutes: Int?
     var mergeDefaultAction: Int?
+    /// 旧版の「区分を推定する」。推定は常に行うようになったので、読み込んでも使わない
     var estimateDateOpt: Bool?
     var recordFieldOrder: [Int]?
     var hiddenFields: [Int]?
@@ -1126,7 +1156,6 @@ extension AppSettings {
         b.useDialRecordEntry = useDialRecordEntry
         b.mergeWindowMinutes = mergeWindowMinutes
         b.mergeDefaultAction = mergeDefaultAction
-        b.estimateDateOpt = estimateDateOpt
         b.recordFieldOrder = graphPanelOrder
         b.hiddenFields = hiddenFields
         b.dateOptHourMap = dateOptHourMap
@@ -1180,7 +1209,6 @@ extension AppSettings {
         if let v = b.useDialRecordEntry { useDialRecordEntry = v }
         if let v = b.mergeWindowMinutes, Self.mergeWindowChoices.contains(v) { mergeWindowMinutes = v }
         if let raw = b.mergeDefaultAction, ConflictAction(rawValue: raw) != nil { mergeDefaultAction = raw }
-        if let v = b.estimateDateOpt { estimateDateOpt = v }
         let recordFields = GraphKind.allCases.filter(\.isRecordField).map(\.rawValue)
         if let v = b.recordFieldOrder, !v.isEmpty {
             graphPanelOrder = Self.normalizedOrder(v, allowed: recordFields)

@@ -75,7 +75,7 @@ final class RecordEditViewModel {
         case .addNew:
             let now = Date()
             dateTime    = now
-            dateOpt     = settings.autoDateOpt(for: now)
+            dateOpt     = settings.resolvedDateOpt(for: now)
             bCaution    = false
             sNote1      = ""
             sNote2      = ""
@@ -213,24 +213,14 @@ final class RecordEditViewModel {
             bodyFatEnabled   = 0 < p.nBodyFat_10p
             skMuscleEnabled  = 0 < p.nSkMuscle_10p
 
-            // 区分の決定（優先順位: まとめ時間内の直前区分 ＞ 推定 ＞ 時間帯マップ(init済み)）
-            var resolvedDateOpt = false
+            // 区分の決定（優先順位: まとめ時間内の直前区分 ＞ 共通の区分判定）
+            dateOpt = AppSettings.shared.resolvedDateOpt(for: now)
             let windowMinutes = AppSettings.shared.mergeWindowMinutes
             if windowMinutes > 0 {
                 let diff = now.timeIntervalSince(p.dateTime)
                 if diff >= 0, diff <= TimeInterval(windowMinutes) * 60 {
                     dateOpt = p.dateOpt
-                    resolvedDateOpt = true
                 }
-            }
-            // 推定が有効なら、曜日・時刻差・新しさ・時間帯マトリックスを重み付けして提示
-            if !resolvedDateOpt, AppSettings.shared.estimateDateOpt {
-                dateOpt = DateOptEstimator.estimate(
-                    from: allPrev,
-                    targetDate: now,
-                    hourMap: AppSettings.shared.dateOptHourMap,
-                    referenceDate: now
-                )
             }
         }
     }
@@ -250,7 +240,7 @@ final class RecordEditViewModel {
 
     func onDateChanged() {
         if case .addNew = mode {
-            dateOpt = AppSettings.shared.autoDateOpt(for: dateTime)
+            dateOpt = AppSettings.shared.resolvedDateOpt(for: dateTime)
         }
         isModified = true
     }
@@ -266,7 +256,7 @@ final class RecordEditViewModel {
         // dateOpt は didSet で markModified するため、既定値の設定は suppressModified 下で行う。
         suppressModified = true
         dateTime = Date()
-        dateOpt  = AppSettings.shared.autoDateOpt(for: dateTime)   // 前回値が無い場合の既定区分
+        dateOpt  = AppSettings.shared.resolvedDateOpt(for: dateTime)   // 前回値が無い場合の区分
         suppressModified = false
         // 区分（まとめ時間内の直前区分／推定）と前回値を新しい時刻基準で取り直す。
         // loadPreviousValues が内部で再度 suppressModified を立てるため isModified は false のまま。

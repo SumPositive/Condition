@@ -311,7 +311,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 
 /// 測定時刻の通知を登録する。
 /// 記録から推定した曜日ごとの区分で、通知 ON の区分がその曜日に最初に現れる時刻に、毎週くり返しのローカル通知を置く。
-/// その曜日に推定が無い（未定）区分は通知しない（時間帯マップでは補わない）。表示だけで音・振動は無い
+/// その曜日に推定が無い（未定）区分は通知しない（時間帯指定では補わない）。表示だけで音・振動は無い
 enum MeasurementReminder {
     /// このアプリの測定時刻の通知の識別子の頭
     static let identifierPrefix = "measurementReminder."
@@ -344,21 +344,8 @@ enum MeasurementReminder {
     static func reschedule() {
         let settings = AppSettings.shared
         let targets = Set(settings.reminderDateOpts.compactMap(DateOpt.init(rawValue:)).filter(\.isDefined))
-        // 予約を作る材料は画面側で集め、登録だけを後で行う
-        let slots: [Slot]
-        if targets.isEmpty {
-            slots = []
-        } else {
-            let context = ModelContainer.shared.mainContext
-            let descriptor = FetchDescriptor<BodyRecord>(
-                predicate: #Predicate { $0.dateTime < bodyRecordGoalDate }
-            )
-            let records = (try? context.fetch(descriptor)) ?? []
-            slots = firstSlots(
-                table: weeklyTable(records: records, hourMap: settings.dateOptHourMap, referenceDate: Date()),
-                targets: targets
-            )
-        }
+        // 保持している過去3ヶ月の分布から時刻を決め、登録だけを後で行う
+        let slots = targets.isEmpty ? [] : firstSlots(table: settings.dateOptDistribution, targets: targets)
         let requests = slots.prefix(maxRequests).map(request(for:))
         Task {
             let center = UNUserNotificationCenter.current()
@@ -371,29 +358,6 @@ enum MeasurementReminder {
             guard status == .authorized || status == .provisional || status == .ephemeral else { return }
             for request in requests {
                 try? await center.add(request)
-            }
-        }
-    }
-
-    /// 曜日（1〜7）× 時（0〜23）の推定区分表（nil = 未定）。設定画面の分布表と同じ推定
-    @MainActor
-    static func weeklyTable(
-        records: [BodyRecord],
-        hourMap: [Int],
-        referenceDate: Date
-    ) -> [[DateOpt?]] {
-        let calendar = AppDateCalendar.gregorian
-        return (1...7).map { weekday in
-            (0..<24).map { hour in
-                // 推定は曜日と時刻を使うため、同じ週の代表日時を作れば十分
-                var components = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: referenceDate)
-                components.weekday = weekday
-                components.hour = hour
-                components.minute = 0
-                let target = calendar.date(from: components) ?? referenceDate
-                return DateOptEstimator.estimateResult(
-                    from: records, targetDate: target, hourMap: hourMap, referenceDate: referenceDate
-                ).estimated
             }
         }
     }

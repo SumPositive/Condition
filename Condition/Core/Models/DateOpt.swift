@@ -400,24 +400,24 @@ enum DateOptAppearanceStore {
 // MARK: - 区分推定
 
 /// 直近3ヶ月の記録から、同じ曜日・同じ時刻（時）で最も多い区分を推定する。
-/// 該当する記録が無ければ未定とし、区分を決めるときは時間帯マップ（時間帯と区分の初期値）を使う
+/// 該当する記録が無ければ未定とし、区分を決めるときは時間帯指定（時間帯と区分の初期値）を使う
 enum DateOptEstimator {
     /// 推定結果
     struct Result {
         /// 記録から推定した区分（nil = 未定）
         let estimated: DateOpt?
-        /// 決定した区分（未定なら時間帯マップ）
+        /// 決定した区分（未定なら時間帯指定）
         let selected: DateOpt
-        /// 時間帯マップの区分
+        /// 時間帯指定の区分
         let matrixDefault: DateOpt
         /// 同じ曜日・同じ時刻の記録数（区分ごと）
         let counts: [DateOpt: Int]
     }
 
     /// 推定対象にする履歴期間（3ヶ月相当）
-    private static let historyDays = 90
+    static let historyDays = 90
 
-    /// 区分を1つ返す。未定なら時間帯マップの区分
+    /// 区分を1つ返す。未定なら時間帯指定の区分
     static func estimate(
         from records: [BodyRecord],
         targetDate: Date,
@@ -447,7 +447,7 @@ enum DateOptEstimator {
         // 推定対象は定義済み（名称設定済み）区分のみ。新規記録の候補と一致させる
         let definedOpts = DateOpt.allCases.filter(\.isDefined)
 
-        // 時間帯マップの既定が未定義区分を指す場合は、定義済みの先頭へ丸める
+        // 時間帯指定の既定が未定義区分を指す場合は、定義済みの先頭へ丸める
         let rawMatrixDefault = matrixDateOpt(hour: targetHour, hourMap: hourMap)
         let matrixDefault = rawMatrixDefault.isDefined
             ? rawMatrixDefault
@@ -481,6 +481,38 @@ enum DateOptEstimator {
             matrixDefault: matrixDefault,
             counts: counts
         )
+    }
+
+    /// 曜日（1〜7 を添字 0〜6）× 時（0〜23）の推定区分表（nil = 未定）を、記録を1回なめて作る。
+    /// estimateResult を168回呼ぶと記録数×168回の走査になり、分布表を開くのに数秒かかるため
+    static func weeklyEstimates(from records: [BodyRecord], referenceDate: Date = Date()) -> [[DateOpt?]] {
+        let calendar = AppDateCalendar.gregorian
+        let cutoff = calendar.date(byAdding: .day, value: -historyDays, to: referenceDate) ?? referenceDate
+        // 未定義区分は新規記録の候補にならないので数えない（区分ごとに1回だけ判定する）
+        let defined = Set(DateOpt.allCases.filter(\.isDefined))
+        var counts = Array(repeating: Array(repeating: [DateOpt: Int](), count: 24), count: 7)
+        var latest = Array(repeating: Array(repeating: [DateOpt: Date](), count: 24), count: 7)
+        for record in records {
+            // 目標値レコード・未来の記録・3ヶ月より前の記録は使わない（estimateResult と同じ条件）
+            if bodyRecordGoalDate <= record.dateTime { continue }
+            if referenceDate < record.dateTime { continue }
+            if record.dateTime < cutoff { continue }
+            let opt = record.dateOpt
+            guard defined.contains(opt) else { continue }
+            let day = calendar.component(.weekday, from: record.dateTime) - 1
+            let hour = calendar.component(.hour, from: record.dateTime)
+            counts[day][hour][opt, default: 0] += 1
+            latest[day][hour][opt] = max(latest[day][hour][opt] ?? .distantPast, record.dateTime)
+        }
+        return (0..<7).map { day in
+            (0..<24).map { hour in
+                // 最も多い区分。同数なら最近使った区分にする
+                counts[day][hour].max { lhs, rhs in
+                    if lhs.value != rhs.value { return lhs.value < rhs.value }
+                    return (latest[day][hour][lhs.key] ?? .distantPast) < (latest[day][hour][rhs.key] ?? .distantPast)
+                }?.key
+            }
+        }
     }
 
     /// 時間帯と区分の初期値から区分を引く（測定時刻の通知でも使う）

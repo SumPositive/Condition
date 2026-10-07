@@ -3,6 +3,7 @@
 
 import SwiftUI
 import UIKit
+import SwiftData
 
 struct ContentView: View {
 
@@ -127,6 +128,8 @@ struct ContentView: View {
         // 選択状態は selectedTab にあるので、再構成後も同じタブを維持する
         .id(settings.userLevel)
         .onAppear {
+            // 新しい記録の区分判定に使う過去3ヶ月の分布を、シートを開く前に用意する
+            settings.rebuildDateOptDistribution(context: ModelContainer.shared.mainContext)
             AppAnalytics.shared.logScreen(selectedTab.analyticsName)
             // cold launch：フォアグラウンド表示と同時にブロック層を出したいので、
             // scenePhase の onChange を待たず最初の描画時にここで起動アクションを開始する。
@@ -145,6 +148,15 @@ struct ContentView: View {
             }
             MeasurementReminder.reschedule()
         }
+        // 記録を保存（追加・修正・削除・取り込み）したら、過去3ヶ月の分布と通知の時刻を作り直す
+        .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave)) { _ in
+            settings.rebuildDateOptDistribution(context: ModelContainer.shared.mainContext)
+            MeasurementReminder.reschedule()
+        }
+        // 区分の名称を変えて未定義にした場合なども、分布を作り直す
+        .onChange(of: settings.dateOptAppearanceRevision) { _, _ in
+            settings.rebuildDateOptDistribution(context: ModelContainer.shared.mainContext)
+        }
         // 測定時刻の通知がタップされたら測定シートを開く（起動中・復帰時）
         .onChange(of: settings.pendingReminderMeasurement) { _, _ in
             openMeasurementFromReminderIfNeeded()
@@ -160,7 +172,8 @@ struct ContentView: View {
             }
             if phase == .active {
                 AppAnalytics.shared.logSettingsSnapshot(settings: settings, reason: "foreground")
-                // 推定は記録が増えると変わるので、復帰のたびに通知の時刻を作り直す
+                // 3ヶ月の範囲は日ごとにずれるので、日が変わっていれば分布を作り直す
+                settings.rebuildDateOptDistributionIfStale(context: ModelContainer.shared.mainContext)
                 MeasurementReminder.reschedule()
             }
             // cold launch は onAppear 側で実行済み。ここではバックグラウンド復帰時のみ扱う。

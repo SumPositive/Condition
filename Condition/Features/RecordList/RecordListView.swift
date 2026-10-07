@@ -657,7 +657,7 @@ struct RecordListView: View {
 
             for v in hkValues {
                 guard !existingTimes.contains(roundToMinute(v.date)) else { continue }
-                let record = BodyRecord(dateTime: v.date, dateOpt: settings.autoDateOpt(for: v.date))
+                let record = BodyRecord(dateTime: v.date, dateOpt: settings.resolvedDateOpt(for: v.date))
                 record.dataSource   = .hkImport
                 record.nBpHi_mmHg   = v.bpHi
                 record.nBpLo_mmHg   = v.bpLo

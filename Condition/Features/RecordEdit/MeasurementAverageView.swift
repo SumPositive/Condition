@@ -196,7 +196,7 @@ struct MeasurementAverageView: View {
     @State private var settings = AppSettings.shared
 
     @State private var dateTime: Date = Date()
-    @State private var dateOpt: DateOpt = AppSettings.shared.autoDateOpt(for: Date())
+    @State private var dateOpt: DateOpt = AppSettings.shared.resolvedDateOpt(for: Date())
     /// 血圧の測定箇所（左右）。新規は常に不明（・）で開始する。
     @State private var bpSide: BpSide = .unknown
     // 環境は親の測定記録を保存するまで編集中の値として保持する
@@ -435,7 +435,7 @@ struct MeasurementAverageView: View {
             }
             .sheet(isPresented: $showDatePicker) {
                 DatePickerSheet(date: $dateTime) {
-                    dateOpt = settings.autoDateOpt(for: dateTime)
+                    dateOpt = settings.resolvedDateOpt(for: dateTime)
                 }
             }
             .sheet(isPresented: $showEnvironmentSheet) {
@@ -1636,7 +1636,7 @@ struct MeasurementAverageView: View {
     private func refreshDateForForeground() {
         guard record == nil, !hasAnyValue, !hasAnyMemoInput, inputText.isEmpty else { return }
         dateTime = Date()
-        dateOpt  = settings.autoDateOpt(for: dateTime)   // 前回値が無い場合の既定区分
+        dateOpt  = settings.resolvedDateOpt(for: dateTime)   // 直前の記録が無い場合の区分
         // 開いた直後と同じ手順で、まとめ時間内の直前区分／推定により区分を取り直し、参考値も更新する。
         loadInitialDateOpt()
     }
@@ -1648,39 +1648,30 @@ struct MeasurementAverageView: View {
             return
         }
         dateTime = Date()
-        dateOpt = settings.autoDateOpt(for: dateTime)
+        dateOpt = settings.resolvedDateOpt(for: dateTime)
     }
 
-    /// 新規記録と同じロジックで区分の初期値を決める
-    /// （まとめ時間内の直前区分 ＞ 推定 ＞ 時刻帯マップ）
+    /// 区分の初期値を決める（まとめ時間内の直前区分 ＞ 共通の区分判定）。
     /// 続いて、決定した区分で1ヶ月以内の直近記録があれば1回目の初期値として読み込む。
     private func loadInitialDateOpt() {
         let now = dateTime
-        let descriptor = FetchDescriptor<BodyRecord>(
-            predicate: #Predicate<BodyRecord> { $0.dateTime < now && $0.dateTime < bodyRecordGoalDate },
-            sortBy: [SortDescriptor(\BodyRecord.dateTime, order: .reverse)]
-        )
-        guard let allPrev = try? context.fetch(descriptor), let prev = allPrev.first else { return }
-
+        dateOpt = settings.resolvedDateOpt(for: now)
+        // まとめ時間内に直前の記録があれば、その区分を優先する
         let windowMinutes = settings.mergeWindowMinutes
-        var resolved = false
-        if windowMinutes > 0 {
-            let diff = now.timeIntervalSince(prev.dateTime)
-            if diff >= 0, diff <= TimeInterval(windowMinutes) * 60 {
-                dateOpt = prev.dateOpt
-                resolved = true
+        if 0 < windowMinutes {
+            var latest = FetchDescriptor<BodyRecord>(
+                predicate: #Predicate<BodyRecord> { $0.dateTime < now && $0.dateTime < bodyRecordGoalDate },
+                sortBy: [SortDescriptor(\BodyRecord.dateTime, order: .reverse)]
+            )
+            latest.fetchLimit = 1
+            if let prev = (try? context.fetch(latest))?.first {
+                let diff = now.timeIntervalSince(prev.dateTime)
+                if 0 <= diff, diff <= TimeInterval(windowMinutes) * 60 {
+                    dateOpt = prev.dateOpt
+                }
             }
         }
-        if !resolved, settings.estimateDateOpt {
-            dateOpt = DateOptEstimator.estimate(
-                from: allPrev,
-                targetDate: now,
-                hourMap: settings.dateOptHourMap,
-                referenceDate: now
-            )
-        }
-
-        loadFirstTrialDefaultsFromRecent(allPrev: allPrev)
+        loadFirstTrialDefaultsFromRecent()
     }
 
     /// 同じ区分で1ヶ月以内の直近記録を、1回目セルのプレースホルダーとして読み込む
@@ -1697,8 +1688,11 @@ struct MeasurementAverageView: View {
         if let allPrev {
             records = allPrev
         } else {
+            // 参考値は1ヶ月以内の記録からだけ探すので、その範囲だけを読む
             let descriptor = FetchDescriptor<BodyRecord>(
-                predicate: #Predicate<BodyRecord> { $0.dateTime < now && $0.dateTime < bodyRecordGoalDate },
+                predicate: #Predicate<BodyRecord> {
+                    oneMonthAgo <= $0.dateTime && $0.dateTime < now && $0.dateTime < bodyRecordGoalDate
+                },
                 sortBy: [SortDescriptor(\BodyRecord.dateTime, order: .reverse)]
             )
             records = (try? context.fetch(descriptor)) ?? []

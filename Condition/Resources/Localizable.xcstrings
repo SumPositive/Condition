@@ -13597,89 +13597,31 @@
         }
       }
     },
-    "settings.category.estimate" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Estimate the category for new records"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "新しい記録の区分を推定する"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "새 기록의 구분 추정"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "推估新記錄的類別"
-          }
-        }
-      }
-    },
-    "settings.category.estimate.help" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "How the category is chosen when you open a new record\n\nON: Uses the most frequent category among your records from the last 3 months on the same day of the week and the same hour\n\nIf there is a tie, the most recently used category is chosen\n\nIf there are no matching records, the time slot map is used\n\nOFF: Uses only the time slot map"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "新しい記録を開いた時の区分の決め方\n\nON：直近3ヶ月の記録から、同じ曜日・同じ時刻（時）で最も多い区分にします\n\n同じ数のときは、最近使った区分にします\n\n該当する記録が無く未定のときは、時間帯マップを使います\n\nOFF：時間帯マップだけを使います"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "새 기록을 열 때 구분을 정하는 방법\n\n켬: 최근 3개월 기록 중 같은 요일·같은 시각(시)에 가장 많은 구분으로 정합니다\n\n같은 수일 때는 최근에 사용한 구분으로 정합니다\n\n해당하는 기록이 없어 미정이면 시간대 맵을 사용합니다\n\n끔: 시간대 맵만 사용합니다"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "開啟新記錄時決定分類的方式\n\n開啟：依最近3個月的記錄，選擇相同星期、相同時刻（小時）中最多的分類\n\n數量相同時，選擇最近使用的分類\n\n沒有符合的記錄而未定時，使用時段對照表\n\n關閉：只使用時段對照表"
-          }
-        }
-      }
-    },
     "settings.category.estimateDistribution" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Latest Category Estimation Results"
+            "value" : "Last 3 Months"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "区分推定結果　最新の分布"
+            "value" : "過去3ヶ月の分布"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "구분 추정 결과 최신 분포"
+            "value" : "최근 3개월 분포"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "類別推估結果 最新分布"
+            "value" : "過去3個月的分布"
           }
         }
       }
@@ -14096,25 +14038,25 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Time Map"
+            "value" : "Time Slots"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "時間帯マップ"
+            "value" : "時間帯指定"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "시간대 맵"
+            "value" : "시간대 지정"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "時段對應表"
+            "value" : "時段指定"
           }
         }
       }
@@ -14125,25 +14067,25 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Set the category to show for each time period when opening a new record\n\nThis map is used when category estimation is off or there are no matching records (undecided)"
+            "value" : "Set the category for each time slot when opening a new record\n\nThe category is chosen from the last 3 months first\n\nThe last 3 months shows the most frequent category among records on the same day of the week and the same hour\n\nIf there are no records (undecided), the category set here is used"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "新しい記録を開いた時に表示したい区分を時間帯毎に設定します\n\n区分推定機能がOFFまたは同じ曜日・時刻の記録が無く未定のとき、このマップで決定します"
+            "value" : "新しい記録を開いた時の区分を時間帯毎に指定します\n\n区分は、過去3ヶ月の分布を優先して決めます\n\n過去3ヶ月の分布は、同じ曜日・同じ時刻（時）の記録で最も多い区分です\n\n記録が無く未定のときは、この時間帯指定の区分を使います"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "새 기록을 열었을 때 표시할 구분을 시간대별로 설정합니다\n\n구분 추정 기능이 OFF이거나 같은 요일·시각의 기록이 없어 미정일 때 이 맵으로 결정합니다"
+            "value" : "새 기록을 열 때의 구분을 시간대별로 지정합니다\n\n구분은 최근 3개월 분포를 우선하여 정합니다\n\n최근 3개월 분포는 같은 요일·같은 시각(시)의 기록 중 가장 많은 구분입니다\n\n기록이 없어 미정일 때는 이 시간대 지정의 구분을 사용합니다"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "設定開啟新記錄時各時段要顯示的類別\n\n當類別推估功能為 OFF 或沒有相同星期與時刻的記錄而未定時，以此對應表決定"
+            "value" : "依時段指定開啟新記錄時的分類\n\n分類會優先依過去3個月的分布決定\n\n過去3個月的分布是相同星期、相同時刻（小時）的記錄中最多的分類\n\n沒有記錄而未定時，會使用此時段指定的分類"
           }
         }
       }
@@ -22951,25 +22893,25 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Blank cells have no records and are undecided\nIf undecided, the time slot map is used"
+            "value" : "Blank cells have no records and are undecided\nIf undecided, the time slot setting is used"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "空欄は記録が無く未定です\n未定ならば時間帯マップを使います"
+            "value" : "空欄は記録が無く未定です\n未定ならば時間帯指定を使います"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "빈칸은 기록이 없어 미정입니다\n미정이면 시간대 맵을 사용합니다"
+            "value" : "빈칸은 기록이 없어 미정입니다\n미정이면 시간대 지정을 사용합니다"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "空白表示沒有記錄而未定\n未定時會使用時段對照表"
+            "value" : "空白表示沒有記錄而未定\n未定時會使用時段指定"
           }
         }
       }
