@@ -273,6 +273,10 @@ struct MeasurementAverageView: View {
     @State private var discardResetTask: Task<Void, Never>?
     /// バックグラウンドを経由したか
     @State private var didEnterBackground = false
+    /// 赤字の値を残したまま次へ進んだとき、キーボードの背景を赤くして知らせている間 true
+    @State private var isKeypadWarning = false
+    /// 赤い背景を戻す予約（続けて進んだら延長する）
+    @State private var keypadWarningTask: Task<Void, Never>?
 
     /// 「次へ」ボタンを左右どちらに置くか（trueで左、falseで右、デフォルト右）
     @AppStorage("measurementAvg.nextOnLeft") private var nextOnLeft: Bool = false
@@ -541,6 +545,7 @@ struct MeasurementAverageView: View {
                 memoScrollTask?.cancel()
                 discardResetTask?.cancel()
                 sleepAutoTask?.cancel()
+                keypadWarningTask?.cancel()
             }
         }
         if settings.fontScale.followsSystem {
@@ -1393,8 +1398,20 @@ struct MeasurementAverageView: View {
         .padding(.leading, 8)
         .padding(.trailing, 8)
         .padding(.bottom, hidesKeypad ? 0 : 8)
-        .background(Color(.systemBackground))
+        // 赤字の値を残したまま進んだときだけ、背景を短く赤くする
+        .background(isKeypadWarning ? Color.red.opacity(0.6) : Color(.systemBackground))
         .clipped()
+    }
+
+    /// キーボードの背景を0.6秒だけ赤くする
+    private func flashKeypadWarning() {
+        keypadWarningTask?.cancel()
+        isKeypadWarning = true
+        keypadWarningTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(600))
+            guard !Task.isCancelled else { return }
+            isKeypadWarning = false
+        }
     }
 
     private let dialRowHeight: CGFloat = 44
@@ -1865,6 +1882,11 @@ struct MeasurementAverageView: View {
         commitInputText()
         guard let cell = focused,
               let idx = columns.firstIndex(of: cell.column) else { return }
+        // 離れる列に赤字（ばらつきの主因）の値が残ったまま進むときは、測り直しや入力ミスに気づけるようキーボードを赤くして知らせる。
+        // 2回目の入力で1回目が赤くなる場合もあるので、離れるセルだけでなく列で見る
+        if !outlierTrials(for: cell.column).isEmpty {
+            flashKeypadWarning()
+        }
         if idx + 1 < columns.count {
             focused = AvgCell(column: columns[idx + 1], trial: cell.trial)
         } else if cell.trial + 1 < trialCount {
