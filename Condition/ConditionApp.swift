@@ -277,7 +277,7 @@ private struct MigrationErrorView: View {
 // MARK: - 測定時刻の通知
 
 /// 通知のタップを受け取り、測定シートを開く合図を出す
-final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+final class AppDelegate: NSObject, UIApplicationDelegate {
 
     func application(
         _ application: UIApplication,
@@ -287,25 +287,33 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         UNUserNotificationCenter.current().delegate = self
         return true
     }
+}
+
+// async 版の nonisolated デリゲートは、完了ハンドラがメインスレッド外で呼ばれて
+// 通知タップ時にアプリが落ちる（Swift 6）。完了ハンドラ版をメインアクターで受ける。
+// UNUserNotificationCenter はデリゲートをメインスレッドで呼ぶ
+extension AppDelegate: @preconcurrency UNUserNotificationCenterDelegate {
 
     /// アプリを開いているときも、音なしで表示だけする
-    nonisolated func userNotificationCenter(
+    func userNotificationCenter(
         _ center: UNUserNotificationCenter,
-        willPresent notification: UNNotification
-    ) async -> UNNotificationPresentationOptions {
-        [.banner, .list]
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .list])
     }
 
     /// 測定時刻の通知がタップされたら、測定シートを開く
-    nonisolated func userNotificationCenter(
+    func userNotificationCenter(
         _ center: UNUserNotificationCenter,
-        didReceive response: UNNotificationResponse
-    ) async {
-        guard response.notification.request.identifier.hasPrefix(MeasurementReminder.identifierPrefix) else { return }
-        await MainActor.run {
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        if response.notification.request.identifier.hasPrefix(MeasurementReminder.identifierPrefix) {
             AppAnalytics.shared.logOperation("measurement_reminder_open")
             AppSettings.shared.pendingReminderMeasurement = true
         }
+        completionHandler()
     }
 }
 
