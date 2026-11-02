@@ -873,11 +873,13 @@ struct MeasurementAverageView: View {
 
     /// 直近で参照できるプレースホルダーを返す。
     /// 1回目: 同区分1ヶ月以内の直近記録
-    /// 2回目以降: 前行の値、なければ前行のプレースホルダー（再帰）
+    /// 2回目以降: 上の行に入力済みの値の平均、なければ1回目のプレースホルダー
     private func effectivePlaceholder(for column: AvgColumn, trial: Int) -> Int? {
         if trial == 0 { return firstTrialPlaceholders[column] }
-        if let prev = samples[column]?[trial - 1] { return prev }
-        return effectivePlaceholder(for: column, trial: trial - 1)
+        // 上の行だけを対象にし、下の行の入力は平均に含めない
+        let upperValues = (samples[column] ?? []).prefix(trial).compactMap { $0 }
+        if let avg = averageValue(upperValues) { return avg }
+        return firstTrialPlaceholders[column]
     }
 
     /// inputText / 確定値 / プレースホルダー / spec.initVal の順でダイアル初期値を決める
