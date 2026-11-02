@@ -36,13 +36,12 @@ struct SettingsView: View {
     @Environment(\.openURL) private var openURL
     @AppStorage("settings.shareExportFormat") private var exportFormatRaw = RecordJSONExportStyle.compact.rawValue
     @State private var settings = AppSettings.shared
-    // 廃止に向かう設定（文字サイズ・ダイアル式）は、既定のまま使っている人には選択肢を出さない
-    // （文字サイズは行を残して「設定アプリで変更できます」と示し、ダイアル式は行ごと隠す）。
+    // 廃止に向かう文字サイズの設定は、既定のまま使っている人には選択肢を出さない
+    // （行を残して「設定アプリで変更できます」と示す）。
     // 新規インストールでは表示されず、既定から変えている既存の利用者だけが見て戻せる。
     // 画面を作った時点で決めるので、既定へ戻しても開いている間は消えず、次に開いたときから隠れる。
-    // 「起動時に開く」は常に表示する（いったん隠したが、使い続ける設定として戻した）
+    // 「起動時に開く」と「ダイアル式」は常に表示する（いったん隠したが、OFF から戻せなくなるため戻した）
     @State private var showsFontScale = AppSettings.shared.fontScale != .system
-    @State private var showsDialRecordEntry = AppSettings.shared.useDialRecordEntry
     @State private var healthKit = HealthKitService.shared
     @State private var showHKSettings = false
     @State private var showSafari = false
@@ -332,18 +331,16 @@ struct SettingsView: View {
 
                     // ダイアル式の記録画面を使うか。
                     // ヘルプは Toggle のラベルに入れるとタップがトグルに吸われるので外に出す
-                    if showsDialRecordEntry {
-                        HStack {
-                            SettingsHelpTitle(
-                                titleKey: "settings.useDialRecordEntry",
-                                helpKey: "settings.help.useDialRecordEntry",
-                                storageKey: "helpDismissed.settings.useDialRecordEntry"
-                            )
-                            .font(.subheadline)
-                            Spacer(minLength: 8)
-                            Toggle("", isOn: $settings.useDialRecordEntry)
-                                .labelsHidden()
-                        }
+                    HStack {
+                        SettingsHelpTitle(
+                            titleKey: "settings.useDialRecordEntry",
+                            helpKey: "settings.help.useDialRecordEntry",
+                            storageKey: "helpDismissed.settings.useDialRecordEntry"
+                        )
+                        .font(.subheadline)
+                        Spacer(minLength: 8)
+                        Toggle("", isOn: $settings.useDialRecordEntry)
+                            .labelsHidden()
                     }
 
                     // 記録をまとめる（衝突検出）は、ダイアル式で1件ずつ入力したときに

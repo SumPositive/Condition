@@ -662,10 +662,18 @@ final class AppSettings {
     var pendingReminderMeasurement = false
 
     // MARK: - ダイアル式の測定記録
-    /// 初期からあるダイアル式の記録画面を使うか。既定 OFF で、記録は複数平均式と症状の2つに絞る。
+    /// 初期からあるダイアル式の記録画面を使うか。新規インストールは OFF で、記録は複数平均式と症状の2つに絞る。
     /// OFF のときは一覧のボタンだけでなく、記録タブ再タップと起動時アクションの経路も塞ぐ
     var useDialRecordEntry: Bool = false {
         didSet { ud.set(useDialRecordEntry, forKey: UDefKeys.useDialRecordEntry) }
+    }
+
+    /// 既存の利用者はダイアル式を ON で始め、これまでの記録方法を使い続けられるようにする。
+    /// 記録の無い新規インストールは OFF。利用者が選び済み（保存値あり）なら触らない。
+    /// 一度決めたら保存するので、判定は最初の一回だけ
+    func applyDialRecordEntryDefaultIfNeeded(hasRecords: Bool) {
+        guard ud.object(forKey: UDefKeys.useDialRecordEntry) == nil else { return }
+        useDialRecordEntry = hasRecords
     }
 
     // MARK: - 症状メモ

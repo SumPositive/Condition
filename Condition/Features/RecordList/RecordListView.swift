@@ -220,6 +220,8 @@ struct RecordListView: View {
                 settings.freezeLegacyDateOptDefaultsIfNeeded(hasRecords: !hasNoRecords)
                 // 期間の同期を足した版で、既存の利用者の各ページの期間が変わらないよう同期 OFF で始める（初回のみ）
                 settings.applyAnalysisPeriodSyncDefaultIfNeeded(hasRecords: !hasNoRecords)
+                // ダイアル式は既存の利用者だけ ON で始める（新規インストールは OFF・初回のみ）
+                settings.applyDialRecordEntryDefaultIfNeeded(hasRecords: !hasNoRecords)
                 if hkService.needsAutoImport {
                     hkService.needsAutoImport = false
                     Task { await autoImportFromHealthKitIfNeeded() }
