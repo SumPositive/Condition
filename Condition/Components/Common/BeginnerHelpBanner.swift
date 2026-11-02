@@ -105,9 +105,7 @@ struct BeginnerHelpBanner: View {
                     .dynamicTypeSize(helpSheetDynamicTypeSize)
                     // 本文に合わせた高さを基本にし、長文は大きいシートへ逃がす
                     .presentationDetents([.height(helpSheetHeight), .large])
-                    // 読むだけのシートなので閉じるボタンは置かない（設計書 5.2）。
-                    // ただしハンドルは残す。長文で .large まで開くと外側をタップする
-                    // 余地がほぼ無くなり、下へ引く操作が唯一の出口になるため
+                    // 閉じるボタンに加えてハンドルも残し、下へ引いても閉じられるようにする
                     .presentationDragIndicator(.visible)
                     .presentationBackground(Color(.systemBackground))
             }
@@ -213,13 +211,8 @@ struct BeginnerHelpBanner: View {
     private var helpSheet: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                HStack {
-                    Spacer()
-                    // 本文との間隔を制御するため、アイコンはシート本文側に置く
-                    Image(systemName: "questionmark.circle")
-                        .foregroundStyle(Color.accentColor)
-                    Spacer()
-                }
+                // ナビゲーションバーが無いので、閉じるボタンは本文の先頭に置く
+                HelpSheetCloseButton()
 
                 (messageText ?? Text(messageKey))
                     .font(.body)
@@ -236,6 +229,32 @@ struct BeginnerHelpBanner: View {
             }
         }
         .scrollIndicators(.hidden)
+    }
+}
+
+// MARK: - ヘルプシートの閉じるボタン
+
+/// ヘルプシート左上の閉じるボタン（他のシートと同じ下向き矢印）
+struct HelpSheetCloseButton: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        Button {
+            dismiss()
+        } label: {
+            Image(systemName: "chevron.down")
+                .font(.body.weight(.semibold))
+                .imageScale(.large)
+                .foregroundStyle(Color.accentColor)
+                // 小さなアイコンでも押しやすいよう、タップ領域を広げる
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text("action.close"))
+        // 余白ぶん左上へ寄せ、アイコンの位置を本文の左端にそろえる
+        .padding(.leading, -12)
+        .padding(.vertical, -10)
     }
 }
 

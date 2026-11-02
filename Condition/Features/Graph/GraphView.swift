@@ -2083,12 +2083,15 @@ private struct BMIStandardsPopover: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                Color.clear.frame(height: 20)
+                // ナビゲーションバーが無いので、閉じるボタンは本文の先頭に置く
+                HelpSheetCloseButton()
+                    .padding(.horizontal, 16)
+                    .padding(.top, 16)
                 Text(isJapanese ? String(localized: "text.jassoObesityClassification") : "WHO BMI Classification")
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 16)
-                    .padding(.top, 14)
+                    .padding(.top, 6)
                     .padding(.bottom, 8)
                 Divider()
                 ForEach(rows, id: \.zone.label) { row in

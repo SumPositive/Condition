@@ -732,12 +732,15 @@ private struct JSHStandardsPopover: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                Color.clear.frame(height: 20)
+                // ナビゲーションバーが無いので、閉じるボタンは本文の先頭に置く
+                HelpSheetCloseButton()
+                    .padding(.horizontal, 16)
+                    .padding(.top, 16)
                 Text("metric.jshBpClassification2019")
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 16)
-                    .padding(.top, 14)
+                    .padding(.top, 6)
                     .padding(.bottom, 8)
                 Divider()
                 ForEach(Array(rows.enumerated()), id: \.element.name) { index, row in
@@ -799,12 +802,15 @@ private struct ESHStandardsPopover: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                Color.clear.frame(height: 20)
+                // ナビゲーションバーが無いので、閉じるボタンは本文の先頭に置く
+                HelpSheetCloseButton()
+                    .padding(.horizontal, 16)
+                    .padding(.top, 16)
                 Text("text.escEshHypertensionGuidelines2018")
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 16)
-                    .padding(.top, 14)
+                    .padding(.top, 6)
                     .padding(.bottom, 8)
                 Divider()
                 ForEach(Array(rows.enumerated()), id: \.element.name) { index, row in
@@ -1174,12 +1180,15 @@ private struct BpDateOptCorrInfoPopover: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                Color.clear.frame(height: 20)
+                // ナビゲーションバーが無いので、閉じるボタンは本文の先頭に置く
+                HelpSheetCloseButton()
+                    .padding(.horizontal, 16)
+                    .padding(.top, 16)
                 Text(isJapanese ? String(localized: "chart.howToReadTheScatterPlot") : "How to Read This Chart")
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 16)
-                    .padding(.top, 14)
+                    .padding(.top, 6)
                     .padding(.bottom, 8)
                 Divider()
 
@@ -2347,13 +2356,10 @@ struct WeightBpScatterView: View {
         var body: some View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    HStack {
-                        Spacer()
-                        Image(systemName: "questionmark.circle")
-                            .foregroundStyle(Color.accentColor)
-                        Spacer()
-                    }
-                    .padding(.top, 16)
+                    // ナビゲーションバーが無いので、閉じるボタンは本文の先頭に置く
+                    HelpSheetCloseButton()
+                        .padding(.horizontal, 20)
+                        .padding(.top, 16)
 
                     Text(messageKey)
                         .font(.body)
