@@ -1080,7 +1080,12 @@ fastlane upload_screenshots
 
 届いた通知をタップするとアプリが起動したように見えるがすぐに閉じて、測定画面が表示されない
 
------------以上Commit済み
+アプリアイコンの背景をCalclinの背景に合わせたい
+
+******************以下未実装
+
+
+複数行入力時、新しい行のプレスホルダーには平均値を表示したい
 
 
 
@@ -1097,6 +1102,7 @@ fastlane upload_screenshots
 -----
 fastlane メタデータを更新して
 Vitalin 2.10.0 準備中、README.mdの開発メモ、公開アプリパネル、取扱説明を更新して
+履歴に　Xcode27.1　iOS27 を加えて
 -----
 cd /Users/sumpositive/GitLocal/Condition
 fastlane upload_metadata

@@ -4,11 +4,10 @@
 <!-- 1024x1024。iOSが角丸マスクを行うため背景は正方形いっぱいに塗る -->
 <svg viewBox="0 0 1024 1024" width="1024" height="1024" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <radialGradient id="bg" cx="50%" cy="34%" r="82%">
-      <stop offset="0%"   stop-color="#b85350"/>
-      <stop offset="52%"  stop-color="#9e3d3b"/>
-      <stop offset="100%" stop-color="#7f2f2d"/>
-    </radialGradient>
+    <!-- 背景はカルメモ・クレメモ・和暦年齢メモと共通の斜めグラデ -->
+    <linearGradient id="bg" x1="0" y1="0" x2="0.85" y2="1">
+      <stop offset="0" stop-color="#bd5f57"/><stop offset="0.5" stop-color="#9c4842"/><stop offset="1" stop-color="#6f2e2c"/>
+    </linearGradient>
     <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%"   stop-color="#efd89a"/>
       <stop offset="55%"  stop-color="#e0c179"/>
