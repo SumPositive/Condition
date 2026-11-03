@@ -220,28 +220,12 @@ struct MeasurementAverageView: View {
     // 削除に失敗したとき、リトライ／キャンセルを選ばせるためのアラート表示フラグ
     @State private var showDeleteFailedAlert = false
 
-    // メモ欄（ダイアル式の記録編集と同じ項目を、標準偏差の下に置く）
+    // メモ欄（ダイアル式の記録編集と同じ項目）。入力は MeasurementMemoSheet で行う
     @State private var equipment: String = ""
     @State private var note1: String = ""
     @State private var note2: String = ""
     @State private var caution: Bool = false
-    @FocusState private var focusEquipment: Bool
-    @FocusState private var focusNote1: Bool
-    @FocusState private var focusNote2: Bool
-    /// 候補選択直後にIMEが未確定文字を書き戻すのを防ぐ
-    @State private var pendingEquipmentSelection: String?
-    /// 候補カプセル1行分の高さ
-    @ScaledMetric(relativeTo: .body) private var scaledEquipmentCandidateRowHeight: CGFloat = 34
-    /// ソフトキーボードが表示中か（テンキーを隠す判断に使う実測値）
-    @State private var isKeyboardVisible = false
-    /// 進めるとメモ入力を終了させるトークン（AZMemoEditor への明示的な終了指示）
-    @State private var memoDismissToken = 0
-    /// メモ欄の自動スクロールを最新の対象だけに限定する
-    @State private var memoScrollTask: Task<Void, Never>? = nil
-    // キーボード表示時に各メモ行を送るためのスクロールアンカー
-    private let equipmentAnchorID = "measurementAvg-equipment-anchor"
-    private let note1AnchorID = "measurementAvg-note1-anchor"
-    private let note2AnchorID = "measurementAvg-note2-anchor"
+    @State private var showMemoSheet = false
     /// 測定場所・機器の履歴（プリセット含む）を作るための既存記録
     @Query(
         filter: #Predicate<BodyRecord> { $0.dateTime < bodyRecordGoalDate },
@@ -368,14 +352,8 @@ struct MeasurementAverageView: View {
                 topMetaBar
                 Divider()
                 tableScroll
-                // メモ入力中はソフトキーボードが出るので、テンキーは隠して入力欄を広く使う。
-                // ここで if によりビューを取り除くと、フォーカス確定と同じフレームで
-                // レイアウトが崩れて first responder を取り逃がし、キーボードが出ないことがある。
-                // そのため subtree は残したまま高さ 0 に畳んで隠す。
-                if !hidesKeypad { Divider() }
+                Divider()
                 keypadArea
-                    .opacity(hidesKeypad ? 0 : 1)
-                    .allowsHitTesting(!hidesKeypad)
             }
             // iOS 18でポップオーバー終了後に親シート背景が透明化しても背後を透かさない
             .background(Color(.systemBackground))
@@ -383,20 +361,6 @@ struct MeasurementAverageView: View {
             // 画面全体の SwiftUI タップ検知は iOS 18 で中のボタン（日時など）を横取りするので、
             // ウィンドウで横取りせずに監視する
             .azOnWindowTap(isActive: isDiscardArmed) { disarmDiscardConfirmation() }
-            // ソフトキーボードの表示／非表示を実測して、テンキーの出し分けに使う
-            .onReceive(
-                NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)
-            ) { _ in
-                isKeyboardVisible = true
-            }
-            .onReceive(
-                NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)
-            ) { _ in
-                isKeyboardVisible = false
-                // スクロールでの終了は UIKit 側が閉じるため @FocusState が残る。
-                // テンキー表示へ戻すために、ここで揃える。
-                if isMemoFocused { dismissMemoFocus() }
-            }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 if !isDiscardArmed {
@@ -451,6 +415,11 @@ struct MeasurementAverageView: View {
             .sheet(isPresented: $showSleepSheet) {
                 SleepEditSheet(entry: sleep, recordDate: dateTime) { updated in
                     if updated != sleep { sleep = updated }
+                }
+            }
+            .sheet(isPresented: $showMemoSheet) {
+                MeasurementMemoSheet(memo: memo, candidateStore: equipmentCandidateStore) { updated in
+                    if updated != memo { memo = updated }
                 }
             }
             // 記録日時を変更した端末気圧を、その日時の実測値として残さない
@@ -542,7 +511,6 @@ struct MeasurementAverageView: View {
                 }
             }
             .onDisappear {
-                memoScrollTask?.cancel()
                 discardResetTask?.cancel()
                 sleepAutoTask?.cancel()
                 keypadWarningTask?.cancel()
@@ -688,7 +656,7 @@ struct MeasurementAverageView: View {
     private var tableScroll: some View {
         ScrollViewReader { proxy in
             // 縦スクロールは画面全体、横スクロールは表だけに限定する。
-            // メモ欄は画面幅で折り返して読めるよう、横スクロールの外側に置く。
+            // 環境・睡眠・メモの行は画面幅で読めるよう、横スクロールの外側に置く。
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 4) {
                     ScrollView(.horizontal) {
@@ -718,60 +686,20 @@ struct MeasurementAverageView: View {
                         .padding(.vertical, 10)
                     }
                     .scrollIndicators(.hidden)
-                    // 標準偏差の下に、ダイアル式の記録編集と同じメモ欄を置く
+                    // 標準偏差の下に、環境・睡眠・メモの行を置く
                     memoSection
                         .padding(.horizontal, 12)
                         .padding(.bottom, 10)
                 }
             }
             .scrollIndicators(.hidden)
-            // スクロールでの終了は標準の挙動に任せる（指の動きに追従して閉じる）
-            .scrollDismissesKeyboard(.interactively)
-            // メモ欄（AZMemoEditor）外のタップは AZMemoEditor 側のウィンドウ監視が閉じる。
-            // ここは UITextView を持たない測定場所欄のための保険。
-            // 画面全体のタップ検知は、iOS 18 では中のボタン（日時など）のタップを横取りするので、
-            // 測定場所欄の入力中だけ有効にする（それ以外は子のジェスチャだけを通す）
-            .contentShape(Rectangle())
-            .gesture(
-                TapGesture().onEnded { dismissMemoFocus() },
-                including: focusEquipment ? .all : .subviews
-            )
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .safeAreaInset(edge: .bottom) {
-                if hidesKeypad {
-                    ZStack(alignment: .bottom) {
-                        Color.clear
-                        if focusEquipment && !shownEquipmentCandidates.isEmpty {
-                            // 確保領域の下端に候補バーを表示する
-                            equipmentCandidateBar
-                        }
-                    }
-                    .frame(height: memoInputReservedHeight)
-                }
-            }
             .onChange(of: focused) { _, newValue in
                 // フォーカス移動先が見切れているときだけ最小限の横スクロールで寄せる
                 guard let cell = newValue else { return }
                 withAnimation(.easeOut(duration: 0.18)) {
                     proxy.scrollTo(cell, anchor: nil)
                 }
-            }
-            // メモ欄にフォーカスが入ったら、キーボードに隠れないようその行まで送る
-            .onChange(of: focusEquipment) { _, isOn in
-                if isOn { scrollMemoIntoView(equipmentAnchorID, proxy: proxy, anchor: .top) }
-            }
-            .onChange(of: focusNote1) { _, isOn in
-                if isOn { scrollMemoIntoView(note1AnchorID, proxy: proxy) }
-            }
-            .onChange(of: focusNote2) { _, isOn in
-                if isOn { scrollMemoIntoView(note2AnchorID, proxy: proxy) }
-            }
-            // 入力で行が伸びたときも、フォーカス中の行を見えるところに保つ
-            .onChange(of: note1) { _, _ in
-                if focusNote1 { scrollMemoIntoView(note1AnchorID, proxy: proxy) }
-            }
-            .onChange(of: note2) { _, _ in
-                if focusNote2 { scrollMemoIntoView(note2AnchorID, proxy: proxy) }
             }
         }
     }
@@ -1065,189 +993,23 @@ struct MeasurementAverageView: View {
 
     // MARK: メモ欄
 
-    /// メモ欄にフォーカスがあるか（スクロール送りの判定に使う）
-    private var isMemoFocused: Bool {
-        focusEquipment || focusNote1 || focusNote2
-    }
-
-    /// テンキーを隠すか。
-    /// @FocusState は AZMemoEditor（UITextView）経由だと反映が1フレーム遅れることがあり、
-    /// 「キーボードが出ているのにテンキーも出ている」状態になりうる。
-    /// 実際のキーボード表示通知を真とし、フォーカス状態と OR で判定する。
-    private var hidesKeypad: Bool {
-        isKeyboardVisible || isMemoFocused
-    }
-
-    /// メモ入力を抜けてテンキー表示に戻す。
-    /// @FocusState を落とすだけでは UITextView 側が first responder を握ったままの
-    /// ことがあるため、UIKit にも明示的に終了を依頼して確実に閉じる。
-    private func dismissMemoFocus() {
-        memoScrollTask?.cancel()
-        focusEquipment = false
-        focusNote1 = false
-        focusNote2 = false
-        // AZMemoEditor（UITextView）は isFocused の false では閉じない設計なので、
-        // トークンを進めて明示的に入力終了を指示する
-        memoDismissToken &+= 1
-        UIApplication.shared.sendAction(
-            #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil
-        )
-    }
-
-    /// キーボード表示中もメモ欄の入力行が隠れないよう、少し遅らせて寄せる
-    private func scrollMemoIntoView(
-        _ anchorID: String, proxy: ScrollViewProxy, anchor: UnitPoint = .bottom
-    ) {
-        memoScrollTask?.cancel()
-        // キーボードのレイアウト確定後に最新の入力欄へ1度だけ寄せる
-        memoScrollTask = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(140))
-            guard !Task.isCancelled, isFocusedMemoAnchor(anchorID) else { return }
-            withAnimation(.easeInOut(duration: 0.18)) {
-                proxy.scrollTo(anchorID, anchor: anchor)
-            }
-        }
-    }
-
-    /// 遅延中にフォーカス先が変わっていないか確認する
-    private func isFocusedMemoAnchor(_ anchorID: String) -> Bool {
-        switch anchorID {
-        case equipmentAnchorID: focusEquipment
-        case note1AnchorID: focusNote1
-        case note2AnchorID: focusNote2
-        default: false
-        }
-    }
-
-    /// キーボード上に表示する候補の行数
-    private static let equipmentCandidateRows = 2
-    /// 候補カプセルの行間
-    private let equipmentCandidateRowSpacing: CGFloat = 6
-
     /// 候補プールを作り直すべきかの判定材料（測定場所・機器の並び）
     private var equipmentHistorySignature: [String] {
         recordsForEquipmentHistory.map(\.sEquipment)
     }
 
-    /// 入力語へ前方一致する候補を優先し、部分一致を続ける
-    /// （候補プールの集計は履歴変更時のみ。equipmentCandidateStore を参照）
-    private var shownEquipmentCandidates: [String] {
-        equipmentCandidateStore.shownCandidates(matching: equipment)
-    }
-
-    /// 候補バーを2行分へ抑える
-    private var equipmentCandidateBarHeight: CGFloat {
-        let rowHeight = min(scaledEquipmentCandidateRowHeight, 48)
-        let rows = CGFloat(Self.equipmentCandidateRows)
-        return rowHeight * rows + equipmentCandidateRowSpacing * (rows - 1)
-    }
-
-    /// 入力欄を切り替えても変化させないキーボード上の確保高さ
-    private var memoInputReservedHeight: CGFloat {
-        max(60, equipmentCandidateBarHeight + 16)
-    }
-
-    /// キーボード直上へ測定場所・機器の候補をカプセル表示する
-    private var equipmentCandidateBar: some View {
-        GeometryReader { geometry in
-            ScrollView(.vertical) {
-                AZFlowLayout(
-                    spacing: 8,
-                    rowSpacing: equipmentCandidateRowSpacing,
-                    alignment: .leading,
-                    packToFill: true
-                ) {
-                    ForEach(shownEquipmentCandidates, id: \.self) { candidate in
-                        Button {
-                            selectEquipmentCandidate(candidate)
-                        } label: {
-                            equipmentCandidateLabel(
-                                candidate,
-                                maximumCapsuleWidth: max(0, geometry.size.width - 4)
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 2)
-            }
-            .scrollIndicators(.hidden)
-            .scrollBounceBehavior(.basedOnSize)
-            // 3行目以降をスクロールしてもキーボードを閉じない
-            .scrollDismissesKeyboard(.never)
-        }
-        .frame(height: equipmentCandidateBarHeight)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(.bar)
-        .overlay(alignment: .top) { Divider() }
-        // 候補の選択やスクロールでキーボードを閉じない
-        .azKeyboardDismissExcluded()
-    }
-
-    /// IMEを閉じてから候補値を確定する
-    private func selectEquipmentCandidate(_ candidate: String) {
-        pendingEquipmentSelection = candidate
-        dismissMemoFocus()
-        DispatchQueue.main.async {
-            equipment = candidate
+    /// メモ欄の値をまとめて受け渡す
+    private var memo: MeasurementMemo {
+        get { MeasurementMemo(equipment: equipment, note1: note1, note2: note2, caution: caution) }
+        nonmutating set {
+            equipment = newValue.equipment
+            note1 = newValue.note1
+            note2 = newValue.note2
+            caution = newValue.caution
         }
     }
 
-    /// 入力語へ一致した候補部分を強調する
-    private func equipmentCandidateText(_ candidate: String) -> Text {
-        let displayCandidate = nonbreakingEquipmentCandidate(candidate)
-        let keyword = nonbreakingEquipmentCandidate(
-            equipment.trimmingCharacters(in: .whitespacesAndNewlines)
-        )
-        guard !keyword.isEmpty,
-              let range = displayCandidate.range(of: keyword, options: .caseInsensitive) else {
-            return Text(displayCandidate).foregroundStyle(.primary)
-        }
-        return Text(displayCandidate[displayCandidate.startIndex..<range.lowerBound]).foregroundStyle(.secondary)
-            + Text(displayCandidate[range]).foregroundStyle(.primary).bold()
-            + Text(displayCandidate[range.upperBound...]).foregroundStyle(.secondary)
-    }
-
-    /// 候補内の空白を改行されない空白へ置き換える
-    private func nonbreakingEquipmentCandidate(_ candidate: String) -> String {
-        candidate.map { $0.isWhitespace ? "\u{00A0}" : String($0) }.joined()
-    }
-
-    /// 自然幅を優先し、画面幅を超える候補だけ末尾を省略する
-    private func equipmentCandidateLabel(
-        _ candidate: String,
-        maximumCapsuleWidth: CGFloat
-    ) -> some View {
-        // 空白を含む文字列もUIFontで実測して早すぎる省略を防ぐ
-        let font = UIFont.systemFont(ofSize: equipmentCandidateFontSize, weight: .bold)
-        let displayCandidate = nonbreakingEquipmentCandidate(candidate)
-        let textWidth = ceil((displayCandidate as NSString).size(withAttributes: [.font: font]).width)
-        let capsuleWidth = min(maximumCapsuleWidth, textWidth + 24)
-        return equipmentCandidateText(candidate)
-            .lineLimit(1)
-            .truncationMode(.tail)
-            .frame(width: max(0, capsuleWidth - 24), alignment: .leading)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(Capsule().fill(Color(.tertiarySystemFill)))
-    }
-
-    /// アプリの文字サイズ設定に対応する候補計測用フォントサイズ
-    private var equipmentCandidateFontSize: CGFloat {
-        if settings.fontScale.followsSystem {
-            return UIFont.preferredFont(forTextStyle: .body).pointSize
-        }
-        switch settings.fontScale {
-        case .system:   return UIFont.preferredFont(forTextStyle: .body).pointSize
-        case .standard: return 17
-        case .large:    return 23
-        case .xLarge:   return 33
-        }
-    }
-
-    /// 標準偏差の下に置く、ダイアル式の記録編集と同じメモ欄
+    /// 標準偏差の下に置く、環境・睡眠・メモの行
     private var memoSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Divider()
@@ -1260,7 +1022,6 @@ struct MeasurementAverageView: View {
                 helpKey: "record.environment.help"
             ) {
                 commitInputText()
-                dismissMemoFocus()
                 showEnvironmentSheet = true
             }
             .padding(.horizontal, 8)
@@ -1271,7 +1032,6 @@ struct MeasurementAverageView: View {
             if dateOpt == SleepEntry.dateOpt {
                 SleepEntryRow(entry: sleep) {
                     commitInputText()
-                    dismissMemoFocus()
                     showSleepSheet = true
                 }
                 .padding(.horizontal, 8)
@@ -1279,96 +1039,15 @@ struct MeasurementAverageView: View {
                 .background(Color(.secondarySystemBackground))
                 .clipShape(RoundedRectangle(cornerRadius: 10))
             }
-            Text("record.memo.section")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.secondary)
-
-            // 候補は入力欄ではなくキーボード直上へ表示する
-            HStack(spacing: 8) {
-                TextField("record.device", text: $equipment)
-                    .id(equipmentAnchorID)
-                    .focused($focusEquipment)
-                    .onChange(of: focusEquipment) { _, isFocused in
-                        // 再入力時は候補選択の保留値を解除する
-                        if isFocused { pendingEquipmentSelection = nil }
-                    }
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .submitLabel(.done)
-                    .onSubmit { dismissMemoFocus() }
-                    .onChange(of: equipment) { _, newValue in
-                        // IMEの遅延書き戻しより候補選択を優先する
-                        if let pending = pendingEquipmentSelection {
-                            if newValue == pending {
-                                pendingEquipmentSelection = nil
-                            } else {
-                                equipment = pending
-                            }
-                            return
-                        }
-                        // 測定場所・機器は最大100文字へ制限する
-                        if 100 < newValue.count {
-                            equipment = String(newValue.prefix(100))
-                            return
-                        }
-                        // 末尾改行を除去
-                        let trimmed = newValue.replacingOccurrences(
-                            of: "\n+$", with: "", options: .regularExpression
-                        )
-                        if trimmed != newValue { equipment = trimmed }
-                    }
-
-                // 入力中だけ内容をまとめて消せるようにする
-                if !equipment.isEmpty {
-                    Button {
-                        pendingEquipmentSelection = nil
-                        equipment = ""
-                        focusEquipment = true
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(Text("action.clear"))
-                }
+            // メモも環境・睡眠と同じ形の行にし、入力はシートで行う
+            MeasurementMemoRow(memo: memo) {
+                commitInputText()
+                showMemoSheet = true
             }
             .padding(.horizontal, 8)
-            .padding(.vertical, 8)
+            .padding(.vertical, 10)
             .background(Color(.secondarySystemBackground))
             .clipShape(RoundedRectangle(cornerRadius: 10))
-
-            AZMemoEditor(
-                placeholder: "record.memo1",
-                text: $note1,
-                isFocused: $focusNote1,
-                dismissToken: memoDismissToken
-            )
-            .padding(.horizontal, 3)
-            .background(Color(.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .id(note1AnchorID)
-            AZMemoEditor(
-                placeholder: "record.memo2",
-                text: $note2,
-                isFocused: $focusNote2,
-                dismissToken: memoDismissToken
-            )
-            .padding(.horizontal, 3)
-            .background(Color(.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .id(note2AnchorID)
-
-            Toggle(isOn: $caution) {
-                HStack(spacing: 6) {
-                    if caution {
-                        Image(systemName: "flag.fill")
-                            .foregroundStyle(.orange)
-                    }
-                    Text("record.cautionFlag")
-                }
-            }
-            .padding(.top, 2)
         }
     }
 
@@ -1394,12 +1073,11 @@ struct MeasurementAverageView: View {
                 }
             }
         }
-        // メモ入力中は高さ 0 に畳んで隠す（ビュー自体は残す。理由は body 側のコメント参照）
-        .frame(height: hidesKeypad ? 0 : dialRowHeight + 16 + keypadHeight)
-        .padding(.top, hidesKeypad ? 0 : 8)
+        .frame(height: dialRowHeight + 16 + keypadHeight)
+        .padding(.top, 8)
         .padding(.leading, 8)
         .padding(.trailing, 8)
-        .padding(.bottom, hidesKeypad ? 0 : 8)
+        .padding(.bottom, 8)
         // 赤字の値を残したまま進んだときだけ、背景を短く赤くする
         .background(isKeypadWarning ? Color.red.opacity(0.6) : Color(.systemBackground))
         .clipped()
@@ -1754,8 +1432,6 @@ struct MeasurementAverageView: View {
 
     private func focus(_ cell: AvgCell) {
         commitInputText()
-        // 表のセルへ移るときはメモ入力を抜けて、ソフトキーボードをテンキーに戻す
-        dismissMemoFocus()
         focused = cell
         inputText = ""
     }

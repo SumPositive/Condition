@@ -12930,6 +12930,35 @@
         }
       }
     },
+    "record.memo.help" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save where and with what device you measured, plus notes\n\nTurn on the caution flag to mark records you want to check later"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "測定した場所や機器、気づいたことをメモとして残せます\n\nあとで見返したい記録には、注意フラグを付けておくと目印になります"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "측정한 장소나 기기, 알아챈 점을 메모로 남길 수 있습니다\n\n나중에 다시 보고 싶은 기록에는 주의 플래그를 붙여 두면 표시가 됩니다"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可將測量的地點、裝置與注意到的事記為備註\n\n想日後回顧的記錄，加上注意標記即可作為記號"
+          }
+        }
+      }
+    },
     "record.memo.section" : {
       "extractionState" : "manual",
       "localizations" : {

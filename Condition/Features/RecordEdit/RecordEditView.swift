@@ -1450,6 +1450,9 @@ struct RecordAuxRow: View {
     let helpKey: LocalizedStringKey
     /// 値の最大行数（環境は項目が多いので2行、睡眠は1行）
     var summaryLineLimit: Int = 2
+    /// 値の前に添えるアイコン（メモの注意フラグなど）
+    var summarySymbol: String? = nil
+    var summarySymbolColor: Color = .secondary
     let action: () -> Void
 
     var body: some View {
@@ -1466,6 +1469,10 @@ struct RecordAuxRow: View {
             Button(action: action) {
                 HStack(spacing: 8) {
                     Spacer(minLength: 8)
+                    if let summarySymbol {
+                        Image(systemName: summarySymbol)
+                            .foregroundStyle(summarySymbolColor)
+                    }
                     // 指定の行数まで折り返して右端にそろえ、収まらなければ縮小する
                     Text(summary)
                         .foregroundStyle(hasValue ? .primary : .secondary)
