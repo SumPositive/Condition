@@ -2062,8 +2062,8 @@ struct WeightChangeChartView: View {
 // MARK: - BMI基準シート
 
 private func graphInfoSheetHeight(_ contentHeight: CGFloat) -> CGFloat {
-    // 内容実測値にドラッグ領域と下部余白を足し、シートを必要最小に寄せる
-    return contentHeight + 44
+    // 内容実測値にナビゲーションバー（閉じるボタン）と下部余白を足し、シートを必要最小に寄せる
+    return contentHeight + 44 + 20
 }
 
 private struct BMIStandardsPopover: View {
@@ -2083,15 +2083,11 @@ private struct BMIStandardsPopover: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                // ナビゲーションバーが無いので、閉じるボタンは本文の先頭に置く
-                HelpSheetCloseButton()
-                    .padding(.horizontal, 16)
-                    .padding(.top, 16)
                 Text(isJapanese ? String(localized: "text.jassoObesityClassification") : "WHO BMI Classification")
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 16)
-                    .padding(.top, 6)
+                    .padding(.top, 8)
                     .padding(.bottom, 8)
                 Divider()
                 ForEach(rows, id: \.zone.label) { row in
@@ -2124,6 +2120,7 @@ private struct BMIStandardsPopover: View {
         .scrollIndicators(.hidden)
         .frame(minWidth: 260)
         .presentationCompactAdaptation(.sheet)
+        .helpSheetCloseToolbar()
         .presentationDetents([.height(graphInfoSheetHeight(contentHeight)), .large])
         .presentationDragIndicator(.visible)
         .presentationBackground(Color(.systemBackground))

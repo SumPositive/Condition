@@ -709,8 +709,8 @@ struct BpJshView: View {
 // MARK: - JSH基準シート
 
 private func statisticsInfoSheetHeight(_ contentHeight: CGFloat) -> CGFloat {
-    // 内容実測値にドラッグ領域と下部余白を足し、シートを必要最小に寄せる
-    return contentHeight + 44
+    // 内容実測値にナビゲーションバー（閉じるボタン）と下部余白を足し、シートを必要最小に寄せる
+    return contentHeight + 44 + 20
 }
 
 private struct JSHStandardsPopover: View {
@@ -732,15 +732,11 @@ private struct JSHStandardsPopover: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                // ナビゲーションバーが無いので、閉じるボタンは本文の先頭に置く
-                HelpSheetCloseButton()
-                    .padding(.horizontal, 16)
-                    .padding(.top, 16)
                 Text("metric.jshBpClassification2019")
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 16)
-                    .padding(.top, 6)
+                    .padding(.top, 8)
                     .padding(.bottom, 8)
                 Divider()
                 ForEach(Array(rows.enumerated()), id: \.element.name) { index, row in
@@ -775,6 +771,7 @@ private struct JSHStandardsPopover: View {
         .scrollIndicators(.hidden)
         .frame(minWidth: 300)
         .presentationCompactAdaptation(.sheet)
+        .helpSheetCloseToolbar()
         .presentationDetents([.height(statisticsInfoSheetHeight(contentHeight)), .large])
         .presentationDragIndicator(.visible)
         .presentationBackground(Color(.systemBackground))
@@ -802,15 +799,11 @@ private struct ESHStandardsPopover: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                // ナビゲーションバーが無いので、閉じるボタンは本文の先頭に置く
-                HelpSheetCloseButton()
-                    .padding(.horizontal, 16)
-                    .padding(.top, 16)
                 Text("text.escEshHypertensionGuidelines2018")
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 16)
-                    .padding(.top, 6)
+                    .padding(.top, 8)
                     .padding(.bottom, 8)
                 Divider()
                 ForEach(Array(rows.enumerated()), id: \.element.name) { index, row in
@@ -845,6 +838,7 @@ private struct ESHStandardsPopover: View {
         .scrollIndicators(.hidden)
         .frame(minWidth: 300)
         .presentationCompactAdaptation(.sheet)
+        .helpSheetCloseToolbar()
         .presentationDetents([.height(statisticsInfoSheetHeight(contentHeight)), .large])
         .presentationDragIndicator(.visible)
         .presentationBackground(Color(.systemBackground))
@@ -1180,15 +1174,11 @@ private struct BpDateOptCorrInfoPopover: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                // ナビゲーションバーが無いので、閉じるボタンは本文の先頭に置く
-                HelpSheetCloseButton()
-                    .padding(.horizontal, 16)
-                    .padding(.top, 16)
                 Text(isJapanese ? String(localized: "chart.howToReadTheScatterPlot") : "How to Read This Chart")
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 16)
-                    .padding(.top, 6)
+                    .padding(.top, 8)
                     .padding(.bottom, 8)
                 Divider()
 
@@ -1248,6 +1238,7 @@ private struct BpDateOptCorrInfoPopover: View {
         .scrollIndicators(.hidden)
         .frame(minWidth: 300)
         .presentationCompactAdaptation(.sheet)
+        .helpSheetCloseToolbar()
         .presentationDetents([.height(statisticsInfoSheetHeight(contentHeight)), .large])
         .presentationDragIndicator(.visible)
         .presentationBackground(Color(.systemBackground))
@@ -2356,11 +2347,6 @@ struct WeightBpScatterView: View {
         var body: some View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    // ナビゲーションバーが無いので、閉じるボタンは本文の先頭に置く
-                    HelpSheetCloseButton()
-                        .padding(.horizontal, 20)
-                        .padding(.top, 16)
-
                     Text(messageKey)
                         .font(.body)
                         .foregroundStyle(.primary)
@@ -2369,6 +2355,7 @@ struct WeightBpScatterView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.horizontal, 20)
+                        .padding(.top, 8)
                         .padding(.bottom, 20)
                 }
                 .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { h in
@@ -2376,6 +2363,7 @@ struct WeightBpScatterView: View {
                 }
             }
             .scrollIndicators(.hidden)
+            .helpSheetCloseToolbar()
             .presentationDetents([.height(statisticsInfoSheetHeight(contentHeight)), .large])
             .presentationDragIndicator(.visible)
             .presentationBackground(Color(.systemBackground))

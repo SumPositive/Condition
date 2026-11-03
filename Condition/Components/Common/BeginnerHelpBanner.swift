@@ -180,7 +180,8 @@ struct BeginnerHelpBanner: View {
     }
 
     private var helpSheetHeight: CGFloat {
-        let preferredHeight = sheetContentHeight + 84
+        // ナビゲーションバー（閉じるボタン）の分も足す
+        let preferredHeight = sheetContentHeight + 84 + 44
         return min(max(preferredHeight, 180), 620)
     }
 
@@ -211,9 +212,6 @@ struct BeginnerHelpBanner: View {
     private var helpSheet: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                // ナビゲーションバーが無いので、閉じるボタンは本文の先頭に置く
-                HelpSheetCloseButton()
-
                 (messageText ?? Text(messageKey))
                     .font(.body)
                     .foregroundStyle(Color.primary)
@@ -229,32 +227,40 @@ struct BeginnerHelpBanner: View {
             }
         }
         .scrollIndicators(.hidden)
+        .helpSheetCloseToolbar()
     }
 }
 
 // MARK: - ヘルプシートの閉じるボタン
 
-/// ヘルプシート左上の閉じるボタン（他のシートと同じ下向き矢印）
-struct HelpSheetCloseButton: View {
+/// ヘルプシート左上に閉じるボタンを置く。
+/// 環境シートなどと同じ見た目にするため、ナビゲーションバーのツールバーに置く
+struct HelpSheetCloseToolbar: ViewModifier {
     @Environment(\.dismiss) private var dismiss
 
-    var body: some View {
-        Button {
-            dismiss()
-        } label: {
-            Image(systemName: "chevron.down")
-                .font(.body.weight(.semibold))
-                .imageScale(.large)
-                .foregroundStyle(Color.accentColor)
-                // 小さなアイコンでも押しやすいよう、タップ領域を広げる
-                .frame(width: 44, height: 44)
-                .contentShape(Rectangle())
+    func body(content: Content) -> some View {
+        NavigationStack {
+            content
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        // 下向き矢印はシートを下へ閉じる操作と向きが一致する
+                        Button {
+                            dismiss()
+                        } label: {
+                            Image(systemName: "chevron.down")
+                        }
+                        .accessibilityLabel(Text("action.close"))
+                    }
+                }
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(Text("action.close"))
-        // 余白ぶん左上へ寄せ、アイコンの位置を本文の左端にそろえる
-        .padding(.leading, -12)
-        .padding(.vertical, -10)
+    }
+}
+
+extension View {
+    /// ヘルプシートに閉じるボタン付きのナビゲーションバーを付ける
+    func helpSheetCloseToolbar() -> some View {
+        modifier(HelpSheetCloseToolbar())
     }
 }
 
