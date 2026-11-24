@@ -58,10 +58,10 @@
 		C3562DCE2FFBAB9D00539096 /* SnapshotSeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3562DCC2FFBAB8300539096 /* SnapshotSeed.swift */; };
 		C38A3C042FD69C4D00AC7390 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = C38A3C032FD69C4D00AC7390 /* GoogleService-Info.plist */; };
 		C38A3E372FDEDB1400AC7390 /* MeasurementAverageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C38A3E362FDEDB1400AC7390 /* MeasurementAverageView.swift */; };
-		C6ACD9EAD52F4FA28A74DEE3 /* MeasurementMemoSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD57646916144BACB4857013 /* MeasurementMemoSheet.swift */; };
 		C394AF052F80F53C00F9C557 /* AZDial in Frameworks */ = {isa = PBXBuildFile; productRef = C3713DD32F7FF32400DF8BB3 /* AZDial */; };
 		C3DC29A22F7040EA007F4C3A /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = C3DC29A12F7040EA007F4C3A /* PrivacyInfo.xcprivacy */; };
 		C3DC29A42F72BE25007F4C3A /* PDFPanelExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3DC29A32F72BE25007F4C3A /* PDFPanelExporter.swift */; };
+		C6ACD9EAD52F4FA28A74DEE3 /* MeasurementMemoSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD57646916144BACB4857013 /* MeasurementMemoSheet.swift */; };
 		CC257634A8AF415F5F40872E /* MigrationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D11FAFC4E99DE815E66D2AEB /* MigrationService.swift */; };
 		D6C3A1A72F3E9B12734FC1FB /* GraphView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4066E230081BA97894E9514C /* GraphView.swift */; };
 		E3D3DDA000A084BD20782137 /* DevicePressureService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05FA7D86EF7CE4BAD5C6F487 /* DevicePressureService.swift */; };
@@ -134,12 +134,12 @@
 		B4B39CD9E3AD74DA2FEF14F7 /* AppFontScaleModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFontScaleModifier.swift; sourceTree = "<group>"; };
 		B6FE488F42254CBC37C55F0C /* Condition.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Condition.entitlements; sourceTree = "<group>"; };
 		B7C41E920D3A5F68EA271B5C /* BeginnerHelpBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeginnerHelpBanner.swift; sourceTree = "<group>"; };
+		BD57646916144BACB4857013 /* MeasurementMemoSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeasurementMemoSheet.swift; sourceTree = "<group>"; };
 		C31B57042FB944B10090CAEC /* RecentConflictSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentConflictSheet.swift; sourceTree = "<group>"; };
 		C3562DBF2FFBA90300539096 /* ConditionUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ConditionUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C3562DCC2FFBAB8300539096 /* SnapshotSeed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotSeed.swift; sourceTree = "<group>"; };
 		C38A3C032FD69C4D00AC7390 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		C38A3E362FDEDB1400AC7390 /* MeasurementAverageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeasurementAverageView.swift; sourceTree = "<group>"; };
-		BD57646916144BACB4857013 /* MeasurementMemoSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeasurementMemoSheet.swift; sourceTree = "<group>"; };
 		C3DC29A12F7040EA007F4C3A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		C3DC29A32F72BE25007F4C3A /* PDFPanelExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFPanelExporter.swift; sourceTree = "<group>"; };
 		D11FAFC4E99DE815E66D2AEB /* MigrationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MigrationService.swift; sourceTree = "<group>"; };
@@ -485,7 +485,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastSwiftUpdateCheck = 2650;
-				LastUpgradeCheck = 2700;
+				LastUpgradeCheck = 2710;
 				TargetAttributes = {
 					ADCF899E0B9840A32D7155AF = {
 						DevelopmentTeam = "";

@@ -7,22 +7,31 @@
 
 import SwiftUI
 
-// MARK: - 入力行
+// MARK: - 入力項目
 
-/// 「ラベル ＋ 数値」の行。タップするとテンキーシートが開く
-struct EnvNumpadField: View {
+/// テンキーで入力する1項目の内容
+struct EnvNumpadItem {
     let titleKey: LocalizedStringKey
-    @Binding var text: String
+    let text: Binding<String>
     /// 小数を受け付けるか（気温・気圧・室温）
     let decimal: Bool
     /// マイナスを受け付けるか（気温・室温）
-    let allowsNegative: Bool
+    var allowsNegative: Bool = false
     /// 単位。値の右に薄く添える
     var unit: String? = nil
     /// この桁数を打ったら自動で小数点を入れる（気温の 302 → 30.2）
     var autoDecimalAfter: Int? = nil
     /// 打てる値の範囲。範囲外は決定できない
     let range: ClosedRange<Double>
+}
+
+// MARK: - 入力行
+
+/// 「ラベル ＋ 数値」の行。タップするとテンキーシートが開く
+struct EnvNumpadField: View {
+    let item: EnvNumpadItem
+    /// 値を打って決定したら、シートを閉じずに順に入力する項目（気温 → 湿度 → 気圧）
+    var following: [EnvNumpadItem] = []
 
     @State private var showSheet = false
     @State private var settings = AppSettings.shared
@@ -31,16 +40,16 @@ struct EnvNumpadField: View {
         Button {
             showSheet = true
         } label: {
-            LabeledContent(titleKey) {
+            LabeledContent(item.titleKey) {
                 HStack(spacing: 4) {
-                    if text.isEmpty {
+                    if item.text.wrappedValue.isEmpty {
                         Text("environment.summary.empty")
                             .foregroundStyle(.secondary)
                     } else {
-                        Text(text)
+                        Text(item.text.wrappedValue)
                             .monospacedDigit()
                             .foregroundStyle(Color.primary)
-                        if let unit {
+                        if let unit = item.unit {
                             Text(unit)
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
@@ -54,14 +63,7 @@ struct EnvNumpadField: View {
         .buttonStyle(.plain)
         .sheet(isPresented: $showSheet) {
             // .sheet は親の dynamicTypeSize を引き継がないことがあるため明示する
-            let sheet = EnvNumpadSheet(
-                titleKey: titleKey,
-                text: $text,
-                decimal: decimal,
-                allowsNegative: allowsNegative,
-                autoDecimalAfter: autoDecimalAfter,
-                range: range
-            )
+            let sheet = EnvNumpadSheet(items: [item] + following)
             if settings.fontScale.followsSystem {
                 sheet
             } else {
@@ -84,14 +86,8 @@ private enum EnvNumpadKey {
 // MARK: - 入力シート
 
 private struct EnvNumpadSheet: View {
-    let titleKey: LocalizedStringKey
-    @Binding var text: String
-    let decimal: Bool
-    let allowsNegative: Bool
-    /// この桁数を打ったら自動で小数点を入れる（気温の 302 → 30.2）
-    var autoDecimalAfter: Int? = nil
-    /// 打てる値の範囲
-    let range: ClosedRange<Double>
+    /// 順に入力する項目（1つ以上）。最後の項目は決定で閉じる
+    let items: [EnvNumpadItem]
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -100,6 +96,11 @@ private struct EnvNumpadSheet: View {
     /// ⌫ や C で明示的に消したか。
     /// 「何も触らず決定（＝元の値を残す）」と区別するために持つ
     @State private var didClear = false
+    /// いま入力している項目の位置
+    @State private var index = 0
+
+    /// いま入力している項目
+    private var current: EnvNumpadItem { items[index] }
 
     private var isCompact: Bool { UIScreen.main.bounds.height <= 700 }
 
@@ -135,6 +136,7 @@ private struct EnvNumpadSheet: View {
     /// 未入力のうちは元の値を薄く出す。打ち始めたらそれを置き換える
     private var displayText: String {
         if !draft.isEmpty { return draft }
+        let text = current.text.wrappedValue
         return text.isEmpty ? "0" : text
     }
 
@@ -146,7 +148,7 @@ private struct EnvNumpadSheet: View {
     /// 打った値が範囲外か。入力中の「-」や「5.」は判定しない
     private var isOutOfRange: Bool {
         guard let value = Double(normalizedDraft) else { return false }
-        return !range.contains(value)
+        return !current.range.contains(value)
     }
 
     /// 「5.」「-.」のような途中の形を数値にできる形へ整える
@@ -163,13 +165,13 @@ private struct EnvNumpadSheet: View {
         let fmt: (Double) -> String = { v in
             v == v.rounded() ? String(format: "%.0f", v) : String(format: "%.1f", v)
         }
-        return "\(fmt(range.lowerBound)) 〜 \(fmt(range.upperBound))"
+        return "\(fmt(current.range.lowerBound)) 〜 \(fmt(current.range.upperBound))"
     }
 
     var body: some View {
         VStack(spacing: 12) {
             // どの項目を入力しているか分かるようにする
-            Text(titleKey)
+            Text(current.titleKey)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .padding(.top, 16)
@@ -190,16 +192,15 @@ private struct EnvNumpadSheet: View {
                 .opacity(isOutOfRange ? 1 : 0)
 
             EnvNumpad(
-                hasDecimal: decimal,
-                hasSign: allowsNegative,
+                hasDecimal: current.decimal,
+                hasSign: current.allowsNegative,
                 buttonH: buttonH,
                 spacing: btnSpacing,
                 onKey: handleKey
             )
 
             Button {
-                apply()
-                dismiss()
+                confirm()
             } label: {
                 Text("action.ok")
                     .font(.headline)
@@ -233,10 +234,10 @@ private struct EnvNumpadSheet: View {
             }
             insertAutoDecimalIfNeeded()
         case .decimal:
-            guard decimal, !draft.contains(".") else { return }
+            guard current.decimal, !draft.contains(".") else { return }
             draft = draft.isEmpty ? "0." : draft + "."
         case .sign:
-            guard allowsNegative else { return }
+            guard current.allowsNegative else { return }
             if draft.hasPrefix("-") {
                 draft.removeFirst()
             } else {
@@ -260,7 +261,7 @@ private struct EnvNumpadSheet: View {
     /// 小数点を打たなくても、指定の桁数で自動的に入れる。
     /// 気温を「302」と打てば「30.2」になり、キー操作が1つ減る
     private func insertAutoDecimalIfNeeded() {
-        guard let digits = autoDecimalAfter, decimal, !draft.contains(".") else { return }
+        guard let digits = current.autoDecimalAfter, current.decimal, !draft.contains(".") else { return }
         // 符号を除いた桁数で数える
         let body = draft.hasPrefix("-") ? String(draft.dropFirst()) : draft
         guard body.count == digits else { return }
@@ -270,25 +271,40 @@ private struct EnvNumpadSheet: View {
 
     // MARK: - 確定
 
+    /// 決定ボタン。値を打ったときは続きの項目へ移り、それ以外は閉じる。
+    /// 値を消しただけ・何も打っていないときは、続けて入力する意図が無いとみなす
+    private func confirm() {
+        apply()
+        guard index + 1 < items.count,
+              !draft.isEmpty, !current.text.wrappedValue.isEmpty else {
+            dismiss()
+            return
+        }
+        // シートを開き直さず中身だけ差し替える（閉じて開く間を待たせない）
+        draft = ""
+        didClear = false
+        index += 1
+    }
+
     private func apply() {
         // 何も打たずに決定したら元の値のまま。
         // 消したいときは ⌫ で全部消してから決定する
         guard !draft.isEmpty else {
-            if didClear { text = "" }
+            if didClear { current.text.wrappedValue = "" }
             return
         }
         // 「-」だけ、「5.」のような中途半端な入力を整える
         var normalized = draft
         if normalized == "-" || normalized == "." || normalized == "-." {
-            text = ""
+            current.text.wrappedValue = ""
             return
         }
         if normalized.hasSuffix(".") { normalized.removeLast() }
         if normalized.hasPrefix(".") { normalized = "0" + normalized }
         if normalized.hasPrefix("-.") { normalized = "-0" + normalized.dropFirst(1) }
         // 範囲外は書き戻さない（決定ボタンは無効だが、念のため）
-        guard let value = Double(normalized), range.contains(value) else { return }
-        text = normalized
+        guard let value = Double(normalized), current.range.contains(value) else { return }
+        current.text.wrappedValue = normalized
     }
 }
 

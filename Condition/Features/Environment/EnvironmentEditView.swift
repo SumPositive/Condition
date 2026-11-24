@@ -211,13 +211,25 @@ struct EnvironmentEditView: View {
 
             // 気温は2桁打った時点で小数点を入れる（302 → 30.2）
             // 範囲は世界の観測記録を少し上回る程度に取り、打ち間違いだけを弾く
-            numberRow("symptom.weather.outdoorTemp", text: $vm.tempText,
-                      decimal: true, allowsNegative: true, unit: "℃",
-                      autoDecimalAfter: 2, range: -50...60)
-            numberRow("symptom.weather.outdoorHumidity", text: $vm.humidityText,
-                      decimal: false, unit: "%", range: 0...100)
-            numberRow("symptom.weather.pressure", text: $vm.pressureText,
-                      decimal: true, unit: "hPa", range: 870...1085)
+            // 決定したら、気温 → 湿度 → 気圧 の順に続けて入力する
+            let humidity = EnvNumpadItem(
+                titleKey: "symptom.weather.outdoorHumidity", text: $vm.humidityText,
+                decimal: false, unit: "%", range: 0...100
+            )
+            let pressure = EnvNumpadItem(
+                titleKey: "symptom.weather.pressure", text: $vm.pressureText,
+                decimal: true, unit: "hPa", range: 870...1085
+            )
+            EnvNumpadField(
+                item: EnvNumpadItem(
+                    titleKey: "symptom.weather.outdoorTemp", text: $vm.tempText,
+                    decimal: true, allowsNegative: true, unit: "℃",
+                    autoDecimalAfter: 2, range: -50...60
+                ),
+                following: [humidity, pressure]
+            )
+            EnvNumpadField(item: humidity, following: [pressure])
+            EnvNumpadField(item: pressure)
 
             if let delta = vm.pressureDelta24h_10hpa {
                 LabeledContent("symptom.weather.pressureDelta") {
@@ -302,11 +314,20 @@ struct EnvironmentEditView: View {
         Section {
             // 室温も気温と同じく2桁で小数点を入れる
             // 室温は屋外より狭く取る（暖房のない寒冷地〜冷房のない酷暑）
-            numberRow("symptom.weather.indoorTemp", text: $vm.indoorTempText,
-                      decimal: true, allowsNegative: true, unit: "℃",
-                      autoDecimalAfter: 2, range: -20...50)
-            numberRow("symptom.weather.indoorHumidity", text: $vm.indoorHumidityText,
-                      decimal: false, unit: "%", range: 0...100)
+            // 室温を決定したら、そのまま湿度の入力へ移る
+            let humidity = EnvNumpadItem(
+                titleKey: "symptom.weather.indoorHumidity", text: $vm.indoorHumidityText,
+                decimal: false, unit: "%", range: 0...100
+            )
+            EnvNumpadField(
+                item: EnvNumpadItem(
+                    titleKey: "symptom.weather.indoorTemp", text: $vm.indoorTempText,
+                    decimal: true, allowsNegative: true, unit: "℃",
+                    autoDecimalAfter: 2, range: -20...50
+                ),
+                following: [humidity]
+            )
+            EnvNumpadField(item: humidity)
         } header: {
             // ヘルプは見出しの右に置く。屋外の気温より優先されることは
             // 入力欄を見ただけでは分からないので、開いて読めるようにする
@@ -353,29 +374,5 @@ struct EnvironmentEditView: View {
 
     private static var deviceSectionTitle: String {
         String(localized: "environment.section.device")
-    }
-
-    // MARK: - 部品
-
-    /// 数値入力の行。システムのキーボードではなく専用テンキーを出す。
-    /// 気温・室温は氷点下があるので符号キーを付ける
-    private func numberRow(
-        _ titleKey: LocalizedStringKey,
-        text: Binding<String>,
-        decimal: Bool,
-        allowsNegative: Bool = false,
-        unit: String? = nil,
-        autoDecimalAfter: Int? = nil,
-        range: ClosedRange<Double>
-    ) -> some View {
-        EnvNumpadField(
-            titleKey: titleKey,
-            text: text,
-            decimal: decimal,
-            allowsNegative: allowsNegative,
-            unit: unit,
-            autoDecimalAfter: autoDecimalAfter,
-            range: range
-        )
     }
 }

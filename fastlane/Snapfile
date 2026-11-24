@@ -6,16 +6,21 @@
 # App Store 必須サイズ:
 #   - iPhone 6.9": iPhone 17 Pro Max（1320x2868）
 #   - iPad 13":    iPad Pro 13-inch (M5)  … 審査必須枠。iPhone が埋まってから追加
+#   - iPhone Duo:  外側 1398x2034 / 内側 2007x2853 … 2027年4月から提出に必要
+#     アップロードには fastlane 2.241.1 以降が必要
 #
 # 【注意】UITest ターゲット ConditionUITests の IPHONEOS_DEPLOYMENT_TARGET は
 # アプリ本体に合わせる。DialSplit（26.5）と違いシミュレータ要件が緩ければ
 # 手持ちの iOS ランタイムで撮れる。devices([...]) の名前は
 # `xcrun simctl list devices` に出る名前と一致必須
 
-# iPhone 6.9" と iPad 13" の両方を撮る（4カット × 4言語 × 2デバイス）
+# iPhone 6.9"・iPad 13"・iPhone Duo を撮る（5カット × 4言語 × 3デバイス）
+# iPhone Duo は閉じた状態で起動するので外側画面（1398x2034）のカットになる
+# 内側画面（2007x2853）は snapshot だけでは開けないので別手段が必要
 devices([
   "iPhone 17 Pro Max",
-  "iPad Pro 13-inch (M5)"
+  "iPad Pro 13-inch (M5)",
+  "iPhone Duo"
 ])
 # 診断で1機種に絞る場合はどちらかをコメントアウトする
 
