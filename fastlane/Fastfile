@@ -57,15 +57,27 @@ platform :ios do
   desc "シミュレータでスクショを撮影する（Snapfile の言語・デバイスに従う。アップロードはしない）"
   lane :screenshots do
     capture_screenshots   # = snapshot。設定は fastlane/Snapfile
+    compose_screenshots   # 撮った画面に言葉と背景を付ける
   end
 
-  desc "既存の ./fastlane/screenshots をそのまま App Store Connect に反映する（撮影はしない・審査提出はしない）"
+  desc "撮影済みの画面に言葉と背景を付けて ./fastlane/screenshots_store に書き出す（撮影・アップロードはしない）"
+  lane :compose_screenshots do
+    # 古い画像が残ってアップロードされないよう、作り直す
+    FileUtils.rm_rf(File.expand_path("screenshots_store", __dir__))
+    sh("cd .. && xcrun swift Scripts/StoreScreenshots/compose.swift")
+  end
+
+  desc "既存の ./fastlane/screenshots_store を App Store Connect に反映する（撮影はしない・審査提出はしない）"
   lane :upload_screenshots do
+    # 合成が途中で失敗したまま送らないよう、枚数を確かめる（4カット × 3機種 × 4言語）
+    count = Dir[File.expand_path("screenshots_store/*/*.png", __dir__)].size
+    UI.user_error!("screenshots_store の画像が #{count} 枚です（48枚必要）。fastlane compose_screenshots を実行してください") unless count == 48
     load_asc_api_key
     deliver(
       skip_binary_upload: true,
       skip_metadata: true,          # メタデータには触らない
       skip_screenshots: false,      # スクショだけ送る
+      screenshots_path: "./fastlane/screenshots_store",  # 言葉と背景を付けた画像
       overwrite_screenshots: true,  # 既存スクショを置き換える
       submit_for_review: false,
       force: true,
@@ -75,7 +87,7 @@ platform :ios do
 
   desc "撮影 → アップロードを一気に行う（審査提出はしない）"
   lane :screenshots_and_upload do
-    capture_screenshots
+    screenshots
     upload_screenshots
   end
 end

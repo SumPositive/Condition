@@ -39,13 +39,21 @@ For _fastlane_ installation instructions, see [Installing _fastlane_](https://do
 
 シミュレータでスクショを撮影する（Snapfile の言語・デバイスに従う。アップロードはしない）
 
+### ios compose_screenshots
+
+```sh
+[bundle exec] fastlane ios compose_screenshots
+```
+
+撮影済みの画面に言葉と背景を付けて ./fastlane/screenshots_store に書き出す（撮影・アップロードはしない）
+
 ### ios upload_screenshots
 
 ```sh
 [bundle exec] fastlane ios upload_screenshots
 ```
 
-既存の ./fastlane/screenshots をそのまま App Store Connect に反映する（撮影はしない・審査提出はしない）
+既存の ./fastlane/screenshots_store を App Store Connect に反映する（撮影はしない・審査提出はしない）
 
 ### ios screenshots_and_upload
 

@@ -91,6 +91,23 @@ fastlane screenshots
 
 ---
 
+## App Store 用の合成（言葉と背景を付ける）
+
+`fastlane screenshots` は撮影のあと、`Scripts/StoreScreenshots/compose.swift` で
+App Store 用の画像（記録・推移・統計・症状の4枚 × 3機種 × 4言語）を
+`fastlane/screenshots_store/` に書き出します。アップロードするのはこちらです
+
+```bash
+fastlane compose_screenshots   # 撮影し直さず、文言や見た目だけ作り直す
+# 1言語だけ試す／明るい背景で作る
+xcrun swift Scripts/StoreScreenshots/compose.swift --only ja --theme light --out /tmp/store
+```
+
+- 文言・色・配置は `compose.swift` の先頭にまとめてある
+- 統計・症状は図表パネルを自動で探して切り抜く。画面構成を変えて見つからないときはエラーで止まる
+
+---
+
 ## ステップ 5: アップロード（審査提出はしない）
 
 ```bash

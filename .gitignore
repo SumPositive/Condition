@@ -59,6 +59,7 @@ Carthage/Build/
 fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/**/*.png
+fastlane/screenshots_store/
 fastlane/test_output
 
 # App Store Connect API 認証情報（コミット禁止）
