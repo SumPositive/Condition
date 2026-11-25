@@ -1,6 +1,6 @@
 Condition 体調メモ
 - 日本語名は `体調メモ`
-- iOSアプリ `Condition` のコードは `/usb256/GitWork/Condition` にある
+- iOSアプリ `Condition` のコードは `/Volumes/usb256/GitWork/Condition` にある
 - 取扱説明の日本語版は `GitLocal/azukid.com/docs/jp/sumpo/Condition/` にある
 - 取扱説明の英語版は `GitLocal/azukid.com/docs/en/sumpo/Condition/` にある
 
@@ -1088,13 +1088,12 @@ fastlane upload_screenshots
 
 fastlane screenshots に iPhone Duo を追加したい
 
-iOSアプリ `Condition` のコードは `/usb256/GitWork/Condition` にある
+Gitローカルリポジトリを`GitLocal/Condition`から`/Volumes/usb256/GitWork/Condition`に変更した
 気温入力後に湿度入力状態にしたい
-
 
 --------------------------------
 2.10.0 新機能・更新内容
-- 測定の区分1（起動時）に睡眠データ（入眠時刻、睡眠時間）を記録できるようになりました
+- 測定の区分1（起床時）に睡眠データ（入眠時刻、睡眠時間）を記録できるようになりました
 　・ヘルスケアの睡眠データから取得できます
 　・血圧との関係を分析表示できます
 - 区分毎に測定時刻になると通知が届くように設定できるようになりました
@@ -1106,7 +1105,7 @@ iOSアプリ `Condition` のコードは `/usb256/GitWork/Condition` にある
 Vitalin 2.10.0 準備中、README.mdの開発メモ、公開アプリパネル、取扱説明を更新して
 履歴に　Xcode27.2　iOS27 を加えて
 -----
-cd /Users/sumpositive/GitLocal/Condition
+cd /Volumes/usb256/GitWork/Condition
 fastlane upload_metadata
 ---
 fastlane screenshots

@@ -5,4 +5,6 @@
 ・You can now get notified at measurement time
 　・Get a notification at your usual measurement time for each category (no sound or vibration)
 　・Tap the notification to open the measurement screen
-・Measurement: When you enter several readings, new rows now show the average so far as a guide
+・Adding measurements is easier
+　・When you enter several readings, new rows show the average so far as a guide
+　・Location / Device, notes, and the caution flag are now entered together in one sheet
